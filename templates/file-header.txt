@@ -1,5 +1,5 @@
 /*
- * this file is mpart of the project syncplus
+ * this file is part of the project syncplus
  *
  * (C) 2020, YOUR_NAME, YOUR_COMPANY
  *
