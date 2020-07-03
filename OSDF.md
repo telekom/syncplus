@@ -6,9 +6,9 @@
 *   [CX](#component-cX) - **License-of-CX-SPDX-Identifier**
 
 
-<!-- if the component list contains a component licensed under any copy left license: -->
+<!-- if the component list contains a component licensed under any copyleft license: -->
 ## written offer:
-This project uses sub components licensed under any copyleft license. So, we are obliged also to handover the source code to the user. For doing so, we select the method of granting a 'Written Offer' to you:
+This project uses sub-components licensed under any copyleft license. So, we are obliged also to handover the source code to the user. For doing so, we select the method of granting a 'Written Offer' to you:
 
 **INSERT YOUR WRITTEN OFFER HERE**
 <!-- fi -->
