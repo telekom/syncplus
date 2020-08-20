@@ -34,7 +34,7 @@ This project has adopted the [Contributor Covenant](https://www.contributor-cove
 
 We decided to apply _English_ as the primary project language.  
 
-Consequently, all content will be made available primarily in English. We also ask all interested people to use English as language to create issues, in their code (comments, documentation etc.) and when you send requests to us. The application itself and all end-user faing content will be made available in other languages as needed.
+Consequently, all content will be made available primarily in English. We also ask all interested people to use English as language to create issues, in their code (comments, documentation etc.) and when you send requests to us. The application itself and all end-user facing content will be made available in other languages as needed.
 
 ## Documentation
 
@@ -45,7 +45,7 @@ The following channels are available for discussions, feedback, and support requ
 
 | Type                     | Channel                                                |
 | ------------------------ | ------------------------------------------------------ |
-| **Issues**   | <a href="https://github.com/telekom/syncplus/issues/new/choose" title="Issues"><img src="https://img.shields.io/github/issues/telekom/syncplus/issues.svg?style=flat-square"></a> </a>   |
+| **Issues**   | <a href="https://github.com/telekom/syncplus/issues/new/choose" title="Issues"><img src="https://img.shields.io/github/issues/telekom/repobasics?style=flat-square"></a> </a>   |
 | **Other Requests**    | <a href="mailto:opensource@telekom.de" title="Email Open Source Team"><img src="https://img.shields.io/badge/email-Open%20Source%20Team-green?logo=mail.ru&style=flat-square&logoColor=white"></a>   |
 
 ## How to Contribute
