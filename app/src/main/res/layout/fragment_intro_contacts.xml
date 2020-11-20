@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    This file is part of SyncPlus.
+
+    Copyright (C) 2020  Deutsche Telekom AG
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/wrapper"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/white"
+    android:paddingTop="@dimen/marginTop">
+
+    <ImageButton
+        android:id="@+id/cancelButton"
+        android:layout_width="46dp"
+        android:layout_height="46dp"
+        android:layout_marginEnd="16dp"
+        android:background="@android:color/transparent"
+        android:padding="10dp"
+        android:scaleType="center"
+        android:src="@drawable/ic_cancel_dark"
+        app:layout_constraintRight_toRightOf="@id/wrapper"
+        app:layout_constraintTop_toTopOf="@id/wrapper"
+        tools:ignore="ContentDescription" />
+
+    <LinearLayout
+        android:id="@+id/contacts_wrapper"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/marginIntroStart"
+        android:layout_marginTop="32dp"
+        android:layout_marginEnd="@dimen/marginIntroStart"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:textAlignment="center"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <ImageView
+            android:id="@+id/illustration_cloud"
+            android:layout_width="@dimen/intro_image_width"
+            android:layout_height="@dimen/intro_image_height"
+            android:layout_marginStart="@dimen/intro_icon_dimen"
+            android:layout_marginEnd="@dimen/intro_icon_dimen"
+            android:layout_marginBottom="21dp"
+            android:src="@drawable/contacts_phone"
+            tools:ignore="ContentDescription" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:fontFamily="@font/telegrotesknext_regular"
+            android:maxWidth="328dp"
+            android:text="@string/intro_contacts_title"
+            android:textAlignment="center"
+            android:textSize="22sp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/telegrotesknext_regular"
+            android:lineHeight="22sp"
+            android:maxWidth="326dp"
+            android:text="@string/intro_contacts_text"
+            android:textAlignment="center"
+            android:textSize="17sp"
+            tools:ignore="UnusedAttribute" />
+    </LinearLayout>
+
+    <ImageView
+        android:layout_width="@dimen/intro_icon_dimen"
+        android:layout_height="@dimen/intro_icon_dimen"
+        android:layout_marginStart="@dimen/marginIntroStart"
+        android:src="@drawable/ic_address"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/contacts_wrapper"
+        tools:ignore="ContentDescription" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

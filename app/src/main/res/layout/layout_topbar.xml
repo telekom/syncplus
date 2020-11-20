@@ -1,0 +1,227 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    This file is part of SyncPlus.
+
+    Copyright (C) 2020  Deutsche Telekom AG
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<de.telekom.syncplus.ui.main.TopBar xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/topbar"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/header_bottom_decorator"
+    android:minHeight="@dimen/topBarHeight"
+    android:orientation="vertical"
+    android:paddingBottom="72dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="51dp"
+        android:layout_marginStart="8dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="8dp"
+        android:orientation="horizontal">
+
+        <ImageButton
+            android:id="@+id/backButton"
+            android:layout_width="51dp"
+            android:layout_height="51dp"
+            android:layout_gravity="start"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_left_outline"
+            tools:ignore="ContentDescription" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <ImageButton
+            android:id="@+id/helpButton"
+            android:layout_width="51dp"
+            android:layout_height="51dp"
+            android:layout_gravity="end|center"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:padding="12.5dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_help_solid"
+            tools:ignore="ContentDescription" />
+    </LinearLayout>
+
+    <!-- Change visibility and change text accordingly when needed -->
+    <LinearLayout
+        android:id="@+id/progress_indicator"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/topBarMarginStart"
+        android:layout_marginEnd="@dimen/topBarMarginStart"
+        android:orientation="vertical"
+        android:visibility="visible">
+
+        <TextView
+            android:id="@+id/stepTextView"
+            android:layout_width="match_parent"
+            android:layout_height="24dp"
+            android:layout_marginTop="3dp"
+            android:fontFamily="@font/telegrotesknext_medium"
+            android:gravity="center"
+            android:singleLine="true"
+            android:text="Schritt 2/4"
+            android:textAlignment="center"
+            android:textColor="@android:color/white"
+            android:textSize="@dimen/fontSizeMedium" />
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="4dp"
+            android:layout_marginStart="14dp"
+            android:layout_marginTop="15dp"
+            android:layout_marginEnd="14dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <View
+                    android:id="@+id/progressBar"
+                    android:layout_width="0dp"
+                    android:layout_height="4dp"
+                    android:layout_weight="0.5"
+                    android:background="@drawable/progressbar" />
+
+                <View
+                    android:id="@+id/progressBarFiller"
+                    android:layout_width="0dp"
+                    android:layout_height="0dp"
+                    android:layout_weight=".5" />
+            </LinearLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="4dp"
+                android:alpha="0.5"
+                android:background="@drawable/progressbar" />
+        </FrameLayout>
+
+        <TextView
+            android:id="@+id/descriptionText"
+            android:layout_width="match_parent"
+            android:layout_height="24dp"
+            android:layout_marginTop="11dp"
+            android:fontFamily="@font/telegrotesknext_medium"
+            android:gravity="center"
+            android:singleLine="true"
+            android:text="X doppelte Kontakte gefunden"
+            android:textAlignment="center"
+            android:textColor="@android:color/white"
+            android:textSize="@dimen/fontSizeMedium" />
+
+    </LinearLayout>
+
+    <!-- Change visibility and change text accordingly when needed -->
+    <LinearLayout
+        android:id="@+id/extraSectionWrapper"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:paddingLeft="@dimen/topBarMarginStart"
+        android:paddingTop="10dp"
+        android:paddingRight="@dimen/topBarMarginStart"
+        android:paddingBottom="@dimen/marginBottomTopbar"
+        android:visibility="visible">
+
+        <!-- Change visibility and change text accordingly when needed -->
+        <TextView
+            android:id="@+id/extraSectionDescription"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/telegrotesknext_medium"
+            android:text="Sollen doppelte Kontakte zusammengeführt und um die gefundenen Informationen ergänzt werden?"
+            android:textAlignment="center"
+            android:textColor="@android:color/white"
+            android:textSize="17sp"
+            android:visibility="gone" />
+
+        <ImageView
+            android:id="@+id/extraSectionGraphic"
+            android:layout_width="203dp"
+            android:layout_height="135dp"
+            android:layout_marginTop="20dp"
+            android:src="@drawable/ic_cloud_check"
+            android:visibility="visible"
+            tools:ignore="ContentDescription" />
+
+        <ImageView
+            android:id="@+id/extraSectionGraphicSmall"
+            android:layout_width="80dp"
+            android:layout_height="53dp"
+            android:layout_marginTop="20dp"
+            android:src="@drawable/ic_cloud_check"
+            android:visibility="gone"
+            tools:ignore="ContentDescription" />
+
+        <TextView
+            android:id="@+id/extraSectionTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="11dp"
+            android:fontFamily="@font/telegrotesknext_medium"
+            android:text="Einrichtung abgeschlossen"
+            android:textAlignment="center"
+            android:textColor="@android:color/white"
+            android:textSize="@dimen/fontSizeMedium"
+            android:visibility="gone" />
+
+        <!-- Change visibility and change text accordingly when needed -->
+        <LinearLayout
+            android:id="@+id/extraSectionLinkWrapper"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="40dp"
+            android:background="?android:selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:paddingStart="16dp"
+            android:paddingTop="10dp"
+            android:paddingEnd="16dp"
+            android:paddingBottom="10dp"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/extraSectionLinkText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="7dp"
+                android:text="Doppelte Kontakte anzeigen"
+                android:textAllCaps="true"
+                android:textColor="@android:color/white" />
+
+            <ImageView
+                android:id="@+id/extraSectionLinkArrow"
+                android:layout_width="14dp"
+                android:layout_height="8dp"
+                android:rotation="-90"
+                android:src="@drawable/ic_arrow_down"
+                android:tint="@android:color/white"
+                tools:ignore="ContentDescription" />
+        </LinearLayout>
+    </LinearLayout>
+
+</de.telekom.syncplus.ui.main.TopBar>

@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    This file is part of SyncPlus.
+
+    Copyright (C) 2020  Deutsche Telekom AG
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="49dp"
+    android:gravity="center_vertical"
+    android:paddingStart="@dimen/listItemPadding"
+    tools:ignore="RtlHardcoded,RtlSymmetry">
+
+    <ImageView
+        android:id="@+id/calendarImage"
+        android:layout_width="26dp"
+        android:layout_height="26dp"
+        android:src="@drawable/ic_calendar"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:ignore="ContentDescription" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="9dp"
+        android:paddingEnd="9dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintLeft_toRightOf="@id/calendarImage"
+        app:layout_constraintRight_toLeftOf="@id/editIcon"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <TextView
+            android:id="@+id/title"
+            style="@style/RegularTextStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/telegrotesknext_bold"
+            android:lineHeight="22sp"
+            android:singleLine="true"
+            android:text="Ferien Hessen Ferien Hessen Ferien Hessen Ferien Hessen"
+            android:textSize="@dimen/fontSizeSmall"
+            tools:ignore="UnusedAttribute" />
+
+        <TextView
+            android:id="@+id/subtitle"
+            style="@style/RegularTextStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="25dp"
+            android:lineHeight="18sp"
+            android:text="@string/write_protected"
+            android:textColor="#7C7C7C"
+            android:textSize="@dimen/fontSizeSmaller"
+            android:visibility="visible"
+            tools:ignore="UnusedAttribute" />
+
+    </LinearLayout>
+
+    <ImageView
+        android:id="@+id/editIcon"
+        android:layout_width="14dp"
+        android:layout_height="14dp"
+        android:layout_marginEnd="9dp"
+        android:src="@drawable/ic_edit_icon"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintRight_toLeftOf="@id/checkboxWrapper"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:ignore="ContentDescription" />
+
+    <LinearLayout
+        android:id="@+id/checkboxWrapper"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <com.google.android.material.checkbox.MaterialCheckBox
+            android:id="@+id/checkbox"
+            style="@style/checkBoxStyle"
+            android:layout_width="50dp"
+            android:layout_height="wrap_content"
+            android:checked="true" />
+
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

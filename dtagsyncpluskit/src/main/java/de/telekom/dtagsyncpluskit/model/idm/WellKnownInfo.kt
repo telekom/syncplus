@@ -1,0 +1,36 @@
+/**
+ * This file is part of SyncPlus.
+ *
+ * Copyright (C) 2020  Deutsche Telekom AG
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+package de.telekom.dtagsyncpluskit.model.idm
+
+import com.squareup.moshi.Json
+
+data class WellKnownInfo(
+    val issuer: String?,
+    @Json(name = "authorization_endpoint")
+    val authorizationEndpoint: String,
+    @Json(name = "token_endpoint")
+    val tokenEndpoint: String,
+    @Json(name = "userinfo_endpoint")
+    val userinfoEndpoint: String,
+    @Json(name = "scopes_supported")
+    val scopesSupported: List<String>?,
+    @Json(name = "claims_supported")
+    val claimsSupported: List<String>?
+)

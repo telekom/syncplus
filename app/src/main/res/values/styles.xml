@@ -1,0 +1,160 @@
+<!--
+    This file is part of SyncPlus.
+
+    Copyright (C) 2020  Deutsche Telekom AG
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<resources>
+
+    <!-- Base application theme. -->
+    <style name="AppTheme" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
+        <item name="colorAccent">@color/colorPrimary</item>
+        <item name="android:textColor">@color/textColor</item>
+        <item name="materialAlertDialogTheme">@style/MaterialDialogStyle</item>
+    </style>
+
+    <style name="RegularTextStyle">
+        <item name="android:fontFamily">@font/telegrotesknext_regular</item>
+        <item name="android:textColor">@color/textColor</item>
+        <item name="android:textSize">@dimen/fontSizeMedium</item>
+        <item name="android:textAlignment">textStart</item>
+    </style>
+
+    <style name="AppTheme.NoActionBar">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+    </style>
+
+    <style name="SplashTheme">
+        <item name="android:windowBackground">@drawable/splash</item>
+    </style>
+
+    <style name="Switch" parent="Theme.AppCompat.Light">
+        <!-- active thumb & track color -->
+        <item name="colorControlActivated">@color/greenColor</item>
+        <!-- inactive thumb color -->
+        <item name="colorSwitchThumbNormal">#F1F1F1</item>
+    </style>
+
+    <style name="AppTheme.AppBarOverlay" parent="ThemeOverlay.AppCompat.Dark.ActionBar" />
+
+    <style name="AppTheme.PopupOverlay" parent="ThemeOverlay.AppCompat.Light" />
+
+    <style name="MaterialDialogStyle" parent="Theme.MaterialComponents.Light.Dialog.Alert">
+        <item name="buttonBarPositiveButtonStyle">@style/Alert.Button.Positive</item>
+        <item name="buttonBarNegativeButtonStyle">@style/Alert.Button.Negative</item>
+        <!--<item name="fontFamily">@font/telegrotesknext_regular</item>-->
+        <item name="android:textColor">@color/textGreyColor</item>
+        <item name="lineHeight">@dimen/lineHeightMedium</item>
+    </style>
+
+    <style name="Alert.Title" parent="@style/TextAppearance.AppCompat.Title">
+        <item name="android:paddingStart">24dp</item>
+        <item name="android:paddingEnd">24dp</item>
+        <item name="android:paddingTop">14dp</item>
+        <item name="android:paddingBottom">14dp</item>
+        <item name="android:fontFamily">@font/telegrotesknext_medium</item>
+        <item name="android:textColor">@color/textGreyColor</item>
+        <item name="android:textSize">@dimen/fontSizeMedium</item>
+    </style>
+
+    <style name="Alert.Button.Positive" parent="Widget.MaterialComponents.Button.TextButton">
+        <item name="backgroundTint">@android:color/transparent</item>
+        <item name="rippleColor">@color/textGreyLightColor</item>
+        <item name="android:textColor">@color/colorPrimary</item>
+        <item name="android:textSize">@dimen/fontSizeSmaller</item>
+        <item name="android:textAllCaps">true</item>
+        <item name="android:fontFamily">@font/telegrotesknext_regular</item>
+    </style>
+
+    <style name="Alert.Button.Negative" parent="Widget.MaterialComponents.Button.TextButton">
+        <item name="backgroundTint">@android:color/transparent</item>
+        <item name="rippleColor">@color/textGreyLightColor</item>
+        <item name="android:textColor">@color/colorPrimary</item>
+        <item name="android:textSize">@dimen/fontSizeSmaller</item>
+        <item name="android:textAllCaps">true</item>
+        <item name="android:fontFamily">@font/telegrotesknext_regular</item>
+    </style>
+
+    <style name="checkBoxStyle" parent="AppTheme">
+        <item name="colorAccent">@color/colorPrimary</item>
+        <item name="android:textColorSecondary">#b2b2b2</item>
+    </style>
+
+    <style name="TextButton" parent="Widget.MaterialComponents.Button.TextButton">
+        <item name="android:fontFamily">@font/telegrotesknext_regular</item>
+        <!--<item name="android:lineHeight">25dp</item>-->
+        <item name="android:shadowColor">@android:color/transparent</item>
+        <item name="android:shadowDx">0</item>
+        <item name="android:shadowDy">0</item>
+        <item name="android:textColor">@color/colorAccent</item>
+        <item name="android:textSize">@dimen/fontSizeSmaller</item>
+        <item name="backgroundTint">@android:color/transparent</item>
+        <item name="cornerRadius">4dp</item>
+        <item name="rippleColor">@color/rippleColor</item>
+        <item name="android:paddingLeft">8dp</item>
+        <item name="android:paddingTop">12dp</item>
+        <item name="android:paddingRight">8dp</item>
+        <item name="android:paddingBottom">12dp</item>
+        <item name="android:letterSpacing">-0.02</item>
+    </style>
+
+    <style name="OutlineButton" parent="Widget.MaterialComponents.Button.OutlinedButton">
+        <item name="android:fontFamily">@font/telegrotesknext_medium</item>
+        <item name="android:letterSpacing">-0.02</item>
+        <!--<item name="android:lineHeight">21sp</item>-->
+        <item name="android:paddingLeft">16dp</item>
+        <item name="android:paddingTop">12dp</item>
+        <item name="android:paddingRight">16dp</item>
+        <item name="android:paddingBottom">12dp</item>
+        <item name="android:singleLine">true</item>
+        <item name="android:textAllCaps">true</item>
+        <item name="android:textColor">@color/outline_button_text_color</item>
+        <item name="android:textSize">@dimen/fontSizeVerySmall</item>
+        <item name="backgroundTint">@android:color/transparent</item>
+        <item name="cornerRadius">4dp</item>
+        <item name="rippleColor">@color/rippleColor</item>
+        <item name="strokeColor">@color/outline_button_border_color</item>
+        <item name="strokeWidth">1dp</item>
+    </style>
+
+    <style name="OutlineButton.Light" parent="OutlineButton">
+        <item name="rippleColor">#80FFFFFF</item>
+        <item name="android:textColor">@color/outline_button_text_color_light</item>
+        <item name="strokeColor">@color/outline_button_border_color_light</item>
+    </style>
+
+    <style name="RoundedButton" parent="Widget.MaterialComponents.Button.UnelevatedButton">
+        <item name="android:fontFamily">@font/telegrotesknext_medium</item>
+        <item name="android:letterSpacing">-0.02</item>
+        <item name="android:paddingLeft">16dp</item>
+        <item name="android:paddingTop">12dp</item>
+        <item name="android:paddingRight">16dp</item>
+        <item name="android:paddingBottom">12dp</item>
+        <item name="android:singleLine">true</item>
+        <item name="android:textAllCaps">true</item>
+        <item name="android:textColor">@color/rounded_button_text_color</item>
+        <item name="android:textSize">@dimen/fontSizeVerySmall</item>
+        <item name="backgroundTint">@color/rounded_button_background_color</item>
+        <item name="cornerRadius">4dp</item>
+        <!--<item name="rippleColor">@color/rippleColor</item>-->
+        <item name="rippleColor">#80FFFFFF</item>
+        <item name="strokeColor">@color/rounded_button_border_color</item>
+        <item name="strokeWidth">1dp</item>
+    </style>
+
+</resources>

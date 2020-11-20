@@ -1,0 +1,47 @@
+<!--
+    This file is part of SyncPlus.
+
+    Copyright (C) 2020  Deutsche Telekom AG
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="100dp"
+    android:height="67dp"
+    android:viewportWidth="207"
+    android:viewportHeight="139">
+    <path
+        android:fillAlpha="1"
+        android:fillColor="#ffffff"
+        android:fillType="nonZero"
+        android:pathData="M108.18,134.035C113.102,132.523 117.857,130.475 122.332,127.841C127.141,130.077 132.388,131.24 137.724,131.24C147.622,131.24 156.897,127.331 163.727,120.399C165.085,120.543 166.456,120.623 167.801,120.623C188.313,120.623 205,104.081 205,83.75C205,66.676 193.293,52.128 177.053,48.036C171.748,21.472 148.226,2 120.406,2C101.423,2 83.806,11.239 73.065,26.458C69.614,25.277 65.987,24.656 62.319,24.656C45.817,24.656 32.117,36.739 29.721,52.437C13.959,55.674 2,69.632 2,86.085C2,105.029 17.55,120.444 36.664,120.444C39.051,120.444 41.432,120.198 43.783,119.697C56.031,130.882 71.784,137 88.57,137C92.328,137 96.041,136.651 99.69,136.038C99.686,136.043 102.78,135.569 108.18,134.035Z"
+        android:strokeWidth="0"
+        android:strokeAlpha="1"
+        android:strokeColor="#FFFFFF" />
+    <group
+        android:name="rotatationGroup"
+        android:pivotX="107"
+        android:pivotY="72"
+        android:rotation="0"
+        android:scaleX="1.6"
+        android:scaleY="1.6">
+        <path
+            android:fillAlpha="1"
+            android:fillColor="#FFE20074"
+            android:fillType="nonZero"
+            android:pathData="M90.818,72.486C90.894,72.497 90.971,72.5 91.044,72.5C92.073,72.5 92.96,71.727 93.078,70.684C93.449,67.34 94.906,64.317 97.294,61.934C100.067,59.167 103.755,57.645 107.676,57.645C110.87,57.645 113.886,58.669 116.432,60.575L111.091,65.904L125.026,65.904L125.026,52L119.33,57.683C119.27,57.623 119.238,57.55 119.169,57.495C115.853,54.922 111.88,53.56 107.679,53.56C102.666,53.56 97.949,55.51 94.404,59.048C91.353,62.092 89.489,65.962 89.014,70.232C88.883,71.354 89.693,72.364 90.818,72.486ZM124.1,71.528C123.001,71.455 122.002,72.301 121.923,73.428C121.681,76.954 120.17,80.28 117.671,82.788C114.905,85.561 111.228,87.086 107.316,87.086C103.928,87.086 100.765,85.954 98.143,83.831L102.899,79.063L89,79.063L89,93L95.261,86.723C95.307,86.77 95.331,86.832 95.383,86.876C98.772,89.692 102.899,91.182 107.314,91.182C112.314,91.182 117.018,89.229 120.556,85.684C123.752,82.474 125.685,78.225 125.995,73.711C126.074,72.584 125.225,71.605 124.1,71.528Z"
+            android:strokeWidth="0"
+            android:strokeColor="#00000000" />
+    </group>
+</vector>

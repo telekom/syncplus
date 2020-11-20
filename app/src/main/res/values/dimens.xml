@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    This file is part of SyncPlus.
+
+    Copyright (C) 2020  Deutsche Telekom AG
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<resources>
+    <dimen name="topBarHeight">235dp</dimen>
+    <dimen name="topBarMarginStart">16dp</dimen>
+    <dimen name="fontSizeBig">26sp</dimen>
+    <dimen name="fontSizeMedium">21sp</dimen>
+    <dimen name="fontSizeSmall">18sp</dimen>
+    <dimen name="fontSizeSmaller">16sp</dimen>
+    <!-- fontSizeVerySmall used to be 15sp. It's just too small -->
+    <dimen name="fontSizeVerySmall">15sp</dimen>
+    <dimen name="lineHeightMedium">24sp</dimen>
+    <dimen name="marginStart">16dp</dimen>
+    <dimen name="marginEnd">@dimen/marginStart</dimen>
+    <dimen name="marginTop">16dp</dimen>
+    <dimen name="marginBottom">16dp</dimen>
+    <dimen name="fab_margin">16dp</dimen>
+    <dimen name="dividerSmall">10dp</dimen>
+    <dimen name="listItemPadding">19dp</dimen>
+    <dimen name="marginTopSmall">10dp</dimen>
+    <dimen name="marginTopMedium">20dp</dimen>
+    <dimen name="marginTopLarge">32dp</dimen>
+    <dimen name="marginStartMedium">24dp</dimen>
+    <dimen name="marginEndMedium">@dimen/marginStartMedium</dimen>
+    <dimen name="marginStartSmall">9dp</dimen>
+    <dimen name="marginEndSmall">@dimen/marginStartSmall</dimen>
+    <dimen name="marginBottomLarge">32dp</dimen>
+    <dimen name="marginBottomExtraLarge">64dp</dimen>
+    <dimen name="dialogPadding">24dp</dimen>
+
+    <dimen name="marginIntroStart">16dp</dimen>
+    <dimen name="marginIntroBottom">30dp</dimen>
+    <dimen name="intro_icon_dimen">41dp</dimen>
+    <dimen name="button_margin_bottom">24dp</dimen>
+    <dimen name="welcome_cloud_width">82dp</dimen>
+    <dimen name="welcome_cloud_height">54dp</dimen>
+    <dimen name="welcome_logo_width">64dp</dimen>
+    <dimen name="welcome_logo_height">31dp</dimen>
+    <dimen name="marginBottomHigh">24dp</dimen>
+    <dimen name="marginMedium">24dp</dimen>
+    <dimen name="listPadding">0dp</dimen>
+    <dimen name="marginBottomTopbar">64dp</dimen>
+    <dimen name="marginBottomEmail">0dp</dimen>
+    <dimen name="email_icon_playstore">64dp</dimen>
+    <dimen name="marginTopEmail">0dp</dimen>
+    <dimen name="fontSizeEmailBig">18sp</dimen>
+    <dimen name="fontSizeEmailSmall">16sp</dimen>
+    <dimen name="intro_image_width">187dp</dimen>
+    <dimen name="intro_image_height">215dp</dimen>
+    <dimen name="marginStartDefault">16dp</dimen>
+    <dimen name="marginEndDefault">16dp</dimen>
+    <dimen name="switchMargin">8dp</dimen>
+</resources>

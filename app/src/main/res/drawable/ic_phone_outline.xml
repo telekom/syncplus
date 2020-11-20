@@ -1,0 +1,36 @@
+<!--
+    This file is part of SyncPlus.
+
+    Copyright (C) 2020  Deutsche Telekom AG
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <group>
+        <clip-path android:pathData="M0,0H48V48H0Z" />
+        <group>
+            <clip-path android:pathData="M35.4,42.1c0,0 0.1,0 0.2,-0.1h0.1C37,42 38,40.9 38.6,40.3L39.9,39c0.1,-0.1 0.1,-0.4 0,-0.5L31.8,30.4c0,0 -0.1,-0.1 -0.3,-0.1c-0.1,0 -0.2,0.1 -0.2,0.1l-2.8,2.8l-0.8,-0.5C27.6,32.6 24.8,31 21,27.1C17.2,23.3 15.5,20.6 15.4,20.4L15,19.7l2.8,-2.8c0.1,-0.1 0.1,-0.5 0,-0.6L9.7,8.2c-0.1,0 -0.2,0 -0.3,0c-0.2,0 -0.3,0 -0.3,0L7.8,9.6c-0.6,0.6 -1.6,1.6 -1.7,2.9C5.8,14.7 9.5,21 18.3,29.8C26.7,38.3 33,42.1 35.4,42.1ZM35.4,44.4C30,44.4 19.7,34.5 16.7,31.5C13.5,28.3 3.2,17.5 3.8,12.3C4,10.1 5.4,8.7 6.2,7.9L7.5,6.6C8,6.1 8.7,5.9 9.4,5.9c0.7,0 1.4,0.2 1.9,0.7l8.1,8.1c0.5,0.5 0.7,1.2 0.7,1.9c0,0.7 -0.2,1.4 -0.7,1.9L17.9,20c0.7,1 2.2,3 4.7,5.5c2.5,2.5 4.5,4 5.5,4.8l1.5,-1.5c0.5,-0.5 1.2,-0.8 1.9,-0.8c0.8,0 1.5,0.3 1.9,0.8l8.1,8.1c1,1 1,2.8 0,3.7L40.2,42c-0.8,0.7 -2.2,2.2 -4.3,2.3c-0.2,0 -0.4,0.1 -0.5,0.1Z" />
+            <path
+                android:fillColor="#262626"
+                android:pathData="M-3.8,-1.7H49.9V52H-3.8Z" />
+            <path
+                android:fillColor="#262626"
+                android:pathData="M-7.5,-7.5h64v64h-64Z" />
+        </group>
+    </group>
+</vector>

@@ -1,0 +1,331 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    This file is part of SyncPlus.
+
+    Copyright (C) 2020  Deutsche Telekom AG
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingTop="18dp"
+        android:paddingBottom="100dp">
+
+        <TextView
+            android:id="@+id/email"
+            style="@style/RegularTextStyle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:layout_marginBottom="10dp"
+            android:lineHeight="26sp"
+            android:paddingStart="@dimen/marginStart"
+            android:paddingEnd="@dimen/marginEnd"
+            android:singleLine="true"
+            android:text="max.mustermann@t-online.de"
+            android:textSize="@dimen/fontSizeMedium"
+            tools:ignore="UnusedAttribute" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:orientation="vertical">
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginStart="@dimen/listPadding"
+                android:layout_marginEnd="@dimen/listPadding"
+                android:background="@color/dividerColor" />
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="50dp"
+                android:minHeight="49dp"
+                android:paddingStart="@dimen/marginStart"
+                android:paddingEnd="@dimen/marginEnd">
+
+                <TextView
+                    android:id="@+id/syncnowtextview"
+                    style="@style/RegularTextStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="18dp"
+                    android:fontFamily="@font/telegrotesknext_bold"
+                    android:lineHeight="22sp"
+                    android:paddingStart="0dp"
+                    android:paddingEnd="10dp"
+                    android:text="@string/sync_now"
+                    android:textColor="@color/textColor"
+                    android:textSize="16sp"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    tools:ignore="UnusedAttribute" />
+
+                <TextView
+                    android:id="@+id/lastsync"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="5dp"
+                    android:fontFamily="@font/telegrotesknext_regular"
+                    android:text="@string/synctext_format"
+                    android:textColor="#7C7C7C"
+                    android:textSize="@dimen/fontSizeVerySmall"
+                    android:visibility="gone"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/syncnowtextview" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/syncnowButton"
+                    style="@style/RoundedButton"
+                    android:layout_width="47dp"
+                    android:layout_height="42dp"
+                    android:layout_marginTop="8dp"
+                    android:layout_marginBottom="8dp"
+                    android:insetLeft="0dp"
+                    android:insetTop="0dp"
+                    android:insetRight="0dp"
+                    android:insetBottom="0dp"
+                    android:padding="0dp"
+                    app:icon="@drawable/ic_sync_now_icon"
+                    app:iconGravity="textStart"
+                    app:iconPadding="0dp"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginStart="@dimen/listPadding"
+                android:layout_marginEnd="@dimen/listPadding"
+                android:background="@color/dividerColor" />
+
+            <LinearLayout
+                android:id="@+id/calendar_wrapper"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="50dp"
+                android:minHeight="49dp"
+                android:orientation="vertical">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:minHeight="49dp"
+                    android:orientation="horizontal"
+                    android:paddingStart="@dimen/marginStart"
+                    android:paddingEnd="@dimen/marginEnd">
+
+                    <TextView
+                        style="@style/RegularTextStyle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/telegrotesknext_bold"
+                        android:lineHeight="22sp"
+                        android:text="@string/calendar"
+                        android:textColor="@color/textGreyLightColor"
+                        android:textSize="17sp"
+                        tools:ignore="UnusedAttribute" />
+
+                    <View
+                        android:layout_width="0dp"
+                        android:layout_height="0dp"
+                        android:layout_weight="1" />
+
+                    <Switch
+                        android:id="@+id/calendarSwitch"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:theme="@style/Switch" />
+                </LinearLayout>
+
+                <!-- Expandable area here -->
+                <LinearLayout
+                    android:id="@+id/calendarListWrapper"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:paddingStart="@dimen/listPadding"
+                    android:paddingEnd="@dimen/listPadding">
+
+                    <ListView
+                        android:id="@+id/calendarList"
+                        android:layout_width="match_parent"
+                        android:layout_height="0dp"
+                        android:divider="@android:color/transparent"
+                        android:dividerHeight="0dp"
+                        android:nestedScrollingEnabled="false"
+                        android:overScrollMode="never"
+                        tools:ignore="NestedScrolling,Suspicious0dp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginStart="@dimen/listPadding"
+                android:layout_marginEnd="@dimen/listPadding"
+                android:background="@color/dividerColor" />
+
+            <LinearLayout
+                android:id="@+id/addressbook_wrapper"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="50dp"
+                android:orientation="vertical"
+                android:paddingStart="@dimen/marginStart"
+                android:paddingEnd="@dimen/marginEnd">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:minHeight="49dp"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        style="@style/RegularTextStyle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/telegrotesknext_bold"
+                        android:lineHeight="22sp"
+                        android:text="@string/address_book"
+                        android:textColor="@color/textGreyLightColor"
+                        android:textSize="17sp"
+                        tools:ignore="UnusedAttribute" />
+
+                    <View
+                        android:layout_width="0dp"
+                        android:layout_height="0dp"
+                        android:layout_weight="1" />
+
+                    <Switch
+                        android:id="@+id/addressBookSwitch"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:theme="@style/Switch" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/synctext"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="-4dp"
+                    android:fontFamily="@font/telegrotesknext_regular"
+                    android:text="@string/synctext_format"
+                    android:textColor="#7C7C7C"
+                    android:textSize="@dimen/fontSizeVerySmall" />
+
+            </LinearLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginStart="@dimen/listPadding"
+                android:layout_marginEnd="@dimen/listPadding"
+                android:background="@color/dividerColor" />
+
+            <LinearLayout
+                android:id="@+id/more_settings_wrapper"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingStart="@dimen/marginStart"
+                android:paddingEnd="@dimen/marginEnd">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="12dp"
+                    android:gravity="start|center"
+                    android:minHeight="49dp">
+
+                    <TextView
+                        style="@style/RegularTextStyle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/telegrotesknext_bold"
+                        android:lineHeight="22sp"
+                        android:text="@string/other_settings"
+                        android:textColor="@color/textGreyLightColor"
+                        android:textSize="17sp"
+                        tools:ignore="UnusedAttribute" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="-2dp"
+                    android:fontFamily="@font/telegrotesknext_regular"
+                    android:text="@string/sync_timing_description"
+                    android:textColor="@color/textGreyLightColor"
+                    android:textSize="13sp" />
+
+                <FrameLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="40dp">
+
+                    <com.jaredrummler.materialspinner.MaterialSpinner
+                        android:id="@+id/moreSettingsDropdown"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/telegrotesknext_regular"
+                        android:textColor="@color/textColor"
+                        android:textSize="@dimen/fontSizeSmall"
+                        app:ms_background_color="@android:color/white"
+                        app:ms_padding_left="0dp" />
+
+                    <TextView
+                        android:id="@+id/moreSettingsText"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:fontFamily="@font/telegrotesknext_regular"
+                        android:gravity="center_vertical"
+                        android:paddingStart="0dp"
+                        android:paddingEnd="16dp"
+                        android:paddingBottom="4dp"
+                        android:text="Alle 4 Stunden"
+                        android:textColor="@color/textColor"
+                        android:textSize="@dimen/fontSizeSmall" />
+
+                    <Button
+                        android:id="@+id/moreSettingsButton"
+                        style="@style/TextButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent" />
+                </FrameLayout>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="@color/dividerColor" />
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+
+</ScrollView>

@@ -1,0 +1,39 @@
+<!--
+    This file is part of SyncPlus.
+
+    Copyright (C) 2020  Deutsche Telekom AG
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="52dp"
+    android:height="46dp"
+    android:viewportWidth="52"
+    android:viewportHeight="46">
+    <path
+        android:fillColor="#262626"
+        android:fillType="nonZero"
+        android:pathData="M39.501,43L3.501,43C3.23,43 3.001,42.771 3.001,42.5L3.001,3.5C3.001,3.229 3.23,3 3.501,3L39.501,3C40.33,3 41.001,2.328 41.001,1.5C41.001,0.672 40.33,0 39.501,0L3.501,0C1.571,0 0.001,1.57 0.001,3.5L0.001,42.5C0.001,44.43 1.571,46 3.501,46L39.501,46C40.33,46 41.001,45.328 41.001,44.5C41.001,43.672 40.33,43 39.501,43ZM52.001,23L40.001,11L40.001,21.5L16.001,21.5C15.172,21.5 14.501,22.172 14.501,23C14.501,23.828 15.172,24.5 16.001,24.5L40.001,24.5L40.001,35L52.001,23Z"
+        android:strokeWidth="1"
+        android:strokeColor="#00000000" />
+    <group>
+        <clip-path android:pathData="M39.501,43L3.501,43C3.23,43 3.001,42.771 3.001,42.5L3.001,3.5C3.001,3.229 3.23,3 3.501,3L39.501,3C40.33,3 41.001,2.328 41.001,1.5C41.001,0.672 40.33,0 39.501,0L3.501,0C1.571,0 0.001,1.57 0.001,3.5L0.001,42.5C0.001,44.43 1.571,46 3.501,46L39.501,46C40.33,46 41.001,45.328 41.001,44.5C41.001,43.672 40.33,43 39.501,43ZM52.001,23L40.001,11L40.001,21.5L16.001,21.5C15.172,21.5 14.501,22.172 14.501,23C14.501,23.828 15.172,24.5 16.001,24.5L40.001,24.5L40.001,35L52.001,23Z" />
+        <path
+            android:fillColor="#262626"
+            android:fillType="evenOdd"
+            android:pathData="M-5,55l64,0l0,-64l-64,0z"
+            android:strokeWidth="1"
+            android:strokeColor="#00000000" />
+    </group>
+</vector>

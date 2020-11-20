@@ -1,0 +1,44 @@
+<!--
+    This file is part of SyncPlus.
+
+    Copyright (C) 2020  Deutsche Telekom AG
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="65dp"
+    android:height="63dp"
+    android:viewportWidth="65"
+    android:viewportHeight="63">
+  <path
+      android:pathData="M62.6186,9.7334L53.7202,0.8349C53.3025,0.4162 52.779,0.2058 52.2556,0.2058C51.7321,0.2058 51.2087,0.4151 50.79,0.8349L8.915,42.7099L11.1134,44.9084L52.2556,3.7662L59.6884,11.199L18.5462,52.3422L20.7446,54.5407L62.6196,12.6657C63.4561,11.8271 63.4561,10.4662 62.6186,9.7334ZM5.7754,45.8506L17.6051,57.6802L2.9237,62.7848C2.7101,62.8707 2.484,62.9146 2.2568,62.9146C2.0307,62.9146 1.8035,62.8707 1.59,62.7848C1.3775,62.6979 1.1775,62.5681 1.0048,62.3954C0.831,62.2226 0.7012,62.0227 0.6143,61.8081C0.5284,61.5956 0.4855,61.3684 0.4855,61.1412C0.4855,60.9151 0.5284,60.6879 0.6143,60.4754L5.7754,45.8506Z"
+      android:strokeWidth="1"
+      android:fillColor="#7C7C7C"
+      android:fillType="nonZero"
+      android:strokeColor="#00000000"/>
+  <path
+      android:pathData="M6.8516,1.6641L64.4297,59.2422"
+      android:strokeWidth="1"
+      android:fillColor="#00000000"
+      android:strokeColor="#FFFFFF"
+      android:fillType="evenOdd"
+      android:strokeLineCap="round"/>
+  <path
+      android:pathData="M4.7578,3.7578L62.3359,61.3359"
+      android:strokeWidth="1"
+      android:fillColor="#00000000"
+      android:strokeColor="#7C7C7C"
+      android:fillType="evenOdd"
+      android:strokeLineCap="round"/>
+</vector>

@@ -1,0 +1,24 @@
+<!--
+    This file is part of SyncPlus.
+
+    Copyright (C) 2020  Deutsche Telekom AG
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<vector android:height="26dp" android:viewportHeight="68"
+    android:viewportWidth="68" android:width="26dp" xmlns:android="http://schemas.android.com/apk/res/android">
+    <path android:fillColor="#262626" android:fillType="nonZero"
+        android:pathData="M53.1261,4.25L8.5011,4.25C7.3323,4.25 6.3761,5.2063 6.3761,6.375L6.3761,61.625C6.3761,62.7938 7.3323,63.75 8.5011,63.75L53.1261,63.75C54.2948,63.75 55.2511,62.7938 55.2511,61.625L55.2511,6.375C55.2511,5.2063 54.2948,4.25 53.1261,4.25ZM13.8136,60.5625L9.5636,60.5625L9.5636,7.4375L13.8136,7.4375L13.8136,60.5625ZM52.0636,60.5625L15.9386,60.5625L15.9386,7.4375L52.0636,7.4375L52.0636,60.5625ZM57.3803,44.625L57.3803,59.5L59.5053,59.5C60.0908,59.5 60.5678,59.0229 60.5678,58.4375L60.5678,44.4295C60.2342,44.5485 59.8804,44.625 59.5053,44.625L57.3803,44.625ZM59.5053,8.5L57.3803,8.5L57.3803,25.5L59.5053,25.5C60.0908,25.5 60.5678,25.0229 60.5678,24.4375L60.5678,9.5625C60.5678,8.9771 60.0908,8.5 59.5053,8.5ZM57.3803,27.625L57.3803,42.5L59.5053,42.5C60.0908,42.5 60.5678,42.0229 60.5678,41.4375L60.5678,27.4295C60.2342,27.5485 59.8804,27.625 59.5053,27.625L57.3803,27.625ZM46.1847,40.2209C46.1847,37.4074 43.9046,35.1273 41.0911,35.0625L27.4061,35.0625C24.5926,35.1284 22.3136,37.4085 22.3136,40.2209L22.3136,42.1387L46.1847,42.1387L46.1847,40.2209ZM34.0011,32.9375C37.1163,32.9375 39.3136,30.294 39.3136,27.2978L39.3136,22.6408C39.3136,19.6446 37.1163,17.0011 34.0011,17.0011C30.8858,17.0011 28.6886,19.6446 28.6886,22.6408L28.6886,27.2978C28.6886,30.294 30.8858,32.9375 34.0011,32.9375Z"
+        android:strokeColor="#00000000" android:strokeWidth="1"/>
+</vector>

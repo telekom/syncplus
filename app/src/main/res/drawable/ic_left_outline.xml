@@ -1,0 +1,39 @@
+<!--
+    This file is part of SyncPlus.
+
+    Copyright (C) 2020  Deutsche Telekom AG
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="20dp"
+    android:height="10dp"
+    android:viewportWidth="52"
+    android:viewportHeight="26">
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillType="nonZero"
+        android:pathData="M13.001,11.5L50.503,11.538C51.33,11.539 52.001,12.21 52.001,13.038L52.001,13.039C52,13.868 51.328,14.539 50.499,14.538L13.001,14.5L13.001,26L0.001,12.998L13.001,0L13.001,11.5Z"
+        android:strokeWidth="1"
+        android:strokeColor="#00000000" />
+    <group>
+        <clip-path android:pathData="M13.001,11.5L50.503,11.538C51.33,11.539 52.001,12.21 52.001,13.038L52.001,13.039C52,13.868 51.328,14.539 50.499,14.538L13.001,14.5L13.001,26L0.001,12.998L13.001,0L13.001,11.5Z M 0,0" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:fillType="evenOdd"
+            android:pathData="M-5,45l64,0l0,-64l-64,0z"
+            android:strokeWidth="1"
+            android:strokeColor="#00000000" />
+    </group>
+</vector>

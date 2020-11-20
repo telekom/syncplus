@@ -1,0 +1,5 @@
+include ':app', ':dtagsyncpluskit'
+rootProject.name='SyncPlus'
+include ':cert4android'
+include ':ical4android'
+include ':vcard4android'

@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    This file is part of SyncPlus.
+
+    Copyright (C) 2020  Deutsche Telekom AG
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="start|center"
+    android:orientation="horizontal"
+    android:paddingStart="19dp"
+    android:paddingTop="50dp"
+    android:paddingEnd="19dp"
+    android:paddingBottom="50dp">
+
+    <FrameLayout
+        android:layout_width="66dp"
+        android:layout_height="65dp"
+        android:layout_marginEnd="15dp">
+
+        <ImageView
+            android:id="@+id/hiddenButton"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/ic_sync_plus_appicon"
+            tools:ignore="ContentDescription" />
+
+    </FrameLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="start|center"
+        android:orientation="vertical">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/telegrotesknext_regular"
+            android:text="@string/app_name"
+            android:textSize="24sp" />
+
+        <TextView
+            android:id="@+id/version"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/telegrotesknext_regular"
+            android:text="Version 1.4"
+            android:textColor="@color/textGreyLightColor"
+            android:textSize="@dimen/fontSizeSmaller" />
+
+        <TextView
+            android:id="@+id/copyright"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/telegrotesknext_regular"
+            android:text="@string/copyright"
+            android:textColor="@color/textGreyLightColor"
+            android:textSize="@dimen/fontSizeSmaller" />
+    </LinearLayout>
+</LinearLayout>

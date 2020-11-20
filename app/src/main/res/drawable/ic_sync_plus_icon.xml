@@ -1,0 +1,36 @@
+<!--
+    This file is part of SyncPlus.
+
+    Copyright (C) 2020  Deutsche Telekom AG
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="71dp"
+    android:viewportWidth="108"
+    android:viewportHeight="71">
+  <path
+      android:pathData="M56.341,69.431C58.952,68.636 61.475,67.559 63.85,66.174C66.402,67.35 69.186,67.961 72.017,67.961C77.269,67.961 82.191,65.906 85.815,62.261C86.535,62.336 87.263,62.378 87.976,62.378C98.86,62.378 107.715,53.679 107.715,42.989C107.715,34.01 101.503,26.36 92.886,24.208C90.071,10.239 77.59,0 62.828,0C52.755,0 43.408,4.859 37.708,12.861C35.877,12.24 33.952,11.914 32.006,11.914C23.25,11.914 15.98,18.268 14.709,26.522C6.346,28.225 0,35.564 0,44.216C0,54.178 8.251,62.284 18.393,62.284C19.66,62.284 20.923,62.155 22.171,61.892C28.67,67.773 37.028,70.99 45.935,70.99C47.929,70.99 49.899,70.807 51.836,70.485C51.833,70.487 53.476,70.238 56.341,69.431Z"
+      android:strokeWidth="1"
+      android:fillColor="#FEF4F9"
+      android:fillType="nonZero"
+      android:strokeColor="#00000000"/>
+  <path
+      android:pathData="M40.148,37.241C40.216,37.25 40.283,37.253 40.348,37.253C41.252,37.253 42.032,36.57 42.135,35.649C42.461,32.697 43.742,30.029 45.841,27.926C48.278,25.483 51.519,24.139 54.966,24.139C57.773,24.139 60.424,25.043 62.662,26.726L57.967,31.43L70.216,31.43L70.216,19.156L65.209,24.173C65.157,24.12 65.128,24.055 65.068,24.007C62.153,21.735 58.661,20.534 54.969,20.534C50.562,20.534 46.417,22.255 43.301,25.377C40.619,28.065 38.98,31.481 38.563,35.25C38.448,36.241 39.16,37.132 40.148,37.241ZM69.758,36.301C68.789,36.236 67.908,36.981 67.839,37.974C67.625,41.08 66.294,44.01 64.092,46.219C61.654,48.662 58.413,50.005 54.966,50.005C51.98,50.005 49.192,49.008 46.882,47.137L51.073,42.938L38.824,42.938L38.824,55.215L44.342,49.686C44.382,49.726 44.404,49.782 44.45,49.82C47.436,52.301 51.073,53.614 54.964,53.614C59.371,53.614 63.516,51.892 66.634,48.77C69.451,45.943 71.154,42.2 71.427,38.224C71.497,37.231 70.748,36.368 69.758,36.301Z"
+      android:strokeWidth="1"
+      android:fillColor="#E20074"
+      android:fillType="nonZero"
+      android:strokeColor="#00000000"/>
+</vector>

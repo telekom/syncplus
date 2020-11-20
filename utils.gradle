@@ -1,0 +1,11 @@
+def getEnvHashMapAsString(envMap) {
+    def hashMap = "new java.util.HashMap<String, String[]>() " + "{" + "{\n"
+    envMap.each { k, v ->
+        hashMap += "put(\"${k}\", " + "new String[] { \"${v[0]}\", \"${v[1]}\", \"${v[2]}\", \"${v[3]}\", \"${v[4]}\", \"${v[5]}\" });\n"
+    }
+    return hashMap + "}" + "}"
+}
+
+ext {
+    getEnvHashMapAsString = this.&getEnvHashMapAsString
+}

@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    This file is part of SyncPlus.
+
+    Copyright (C) 2020  Deutsche Telekom AG
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/white"
+    android:orientation="vertical">
+
+    <TextView
+        android:id="@android:id/title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/dialogPadding"
+        android:layout_marginTop="@dimen/marginTopMedium"
+        android:layout_marginEnd="@dimen/dialogPadding"
+        android:fontFamily="@font/telegrotesknext_medium"
+        android:lineHeight="25dp"
+        android:text="Kontakte nicht synchronisiert"
+        android:textColor="@color/textGreyColor"
+        android:textSize="@dimen/fontSizeMedium"
+        tools:ignore="UnusedAttribute" />
+
+    <TextView
+        android:id="@android:id/text1"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/dialogPadding"
+        android:layout_marginTop="@dimen/marginTop"
+        android:layout_marginEnd="@dimen/dialogPadding"
+        android:fontFamily="@font/telegrotesknext_regular"
+        android:lineHeight="21dp"
+        android:text="Wenn Sie diesen Vorgang abbrechen, werden Ihre bisher auf diesem Gerät vorhandenen Kontakte nicht synchronisiert."
+        android:textColor="@color/textGreyColor"
+        android:textSize="@dimen/fontSizeSmall"
+        tools:ignore="UnusedAttribute" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="55dp"
+        android:orientation="horizontal"
+        android:paddingStart="@dimen/dialogPadding"
+        android:paddingEnd="@dimen/dialogPadding">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@android:id/button1"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="0dp"
+            android:layout_height="55dp"
+            android:layout_weight="0.5"
+            android:fontFamily="@font/telegrotesknext_regular"
+            android:letterSpacing="-0.02"
+            android:paddingRight="4dp"
+            android:shadowColor="@android:color/transparent"
+            android:shadowDx="0"
+            android:shadowDy="0"
+            android:singleLine="true"
+            android:text="@string/button_title_cancel"
+            android:textAlignment="textStart"
+            android:textColor="@color/colorPrimary"
+            android:textSize="@dimen/fontSizeVerySmall"
+            app:cornerRadius="4dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@android:id/button2"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="0dp"
+            android:layout_height="55dp"
+            android:layout_weight="0.7"
+            android:fontFamily="@font/telegrotesknext_regular"
+            android:letterSpacing="-0.02"
+            android:paddingLeft="4dp"
+            android:shadowColor="@android:color/transparent"
+            android:shadowDx="0"
+            android:shadowDy="0"
+            android:singleLine="true"
+            android:text="Kopieren abbrechen"
+            android:textAlignment="textEnd"
+            android:textColor="@color/colorPrimary"
+            android:textSize="@dimen/fontSizeVerySmall"
+            app:cornerRadius="4dp" />
+
+    </LinearLayout>
+
+</LinearLayout>

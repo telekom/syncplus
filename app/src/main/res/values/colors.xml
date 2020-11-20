@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    This file is part of SyncPlus.
+
+    Copyright (C) 2020  Deutsche Telekom AG
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<resources>
+    <color name="colorPrimary">#E20074</color>
+    <color name="colorPrimaryLowerOpacity">#41E20074</color>
+    <color name="colorPrimaryLowestOpacity">#28E20074</color>
+
+    <color name="colorPrimaryDark">#D30F74</color>
+    <color name="colorAccent">#00739F</color>
+    <color name="textColor">#262626</color>
+    <color name="textColorDisabled">#80262626</color>
+    <color name="textGreyColor">#383838</color>
+    <color name="textGreyLightColor">#6B6B6B</color>
+    <color name="dividerColor">#D0D0D0</color>
+    <color name="dividerColorHalfTransparent">#80D0D0D0</color>
+    <color name="dividerColorDark">#B2B2B2</color>
+    <color name="greenColor">#6BB324</color>
+    <color name="greenLightColor">#BCEA8F</color>
+    <color name="linkColor">#007FAF</color>
+    <color name="listSelected">#EDEDED</color>
+
+    <!-- Button Color -->
+    <color name="button_border_color">#6B6B6B</color>
+    <color name="button_border_color_disabled">#806B6B6B</color>
+    <color name="rippleColor">#33ACACAC</color>
+
+</resources>

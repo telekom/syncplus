@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    This file is part of SyncPlus.
+
+    Copyright (C) 2020  Deutsche Telekom AG
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@color/colorPrimary"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="49dp"
+        android:layout_margin="0dp"
+        android:orientation="horizontal">
+
+        <ImageButton
+            android:id="@+id/backButtonSmall"
+            android:layout_width="51dp"
+            android:layout_height="51dp"
+            android:layout_gravity="start"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:paddingLeft="4dp"
+            android:src="@drawable/ic_left_outline"
+            tools:ignore="ContentDescription,RtlHardcoded,RtlSymmetry" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <!-- Change visibility and change text accordingly when needed -->
+        <ImageButton
+            android:id="@+id/helpButtonSmall"
+            android:layout_width="51dp"
+            android:layout_height="51dp"
+            android:layout_gravity="end|center"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:padding="12.5dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_help_solid"
+            android:visibility="gone"
+            tools:ignore="ContentDescription" />
+
+        <ImageButton
+            android:id="@+id/closeButtonSmall"
+            android:layout_width="51dp"
+            android:layout_height="51dp"
+            android:layout_gravity="end|center"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:padding="12.5dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_cancel"
+            android:visibility="gone"
+            tools:ignore="ContentDescription" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/colorPrimary"
+        android:orientation="horizontal"
+        android:paddingStart="@dimen/marginStartDefault"
+        android:paddingTop="0dp"
+        android:paddingEnd="@dimen/marginEndDefault"
+        android:paddingBottom="15dp">
+
+        <TextView
+            android:id="@+id/topbarTitle"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:fontFamily="@font/telegrotesknext_regular"
+            android:gravity="center_vertical"
+            android:text="@string/placeholder"
+            android:textColor="@android:color/white"
+            android:textSize="38sp" />
+    </LinearLayout>
+
+</LinearLayout>

@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    This file is part of SyncPlus.
+
+    Copyright (C) 2020  Deutsche Telekom AG
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:paddingStart="@dimen/listItemPadding"
+    android:paddingTop="38dp"
+    android:paddingEnd="@dimen/listItemPadding"
+    android:paddingBottom="38dp">
+
+    <ImageView
+        android:id="@+id/icon"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:scaleType="fitCenter"
+        android:src="@drawable/ic_chat_outline"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:ignore="ContentDescription" />
+
+    <TextView
+        android:id="@+id/title"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:fontFamily="@font/telegrotesknext_regular"
+        android:gravity="top"
+        android:singleLine="true"
+        android:text="Fragen Sie die Community"
+        android:textColor="@color/textColor"
+        android:textSize="@dimen/fontSizeMedium"
+        app:layout_constraintLeft_toRightOf="@id/icon"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toTopOf="@id/icon" />
+
+    <TextView
+        android:id="@+id/text"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:fontFamily="@font/telegrotesknext_regular"
+        android:singleLine="false"
+        android:text="Finden Sie schnell Antworten auf Ihre Frage oder tauschen Sie sich mit anderen Mitgliedern in der Community aus."
+        android:textColor="@color/textColor"
+        android:textSize="@dimen/fontSizeSmall"
+        app:layout_constraintLeft_toLeftOf="@id/title"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/title" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/button"
+        style="@style/TextButton"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="@dimen/marginBottom"
+        android:gravity="start"
+        android:paddingStart="44dp"
+        android:text="Zur Telekom hilft Community"
+        android:textAllCaps="false"
+        android:textColor="@color/linkColor"
+        android:textSize="@dimen/fontSizeSmall"
+        android:visibility="visible"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/text" />
+
+    <TextView
+        android:id="@+id/disclaimer"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:fontFamily="@font/telegrotesknext_regular"
+        android:text="Kostenlos, rund um die Uhr, 7 Tage die Woche."
+        android:textColor="#535353"
+        android:textSize="@dimen/fontSizeVerySmall"
+        android:visibility="gone"
+        app:layout_constraintLeft_toLeftOf="@id/text"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/text" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

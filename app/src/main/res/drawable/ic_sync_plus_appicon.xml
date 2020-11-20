@@ -1,0 +1,91 @@
+<!--
+    This file is part of SyncPlus.
+
+    Copyright (C) 2020  Deutsche Telekom AG
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="195dp"
+    android:height="195dp"
+    android:viewportWidth="195"
+    android:viewportHeight="195">
+    <group>
+        <clip-path android:pathData="M180.161,0C188.194,0 194.767,6.581 194.767,14.625L194.767,180.375C194.767,188.419 188.194,195 180.161,195L14.616,195C6.583,195 0.01,188.419 0.01,180.375L0.013,14.625C0.013,6.581 6.586,0 14.62,0L180.161,0Z" />
+        <path
+            android:fillType="evenOdd"
+            android:pathData="M-315,3315l5853,0l0,-4464l-5853,0z"
+            android:strokeWidth="1"
+            android:strokeColor="#00000000">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:endX="0.00973771"
+                    android:endY="3072"
+                    android:startX="0.00973771"
+                    android:startY="-5.279999E-7"
+                    android:type="linear">
+                    <item
+                        android:color="#FFE20074"
+                        android:offset="0" />
+                    <item
+                        android:color="#FFFF329B"
+                        android:offset="1" />
+                </gradient>
+            </aapt:attr>
+        </path>
+    </group>
+    <group>
+        <clip-path android:pathData="M180.161,0C188.194,0 194.767,6.581 194.767,14.625L194.767,180.375C194.767,188.419 188.194,195 180.161,195L14.616,195C6.583,195 0.01,188.419 0.01,180.375L0.013,14.625C0.013,6.581 6.586,0 14.62,0L180.161,0Z" />
+        <path
+            android:fillType="evenOdd"
+            android:pathData="M-315,3315l5853,0l0,-4464l-5853,0z"
+            android:strokeWidth="1"
+            android:strokeColor="#00000000">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:endX="97.38875"
+                    android:endY="-5.279999E-7"
+                    android:startX="97.38875"
+                    android:startY="195"
+                    android:type="linear">
+                    <item
+                        android:color="#FFE20074"
+                        android:offset="0" />
+                    <item
+                        android:color="#FFFF329B"
+                        android:offset="1" />
+                </gradient>
+            </aapt:attr>
+        </path>
+    </group>
+    <group>
+        <clip-path android:pathData="M109.455,48.266C129.473,48.266 146.397,62.416 150.214,81.721C161.899,84.695 170.322,95.267 170.322,107.676C170.322,122.45 158.316,134.472 143.557,134.472C142.589,134.472 141.603,134.413 140.625,134.31C135.711,139.347 129.038,142.188 121.916,142.188C118.076,142.188 114.301,141.342 110.841,139.717C107.621,141.632 104.2,143.12 100.659,144.219C96.773,145.334 94.547,145.678 94.55,145.675C91.924,146.12 89.253,146.373 86.549,146.373C74.471,146.373 63.136,141.927 54.323,133.799C52.632,134.163 50.918,134.342 49.201,134.342C35.448,134.342 24.26,123.139 24.26,109.372C24.26,97.416 32.865,87.272 44.206,84.919C45.93,73.512 55.787,64.73 67.661,64.73C70.3,64.73 72.909,65.182 75.393,66.04C83.121,54.98 95.796,48.266 109.455,48.266Z" />
+        <path
+            android:fillColor="#FEF4F9"
+            android:fillType="evenOdd"
+            android:pathData="M9.26,33.266l176.062,0l0,128.108l-176.062,0z"
+            android:strokeWidth="1"
+            android:strokeColor="#00000000" />
+    </group>
+    <group>
+        <clip-path android:pathData="M118.338,98.574L118.495,98.579C119.835,98.67 120.848,99.837 120.754,101.179C120.384,106.555 118.079,111.615 114.269,115.437C110.049,119.659 104.44,121.986 98.477,121.986C93.213,121.986 88.292,120.211 84.251,116.857C84.189,116.805 84.16,116.73 84.105,116.675L84.105,116.675L76.639,124.15L76.639,107.552L93.213,107.552L87.542,113.23C90.668,115.758 94.44,117.107 98.481,117.107C103.145,117.107 107.53,115.291 110.828,111.988C113.808,109.002 115.609,105.04 115.898,100.841C115.992,99.499 117.183,98.491 118.495,98.579L118.338,98.574ZM119.115,75.4L119.115,91.994L102.541,91.994L108.894,85.634C105.865,83.359 102.278,82.137 98.481,82.137C93.816,82.137 89.431,83.954 86.133,87.256C83.293,90.1 81.56,93.707 81.118,97.698C80.979,98.943 79.924,99.866 78.7,99.866C78.612,99.866 78.522,99.863 78.431,99.85C77.093,99.704 76.129,98.498 76.285,97.159C76.85,92.063 79.067,87.444 82.696,83.811C86.912,79.589 92.521,77.262 98.484,77.262C103.479,77.262 108.205,78.887 112.149,81.958C112.23,82.023 112.269,82.111 112.341,82.183L112.341,82.183L119.115,75.4Z" />
+        <path
+            android:fillColor="#E20074"
+            android:fillType="evenOdd"
+            android:pathData="M61.269,60.4l74.491,0l0,78.75l-74.491,0z"
+            android:strokeWidth="1"
+            android:strokeColor="#00000000" />
+    </group>
+</vector>

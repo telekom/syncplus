@@ -1,0 +1,35 @@
+<!--
+    This file is part of SyncPlus.
+
+    Copyright (C) 2020  Deutsche Telekom AG
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="71dp"
+    android:height="71dp"
+    android:viewportWidth="71"
+    android:viewportHeight="71">
+    <group
+        android:rotation="-90"
+        android:translateX="15.5"
+        android:translateY="71">
+        <path
+            android:fillColor="#262626"
+            android:fillType="evenOdd"
+            android:pathData="M67.4922,0.4277C68.3125,0.4277 68.9961,0.7012 69.543,1.248C70.0899,1.8633 70.3633,2.564 70.3633,3.3501C70.3633,4.1362 70.0899,4.8369 69.543,5.4521L35.3975,39.5977L1.252,5.4521C0.7051,4.7685 0.4316,4.0337 0.4316,3.2476C0.4316,2.4614 0.7051,1.7949 1.252,1.248C1.7988,0.7012 2.4824,0.4277 3.3027,0.4277C4.1231,0.4277 4.8066,0.7012 5.3535,1.248L35.3975,31.292L65.4414,1.248C65.9883,0.7012 66.6719,0.4277 67.4922,0.4277Z"
+            android:strokeWidth="1"
+            android:strokeColor="#00000000" />
+    </group>
+</vector>

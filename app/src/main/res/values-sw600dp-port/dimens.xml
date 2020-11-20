@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    This file is part of SyncPlus.
+
+    Copyright (C) 2020  Deutsche Telekom AG
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<resources>
+    <dimen name="topBarHeight">304dp</dimen>
+    <dimen name="topBarMarginStart">217dp</dimen>
+
+
+
+
+
+
+
+    <dimen name="marginStart">134dp</dimen>
+    <dimen name="marginEnd">@dimen/marginStart</dimen>
+
+    <dimen name="marginBottom">24dp</dimen>
+
+    <dimen name="dividerSmall">30dp</dimen>
+
+
+
+
+
+    <dimen name="marginStartMedium">221dp</dimen>
+    <dimen name="marginEndMedium">@dimen/marginStartMedium</dimen>
+    <dimen name="marginStartSmall">129dp</dimen>
+    <dimen name="marginEndSmall">@dimen/marginStartSmall</dimen>
+    <dimen name="marginBottomLarge">32dp</dimen>
+    <dimen name="marginBottomExtraLarge">64dp</dimen>
+
+    <dimen name="marginIntroStart">201dp</dimen>
+    <dimen name="marginIntroBottom">321dp</dimen>
+    <dimen name="intro_icon_dimen">56dp</dimen>
+    <dimen name="button_margin_bottom">280dp</dimen>
+    <dimen name="welcome_cloud_width">120dp</dimen>
+    <dimen name="welcome_cloud_height">80dp</dimen>
+    <dimen name="welcome_logo_width">73dp</dimen>
+    <dimen name="welcome_logo_height">36dp</dimen>
+    <dimen name="marginBottomHigh">241dp</dimen>
+    <dimen name="marginMedium">64dp</dimen>
+    <dimen name="listPadding">@dimen/marginStart</dimen>
+    <dimen name="marginBottomTopbar">147dp</dimen>
+    <dimen name="marginBottomEmail">256dp</dimen>
+    <dimen name="email_icon_playstore">80dp</dimen>
+    <dimen name="marginTopEmail">24dp</dimen>
+    <dimen name="fontSizeEmailBig">21sp</dimen>
+    <dimen name="fontSizeEmailSmall">18sp</dimen>
+    <dimen name="intro_image_width">319dp</dimen>
+    <dimen name="intro_image_height">243dp</dimen>
+    <dimen name="listItemPadding">0dp</dimen>
+    <dimen name="switchMargin">24dp</dimen>
+</resources>

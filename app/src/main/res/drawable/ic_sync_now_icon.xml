@@ -1,0 +1,30 @@
+<!--
+    This file is part of SyncPlus.
+
+    Copyright (C) 2020  Deutsche Telekom AG
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="47dp"
+    android:height="42dp"
+    android:viewportWidth="47"
+    android:viewportHeight="42">
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillType="nonZero"
+        android:pathData="M14.415,21.5882C14.4559,21.5941 14.4967,21.5955 14.5361,21.5955C15.0862,21.5955 15.5604,21.1795 15.6232,20.6186C15.8216,18.82 16.6008,17.1942 17.8775,15.9126C19.36,14.4245 21.3312,13.6057 23.428,13.6057C25.1351,13.6057 26.7475,14.1564 28.1088,15.1817L25.2533,18.0481L32.7036,18.0481L32.7036,10.5694L29.6584,13.6262C29.6263,13.594 29.6088,13.5544 29.5723,13.5251C27.7995,12.141 25.675,11.4087 23.4294,11.4087C20.749,11.4087 18.2277,12.4574 16.3323,14.36C14.701,15.9975 13.7044,18.0788 13.4506,20.3754C13.3805,20.9789 13.8139,21.5223 14.415,21.5882ZM32.4249,21.0155C31.8354,20.976 31.2999,21.43 31.2576,22.0349C31.1277,23.9273 30.3179,25.7127 28.9784,27.0588C27.496,28.5469 25.5247,29.3656 23.428,29.3656C21.6114,29.3656 19.9159,28.7578 18.5108,27.6183L21.0598,25.0595L13.6096,25.0595L13.6096,32.5396L16.9656,29.1708C16.9904,29.1957 17.0035,29.2294 17.0312,29.2529C18.8478,30.7644 21.0598,31.5641 23.4265,31.5641C26.1069,31.5641 28.6283,30.5154 30.5251,28.6128C32.2381,26.8903 33.2741,24.6098 33.4404,22.1872C33.4827,21.5823 33.0275,21.0565 32.4249,21.0155Z"
+        android:strokeWidth="1"
+        android:strokeColor="#00000000" />
+</vector>

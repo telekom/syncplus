@@ -1,0 +1,39 @@
+<!--
+    This file is part of SyncPlus.
+
+    Copyright (C) 2020  Deutsche Telekom AG
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="100dp"
+    android:height="67dp"
+    android:viewportWidth="207"
+    android:viewportHeight="139">
+    <path
+        android:fillAlpha="0.49037388"
+        android:fillColor="#00000000"
+        android:fillType="nonZero"
+        android:pathData="M108.18,134.035C113.102,132.523 117.857,130.475 122.332,127.841C127.141,130.077 132.388,131.24 137.724,131.24C147.622,131.24 156.897,127.331 163.727,120.399C165.085,120.543 166.456,120.623 167.801,120.623C188.313,120.623 205,104.081 205,83.75C205,66.676 193.293,52.128 177.053,48.036C171.748,21.472 148.226,2 120.406,2C101.423,2 83.806,11.239 73.065,26.458C69.614,25.277 65.987,24.656 62.319,24.656C45.817,24.656 32.117,36.739 29.721,52.437C13.959,55.674 2,69.632 2,86.085C2,105.029 17.55,120.444 36.664,120.444C39.051,120.444 41.432,120.198 43.783,119.697C56.031,130.882 71.784,137 88.57,137C92.328,137 96.041,136.651 99.69,136.038C99.686,136.043 102.78,135.569 108.18,134.035Z"
+        android:strokeWidth="5"
+        android:strokeAlpha="1"
+        android:strokeColor="#FFFFFF" />
+    <path
+        android:fillColor="#00000000"
+        android:fillType="evenOdd"
+        android:pathData="M76.056,78.337L93.087,94.365L133.943,53.634"
+        android:strokeWidth="5"
+        android:strokeColor="#FFFFFF"
+        android:strokeLineCap="round" />
+</vector>

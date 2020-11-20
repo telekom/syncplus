@@ -1,0 +1,39 @@
+<!--
+    This file is part of SyncPlus.
+
+    Copyright (C) 2020  Deutsche Telekom AG
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="52dp"
+    android:height="52dp"
+    android:viewportWidth="52"
+    android:viewportHeight="52">
+    <path
+        android:fillColor="#000000"
+        android:fillType="nonZero"
+        android:pathData="M50,0L2,0C0.8954,0 0,0.8954 0,2L0,50C0,51.1046 0.8954,52 2,52L50,52C51.1046,52 52,51.1046 52,50L52,2C52,0.8954 51.1046,0 50,0ZM49,49L3,49L3,3L49,3L49,49ZM27.56,11L24.56,11L24.56,15L27.56,15L27.56,11ZM31,37L27.5,37L27.5,19L21,19L21,22L24.5,22L24.5,37L21,37L21,40L31,40L31,37Z"
+        android:strokeWidth="1"
+        android:strokeColor="#00000000" />
+    <group>
+        <clip-path android:pathData="M50,0L2,0C0.8954,0 0,0.8954 0,2L0,50C0,51.1046 0.8954,52 2,52L50,52C51.1046,52 52,51.1046 52,50L52,2C52,0.8954 51.1046,0 50,0ZM49,49L3,49L3,3L49,3L49,49ZM27.56,11L24.56,11L24.56,15L27.56,15L27.56,11ZM31,37L27.5,37L27.5,19L21,19L21,22L24.5,22L24.5,37L21,37L21,40L31,40L31,37Z" />
+        <path
+            android:fillColor="#262626"
+            android:fillType="evenOdd"
+            android:pathData="M-6,58l64,0l0,-64l-64,0z"
+            android:strokeWidth="1"
+            android:strokeColor="#00000000" />
+    </group>
+</vector>

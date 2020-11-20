@@ -1,0 +1,203 @@
+<!--
+    This file is part of SyncPlus.
+
+    Copyright (C) 2020  Deutsche Telekom AG
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<resources>
+    <string name="app_name">SyncPlus</string>
+
+    <!-- Various -->
+    <string name="all_contacts">Alle Kontakte</string>
+    <string name="button_title_back">Zurück</string>
+    <string name="button_title_freemail_booking">Jetzt kostenlos einrichten</string>
+    <string name="button_title_accept">Übernehmen</string>
+    <string name="button_title_cancel">Abbrechen</string>
+    <string name="button_title_retry">Wiederholen</string>
+    <string name="button_title_next">Weiter</string>
+
+    <!-- Strings used for fragments for navigation -->
+    <string name="first_fragment_label">First Fragment</string>
+    <string name="second_fragment_label">Second Fragment</string>
+    <string name="next">Next</string>
+    <string name="previous">Previous</string>
+
+    <string name="hello_first_fragment">Hello first fragment</string>
+    <string name="hello_second_fragment">Hello second fragment. Arg: %1$s</string>
+
+    <!-- Notifications -->
+    <string name="notification_channel_debugging">Fehlersuche</string>
+    <string name="notification_channel_general">Andere wichtige Mitteilungen</string>
+    <string name="notification_channel_sync">Synchronisierung</string>
+    <string name="notification_channel_sync_errors">Synchronisierungsfehler</string>
+    <string name="notification_channel_sync_errors_desc">Fehler, die zum Abbruch der Synchronisation führen, wie beispielsweise unerwartete Serverantworten</string>
+    <string name="notification_channel_sync_warnings">Synchronisierungswarnungen</string>
+    <string name="notification_channel_sync_warnings_desc">Nicht fatale Synchronisierungsprobleme wie bestimmte ungültige Dateien</string>
+    <string name="notification_channel_sync_io_errors">Netzwerk- und E/A-Fehler</string>
+    <string name="notification_channel_sync_io_errors_desc">Zeitüberschreitungen, Verbindungsprobleme, usw. (oft vorübergehend)</string>
+
+    <string name="dialog_demo_title">Berechtigung für Kontaktimport notwendig</string>
+    <string name="dialog_demo_message">Um Kontakte von Ihrem Gerät in Ihr Adressbuch in der Cloud zu übertragen, wird der Zugriff auf die Kontakte benötigt.</string>
+
+    <!--global settings-->
+    <string name="logging_couldnt_create_file">Protokolldatei konnte nicht angelegt werden</string>
+    <string name="logging_notification_title">Sync-Plus-Protokollierung</string>
+    <string name="logging_notification_text">Alle Sync-Plus-Aktivitäten werden protokolliert</string>
+    <string name="logging_notification_send_log">Protokoll senden</string>
+    <string name="authority_debug_provider" translatable="false">de.telekom.sync.plus.debug</string>
+
+    <!-- INTRO -->
+    <string name="button_next">Weiter</string>
+    <string name="button_setup">Jetzt Einrichten</string>
+    <string name="intro_cloud_text">Ihre Kontakte, Kalender und E-Mails <b>– immer aktuell auf allen Geräten und sicher gespeichert in der Telekom Cloud.</b></string>
+    <string name="intro_calendar_title">Keine Geburtstage mehr vergessen – <b>behalten Sie alle Termine im Blick.</b></string>
+    <string name="intro_calendar_text">Die Sync-Plus App synchronisiert den Telekom Kalender mit Ihrem Smartphone. Sie finden dann alle Ihre Termine gesammelt in der Kalender-App.</string>
+    <string name="intro_contacts_title"><b>Immer griffbereit</b> – Ihre Telefonnummern und Adressen.</string>
+    <string name="intro_contacts_text">Die Sync-Plus App synchronisiert das Telekom Adressbuch mit den Kontakten Ihres Smartphones. Sie finden danach alle Ihre Telefonnummern und Adressen in der Kontakte-App.</string>
+    <string name="intro_mail_title">Lesen Sie Ihre E-Mails – <b>jederzeit und überall.</b></string>
+    <string name="intro_mail_text">Mit der Sync-Plus App werden Ihre E-Mails ständig synchronisiert. Diese können dann in der E-Mail-App Ihres Smartphones abgerufen werden.</string>
+
+    <!-- Activity Titles -->
+    <string name="title_activity_setup">Sync-Plus Einrichten</string>
+    <string name="title_activity_intro">IntroActivity</string>
+    <string name="title_activity_help">Informationen</string>
+    <string name="title_activity_contacts">Alle Kontakte</string>
+    <string name="title_activity_list_contacts">Alle Kontakte</string>
+    <string name="title_activity_duplicated_contacts">Doppelte Kontakte</string>
+    <string name="title_activity_contact_detail">Kontakte Detail</string>
+    <string name="setup_description">Wählen Sie aus, welche Daten Sie mit Ihren installierten Apps synchronisieren möchten.</string>
+    <string name="setup_calendar">Kalender</string>
+    <string name="setup_email">E-Mail</string>
+    <string name="setup_addressbook">Adressbuch</string>
+
+    <!-- Top Bar -->
+    <string name="topbar_steps">Schritt %1$d/%2$d</string>
+    <string name="topbar_title_setup">Synchronisation einrichten</string>
+    <string name="topbar_title_copy_contacts">Kontakte kopieren</string>
+    <string name="topbar_title_email">E-Mail einrichten</string>
+
+    <!-- Email Setup -->
+    <string name="setup_email_description">Laden Sie die Telekom Mail App herunter und loggen Sie sich mit Ihrer E-Mail-Adresse und Ihrem E-Mail-Passwort ein.</string>
+    <string name="setup_email_download_mailapp">Telekom Mail App herunterladen</string>
+    <string name="setup_email_redirect_playstore">Sie werden zu Google Play Store weitergeleitet</string>
+    <string name="setup_email_preinstalled">Vorinstallierte E-Mail App</string>
+    <string name="setup_email_preinstalled_description">Alternativ können Sie in den Einstellungen Ihres Geräts ein Konto aus einem der dort aufgeführten E-Mail-Programme hinzufügen.</string>
+
+    <!-- Calendar Setup -->
+    <string name="setup_calendar_description">Wählen Sie die Kalender aus, die Sie synchronisieren möchten.</string>
+    <string name="setup_contact_description">Kopieren Sie zunächst die Kontakte von Ihrem Smartphone in Ihr Adressbuch in der Telekom Cloud.</string>
+    <string name="setup_contacts_button_skip">Überspringen</string>
+    <string name="setup_contacts_button_next">Kontakte kopieren</string>
+    <string name="setup_contacts_disclaimer">Bitte haben Sie etwas Geduld, da der Import der Kontaktdaten mehrere Minuten dauern kann.</string>
+
+    <!-- Contacts Activity -->
+    <string name="activity_contacts_all_contacts">Alle Kontakte</string>
+    <string name="copy_contacts_in_progress">Ihre Kontakte werden kopiert …</string>
+    <string name="button_title_cancel_copy">Kopieren abbrechen</string>
+    <string name="dialog_sync_cancel">Sie haben die Synchronisation abgebrochen.</string>
+    <string name="dialog_button_title_close">Schliessen</string>
+    <string name="dialog_sync_error_title">Fehler beim Kopiervorgang</string>
+    <string name="dialog_sync_error_text">Es gab leider ein technisches Problem während des Kopierens Ihrer Kontakte. Möchten Sie es nochmal versuchen?</string>
+    <string name="dialog_sync_confirm_title">Kontakte nicht synchronisiert</string>
+    <string name="dialog_sync_confirm_text">Wenn Sie diesen Vorgang überspringen, werden Ihre bisher auf diesem Gerät vorhandenen Kontakte nicht synchronisiert.</string>
+    <string name="dialog_login_failed_title">Login fehlgeschlagen</string>
+
+    <string name="dialog_login_failed_title_no_account">E-Mail-Adresse anlegen</string>
+    <string name="dialog_login_failed_text_no_account">Um die Sync-Plus App nutzen zu können, benötigen Sie eine E-Mail Adresse @t-online.de/@magenta.de.</string>
+
+    <!-- Contact Duplicates -->
+    <string name="copy_success">Ihre Kontakte wurden kopiert</string>
+    <string name="contacts_do_not_merge">Nicht zusammenführen</string>
+    <string name="contacts_merge">Kontakte zusammenführen</string>
+    <string name="duplicates_found_title_single">%1$d doppelten Kontakt gefunden</string>
+    <string name="duplicates_found_title_multiple">%1$d doppelte Kontakte gefunden</string>
+    <string name="contacts_duplicates_merge_description">Sollen doppelte Kontakte zusammengeführt und um die gefundenen Informationen ergänzt werden?</string>
+    <string name="button_title_show_duplicates">Doppelte Kontakte anzeigen</string>
+    <string name="duplicated_contacts_merge_description">Doppelte Kontakte werden wie folgt zusammengeführt:</string>
+    <string name="contact_details_title">Kontakt-Details</string>
+    <string name="company">Firma</string>
+    <string name="position">Position</string>
+    <string name="phone">Telefon</string>
+    <string name="phone_private">Privat</string>
+    <string name="phone_mobile">Mobil</string>
+    <string name="phone_business">Beruflich</string>
+    <string name="phone_private_mobile">Privat (Mobil)</string>
+    <string name="phone_business_mobile">Beruflich (Mobil)</string>
+    <string name="phone_private_fax">Privat (Fax)</string>
+    <string name="phone_business_fax">Beruflich (Fax)</string>
+    <string name="phone_private_voip">Privat (VoIP)</string>
+    <string name="phone_business_voip">Beruflich (VoIP)</string>
+    <string name="unknown">Unbekannt</string>
+    <string name="email">E-Mail</string>
+    <string name="dialog_contacts_not_merged">Kontakte nicht zusammengeführt</string>
+    <string name="dialog_contacts_not_merged_description">Wenn Sie diesen Vorgang überspringen, werden Ihre doppelten Kontakte nicht zusammengeführt und werden einzeln in Ihrem Adressbuch erscheinen.</string>
+    <string name="write_protected">(Schreibgeschützt)</string>
+    <string name="dialog_permission_required_title">Berechtigung für Kontaktimport notwendig</string>
+    <string name="dialog_permission_required_text">Um Kontakte von Ihrem Gerät in Ihr Adressbuch in der Cloud zu übertragen, wird der Zugriff auf die Kontakte benötigt.</string>
+    <string name="button_title_ok">OK</string>
+    <string name="topbar_title_sync_calendar">Kalender synchronisieren</string>
+    <string name="setup_finished">Einrichtung abgeschlossen</string>
+    <string name="button_title_new_account">Neues Konto einrichten</string>
+    <string name="account_sync_description">Dieses Konto ist über die Sync-Plus App mit der Telekom Cloud synchronisiert.</string>
+    <string name="activity_login_title">Login</string>
+    <string name="manage_accounts">Manage accounts</string>
+    <string name="calendar">Kalender</string>
+    <string name="address_book">Adressbuch</string>
+    <string name="copyright">© 2020 Telekom Deutschland AG</string>
+    <string name="information">Informationen</string>
+    <string name="help_and_answers">Hilfe und Antworten</string>
+    <string name="help_for_syncplus">Hilfe zu Sync-Plus</string>
+    <string name="reach_us">So erreichen Sie uns</string>
+    <string name="disclaimer">Hinweise</string>
+    <string name="datasecurity">Datenschutz</string>
+    <string name="imprint">Impressum</string>
+    <string name="legal">Rechtliches</string>
+    <string name="licenses">Lizenzen</string>
+    <string name="version_text">Version %1$s (%2$d)</string>
+    <string name="contact_title_row0">Fragen Sie die Community</string>
+    <string name="contact_text_row0">Finden Sie schnell Antworten auf Ihre Frage oder tauschen Sie sich mit anderen Mitgliedern in der Community aus.</string>
+    <string name="contact_linktext_row0">Zur Telekom hilft Community</string>
+    <string name="contact_title_row1">Sie haben Fragen zu Sync-Plus?</string>
+    <string name="contact_text_row1">Unser Digitaler Assistent beantwortet Ihre Fragen ganz ohne Wartezeit.</string>
+    <string name="contact_linktext_row1">Chat starten</string>
+    <string name="contact_title_row2">Hotlines</string>
+    <string name="contact_text_row2">Kundenservice Festnetz:
+0800 33 01000
+Kundenservice Mobilfunk:
+0800 33 02202
+vom Handy: 2202</string>
+    <string name="contact_disclaimer_row2">Kostenlos, rund um die Uhr, 7 Tage die Woche.</string>
+    <string name="welcome_title">Herzlich willkommen 
+ bei Sync-Plus!</string>
+    <string name="welcome_new_account">Neues Konto einrichten</string>
+    <string name="message_new_account">Richten Sie mithilfe dieser App ein neues Konto bei Sync-Plus ein und Ihre E-Mails, Adressbücher und Kalender sind auf diesem Gerät immer aktuell.</string>
+    <string name="button_back_to_accounts">Zurück zu Ihrem Konto</string>
+    <string name="syncplus_accounts">Sync-Plus Konto</string>
+    <string name="remove_account">Konto entfernen</string>
+    <string name="remove_account_text">Wollen Sie dieses Konto und alle synchronisierten Daten darin von Ihrem Gerät entfernen?</string>
+    <string name="title_settings">Einstellungen</string>
+    <string name="other_settings">Weitere Einstellungen</string>
+    <string name="sync_timing_description">Häufigkeit der Synchronisation</string>
+    <string name="every_x_hours">Alle %1$d Stunden</string>
+    <string name="every_x_minutes">Alle %1$d Minuten</string>
+    <string name="synctext_format">Letzte Synchronisation am %1$s</string>
+    <string name="dialog_login_duplicated_title">Account existiert bereits</string>
+    <string name="fallbackName"><![CDATA[<Unbekannt>]]></string>
+    <string name="please_wait">Einen Moment bitte …</string>
+    <string name="contact">Kontakt</string>
+    <string name="placeholder">CHANGE ME PLEASE</string>
+    <string name="sync_now">Daten jetzt synchronisieren</string>
+    <string name="sync_done">Synchronisation abgeschlossen</string>
+</resources>
