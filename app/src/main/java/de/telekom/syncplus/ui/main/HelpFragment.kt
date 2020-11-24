@@ -130,7 +130,7 @@ class HelpFragment : BaseFragment() {
                     }
                     7 -> {
                         /* Lizenzen */
-                        val url = Uri.parse("file:///android_asset/osdf.html")
+                        val url = Uri.parse("file:///android_asset/osdf-git.html")
                         mTitleView?.text = getString(R.string.licenses)
                         push(R.id.container, WebViewFragment.newInstance(url))
                     }

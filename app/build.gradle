@@ -12,6 +12,36 @@ licenseReport {
     generateJsonReport = false
 }
 
+def getGithubSourceCodeZipURL = { ->
+    def gitRef = System.getenv("CI_COMMIT_REF_NAME")
+    if(!gitRef){
+        gitRef = gitBranch()
+    }
+    def githubUrl = "https://github.com/telekom/syncplus/archive/" + gitRef + ".zip"
+
+    copy {
+        from("src/main/assets")
+        into("src/main/assets")
+        include("osdf.html")
+        filter{ it.replaceAll("@@GITHUB_SOURCECODE_ZIP_URL@@", githubUrl)}
+        rename { String fileName ->
+            fileName.replace("osdf", "osdf-git")
+        }
+    }
+
+    return githubUrl
+}
+
+static def gitBranch() {
+    def branch = ""
+    def proc = "git rev-parse --abbrev-ref HEAD".execute()
+    proc.in.eachLine { line -> branch = line }
+    proc.err.eachLine { line -> println line }
+    proc.waitFor()
+    branch
+}
+
+
 android {
     compileSdkVersion 29
     buildToolsVersion "29.0.3"
@@ -30,7 +60,7 @@ android {
         applicationId "de.telekom.sync.plus"
         minSdkVersion 21
         targetSdkVersion 29
-        versionCode 27
+        versionCode 28
         versionName "1.4.3"
         multiDexEnabled true
 
@@ -39,6 +69,9 @@ android {
         buildConfigField "java.util.Map<String, String[]>", "ENVIRON", getEnvHashMapAsString(env)
         resValue "string", "REDIRECT_SCHEME", redirectScheme
         resValue "string", "REDIRECT_URI", redirectUri
+
+        /*builConfigField "String", "{GITHUB_SOURCECODE_ZIP_URL}", getGithubSourceCodeZipURL()*/
+        print getGithubSourceCodeZipURL()
     }
 
     flavorDimensions "environment"
