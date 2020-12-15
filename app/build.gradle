@@ -5,6 +5,7 @@ apply plugin: 'kotlin-android-extensions'
 apply plugin: 'kotlin-kapt'
 apply from: '../env/env.gradle'
 apply from: '../utils.gradle'
+apply plugin: 'birdflightupload'
 
 licenseReport {
     // To generate the report, run the gradle task 'licenseDevDebugReport'.
@@ -60,8 +61,8 @@ android {
         applicationId "de.telekom.sync.plus"
         minSdkVersion 21
         targetSdkVersion 29
-        versionCode 28
-        versionName "1.4.3"
+        versionCode 29
+        versionName "1.4.4"
         multiDexEnabled true
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
@@ -153,3 +154,18 @@ dependencies {
     androidTestImplementation 'androidx.test.ext:junit:1.1.1'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.2.0'
 }
+
+
+// Configure the extension
+birdflightuploadExtension {
+    apiKey = birdflightApiKey
+    appKey = birdflightAppKey
+    id = "syncplus-aos-cicd-" + System.getenv("CI_PIPELINE_ID") + "-" + System.getenv("CI_JOB_ID")
+    appVersion = gitBranch()
+    compatiblity = "Android"
+    notes = System.getenv("CI_COMMIT_REF_NAME") + "\n" + System.getenv("CI_COMMIT_MESSAGE")+ "\n" + System.getenv("CI_COMMIT_SHORT_SHA")
+    isPublic = "true"
+    httpProxyHost = "proxy.infrastruktur.aul.t-online.de"
+    httpProxyPort = 3128
+}
+

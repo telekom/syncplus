@@ -6,11 +6,15 @@ buildscript {
         google()
         jcenter()
 
+        maven {
+            url "https://dl.bintray.com/fabgroeger/gradle-plugins-BirdFlightUpload/"
+        }
     }
     dependencies {
         classpath 'com.android.tools.build:gradle:3.6.2'
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
         classpath 'com.jaredsburrows:gradle-license-plugin:0.8.80'
+        classpath 'de.fabgroeger.gradle.plugins:birdflightupload:4.2'
         // NOTE: Do not place your application dependencies here; they belong
         // in the individual module build.gradle files
     }

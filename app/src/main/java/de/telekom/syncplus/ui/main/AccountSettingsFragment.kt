@@ -99,6 +99,7 @@ class AccountSettingsFragment : BaseFragment() {
     }
 
     private val mAccount by extraNotNull<Account>(ARG_ACCOUNT)
+    private val mHandler = Handler(Looper.getMainLooper())
 
     @SuppressLint("InflateParams")
     override fun onCreateView(
@@ -119,21 +120,21 @@ class AccountSettingsFragment : BaseFragment() {
         setupAddressBookSubView(v, accountSettings)
         setupSyncDropdown(v, accountSettings)
 
-        val handler = Handler(Looper.getMainLooper())
+        val context = requireContext()
         v.syncnowButton.setOnClickListener {
             v.syncnowButton.isEnabled = false
-            v.syncnowButton.icon = requireContext().getDrawable(R.drawable.ic_sync_now_icon)
+            v.syncnowButton.icon = context.getDrawable(R.drawable.ic_sync_now_icon)
             v.syncnowtextview.text = requireContext().getString(R.string.sync_now)
             accountSettings.resyncCalendars(false)
             accountSettings.resyncContacts(false)
 
-            handler.postDelayed({
+            mHandler.postDelayed({
                 v.syncnowButton.isEnabled = true
-                val drawable = requireContext().getDrawable(R.drawable.ic_sync_check_animated)
+                val drawable = context.getDrawable(R.drawable.ic_sync_check_animated)
                 v.syncnowButton.icon = drawable
                 v.syncnowtextview.text = requireContext().getString(R.string.sync_done)
-                handler.post { (drawable as? AnimatedVectorDrawable)?.start() }
-                handler.postDelayed({
+                mHandler.post { (drawable as? AnimatedVectorDrawable)?.start() }
+                mHandler.postDelayed({
                     if (v.syncnowButton.isEnabled) {
                         v.syncnowtextview.text = requireContext().getString(R.string.sync_now)
                         v.syncnowButton.icon =
@@ -144,6 +145,11 @@ class AccountSettingsFragment : BaseFragment() {
         }
 
         return v
+    }
+
+    override fun onStop() {
+        super.onStop()
+        mHandler.removeCallbacksAndMessages(null)
     }
 
     @SuppressLint("MissingPermission")

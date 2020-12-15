@@ -20,12 +20,14 @@
 package de.telekom.dtagsyncpluskit.api
 
 import android.app.Application
+import android.content.Context
 import android.os.Handler
 import de.telekom.dtagsyncpluskit.auth.IDMAuth
 import de.telekom.dtagsyncpluskit.davx5.log.Logger
 import de.telekom.dtagsyncpluskit.davx5.model.Credentials
 import okhttp3.Interceptor
 import okhttp3.Response
+import java.io.File
 
 class BearerAuthInterceptor(
     private val app: Application,
@@ -40,17 +42,20 @@ class BearerAuthInterceptor(
     }
 
     override fun intercept(chain: Interceptor.Chain): Response {
-        val originalReq = chain.request().newBuilder()
-            .addHeader("Authorization", "Bearer ${credentials.accessToken}")
-            .build()
+        Logger.log.info("intercept()")
 
-        if (noTokenRefresh) {
-            return chain.proceed(originalReq)
-        }
-
-        var res: Response
-        synchronized(app) {
+        synchronized(BearerAuthInterceptor::class.java) {
             Logger.log.info("Enter Lock --->")
+            val originalReq = chain.request().newBuilder()
+                .addHeader("Authorization", "Bearer ${credentials.accessToken}")
+                .build()
+
+            if (noTokenRefresh) {
+                Logger.log.info("<--- Exit Lock")
+                return chain.proceed(originalReq)
+            }
+
+            val res: Response
             res = chain.proceed(originalReq)
             if (res.code == 401) { /* unauthorized */
                 Logger.log.info("401 Unauthorized: Refresh AccessToken")
@@ -63,7 +68,6 @@ class BearerAuthInterceptor(
                     res
                 }
                 val idmEnv = credentials.idmEnv
-                val redirectUri = credentials.redirectUri
                 val refreshToken = credentials.getRefreshTokenSync() ?: return unauthorized(res)
                 val (accessToken, newRefreshToken) =
                     mAuth.getAccessTokenSync1(idmEnv, refreshToken, app)
@@ -85,8 +89,7 @@ class BearerAuthInterceptor(
             }
 
             Logger.log.info("<--- Exit Lock (200)")
+            return res
         }
-
-        return res
     }
 }
