@@ -28,20 +28,20 @@
 package de.telekom.dtagsyncpluskit.davx5.syncadapter
 
 import android.accounts.Account
+import android.app.IntentService
 import android.content.ContentResolver
 import android.content.Intent
+import android.content.SyncResult
 import android.os.Binder
 import android.os.Bundle
 import android.provider.CalendarContract
 import android.util.Log
-import androidx.core.app.NotificationCompat
+import androidx.annotation.WorkerThread
 import androidx.core.app.NotificationManagerCompat
-import androidx.room.Transaction
 import at.bitfire.dav4jvm.DavResource
 import at.bitfire.dav4jvm.Response
 import at.bitfire.dav4jvm.UrlUtils
 import at.bitfire.dav4jvm.exception.HttpException
-import at.bitfire.dav4jvm.exception.UnauthorizedException
 import at.bitfire.dav4jvm.property.*
 import de.telekom.dtagsyncpluskit.R
 import de.telekom.dtagsyncpluskit.api.ServiceEnvironments
@@ -49,7 +49,10 @@ import de.telekom.dtagsyncpluskit.davx5.HttpClient
 import de.telekom.dtagsyncpluskit.davx5.InvalidAccountException
 import de.telekom.dtagsyncpluskit.davx5.log.Logger
 import de.telekom.dtagsyncpluskit.davx5.model.*
-import de.telekom.dtagsyncpluskit.davx5.model.Collection
+import de.telekom.dtagsyncpluskit.davx5.model.Collection.Companion.TYPE_ADDRESSBOOK
+import de.telekom.dtagsyncpluskit.davx5.model.Collection.Companion.TYPE_CALENDAR
+import de.telekom.dtagsyncpluskit.davx5.model.Collection.Companion.TYPE_WEBCAL
+import de.telekom.dtagsyncpluskit.davx5.model.Collection.Companion.fromDavResponse
 import de.telekom.dtagsyncpluskit.davx5.settings.AccountSettings
 import de.telekom.dtagsyncpluskit.davx5.ui.NotificationUtils
 import okhttp3.HttpUrl
@@ -57,11 +60,23 @@ import okhttp3.OkHttpClient
 import java.lang.ref.WeakReference
 import java.util.*
 import java.util.logging.Level
-import kotlin.concurrent.thread
+import kotlin.collections.associateBy
+import kotlin.collections.component1
+import kotlin.collections.component2
+import kotlin.collections.contains
+import kotlin.collections.forEach
+import kotlin.collections.iterator
+import kotlin.collections.mapNotNull
+import kotlin.collections.mutableSetOf
+import kotlin.collections.plusAssign
+import kotlin.collections.set
+import kotlin.collections.toMutableMap
 
-class DavService : android.app.Service() {
+@Suppress("DEPRECATION")
+class DavService: IntentService("DavService") {
 
     companion object {
+
         const val ACTION_REFRESH_COLLECTIONS = "refreshCollections"
         const val EXTRA_DAV_SERVICE_ID = "davServiceID"
         const val EXTRA_SERVICE_ENVIRONMENTS = "extraServiceEnvs"
@@ -76,6 +91,7 @@ class DavService : android.app.Service() {
             ResourceType.NAME,
             CurrentUserPrivilegeSet.NAME,
             DisplayName.NAME,
+            Owner.NAME,
             AddressbookDescription.NAME, SupportedAddressData.NAME,
             CalendarDescription.NAME, CalendarColor.NAME, SupportedCalendarComponentSet.NAME,
             Source.NAME
@@ -83,41 +99,49 @@ class DavService : android.app.Service() {
 
     }
 
-    private val runningRefresh = HashSet<Long>()
-    private val refreshingStatusListeners = LinkedList<WeakReference<RefreshingStatusListener>>()
+    /**
+     * List of [Service] IDs for which the collections are currently refreshed
+     */
+    private val runningRefresh = Collections.synchronizedSet(HashSet<Long>())
 
+    /**
+     * Currently registered [RefreshingStatusListener]s, which will be notified
+     * when a collection refresh status changes
+     */
+    private val refreshingStatusListeners = Collections.synchronizedList(LinkedList<WeakReference<RefreshingStatusListener>>())
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        intent?.let {
-            val id = intent.getLongExtra(EXTRA_DAV_SERVICE_ID, -1)
-            val serviceEnvironments = intent.getParcelableExtra<ServiceEnvironments>(
-                EXTRA_SERVICE_ENVIRONMENTS
-            ) ?: throw IllegalStateException("Missing ServiceEnvironments")
+    @WorkerThread
+    override fun onHandleIntent(intent: Intent?) {
+        if (intent == null)
+            return
 
-            Logger.log.finest("DavService: Action: ${intent.action}")
+        val id = intent.getLongExtra(EXTRA_DAV_SERVICE_ID, -1)
+        val serviceEnvironments = intent.getParcelableExtra<ServiceEnvironments>(
+            EXTRA_SERVICE_ENVIRONMENTS
+        ) ?: throw IllegalStateException("Missing ServiceEnvironments")
 
-            when (intent.action) {
-                ACTION_REFRESH_COLLECTIONS ->
-                    if (runningRefresh.add(id)) {
-                        refreshingStatusListeners.forEach { listener ->
-                            listener.get()?.onDavRefreshStatusChanged(id, true)
-                        }
-                        thread { refreshCollections(serviceEnvironments, id) }
+        when (intent.action) {
+            ACTION_REFRESH_COLLECTIONS ->
+                if (runningRefresh.add(id)) {
+                    refreshingStatusListeners.forEach { listener ->
+                        listener.get()?.onDavRefreshStatusChanged(id, true)
                     }
 
-                ACTION_FORCE_SYNC -> {
-                    val uri = intent.data!!
-                    val authority = uri.authority!!
-                    val account = Account(
-                        uri.pathSegments[1],
-                        uri.pathSegments[0]
-                    )
-                    forceSync(authority, account)
+                    val db = AppDatabase.getInstance(this@DavService)
+                    refreshCollections(serviceEnvironments, db, id)
                 }
-            }
-        }
 
-        return START_NOT_STICKY
+            ACTION_FORCE_SYNC -> {
+                val uri = intent.data!!
+                val authority = uri.authority!!
+                val account = Account(
+                    uri.pathSegments[1],
+                    uri.pathSegments[0]
+                )
+                forceSync(authority, account)
+            }
+
+        }
     }
 
 
@@ -132,29 +156,30 @@ class DavService : android.app.Service() {
 
     private val binder = InfoBinder()
 
-    inner class InfoBinder : Binder() {
+    inner class InfoBinder: Binder() {
         fun isRefreshing(id: Long) = runningRefresh.contains(id)
 
-        fun addRefreshingStatusListener(
-            listener: RefreshingStatusListener,
-            callImmediateIfRunning: Boolean
-        ) {
+        fun addRefreshingStatusListener(listener: RefreshingStatusListener, callImmediateIfRunning: Boolean) {
             refreshingStatusListeners += WeakReference<RefreshingStatusListener>(listener)
             if (callImmediateIfRunning)
-                runningRefresh.forEach { id -> listener.onDavRefreshStatusChanged(id, true) }
+                synchronized(runningRefresh) {
+                    for (id in runningRefresh)
+                        listener.onDavRefreshStatusChanged(id, true)
+                }
         }
 
         fun removeRefreshingStatusListener(listener: RefreshingStatusListener) {
             val iter = refreshingStatusListeners.iterator()
             while (iter.hasNext()) {
                 val item = iter.next().get()
-                if (listener == item)
+                if (item == listener || item == null)
                     iter.remove()
             }
         }
     }
 
     override fun onBind(intent: Intent?) = binder
+
 
 
     /* ACTION RUNNABLES
@@ -165,35 +190,36 @@ class DavService : android.app.Service() {
         Logger.log.info("Forcing $authority synchronization of $account")
         val extras = Bundle(2)
         extras.putBoolean(ContentResolver.SYNC_EXTRAS_MANUAL, true)        // manual sync
-        extras.putBoolean(
-            ContentResolver.SYNC_EXTRAS_EXPEDITED,
-            true
-        )     // run immediately (don't queue)
+        extras.putBoolean(ContentResolver.SYNC_EXTRAS_EXPEDITED, true)     // run immediately (don't queue)
         ContentResolver.requestSync(account, authority, extras)
     }
 
-    private fun refreshCollections(serviceEnvironments: ServiceEnvironments, serviceId: Long) {
-        val db = AppDatabase.getInstance(this)
+    private fun refreshCollections(serviceEnvironments: ServiceEnvironments, db: AppDatabase, serviceId: Long) {
         val homeSetDao = db.homeSetDao()
         val collectionDao = db.collectionDao()
 
-        val service =
-            db.serviceDao().get(serviceId) ?: throw IllegalArgumentException("Service not found")
+        val service = db.serviceDao().get(serviceId) ?: throw IllegalArgumentException("Service not found")
         val account = Account(service.accountName, getString(R.string.account_type))
         val accountSettings = AccountSettings(this, serviceEnvironments, account, null)
 
         val homeSets = homeSetDao.getByService(serviceId).associateBy { it.url }.toMutableMap()
-        val collections =
-            collectionDao.getByService(serviceId).associateBy { it.url }.toMutableMap()
+        val collections = collectionDao.getByService(serviceId).associateBy { it.url }.toMutableMap()
 
         /**
          * Checks if the given URL defines home sets and adds them to the home set list.
+         *
+         * @param personal Whether this is the "outer" call of the recursion.
+         *
+         * *true* = found home sets belong to the current-user-principal; recurse if
+         * calendar proxies or group memberships are found
+         *
+         * *false* = found home sets don't directly belong to the current-user-principal; don't recurse
          *
          * @throws java.io.IOException
          * @throws HttpException
          * @throws at.bitfire.dav4jvm.exception.DavException
          */
-        fun queryHomeSets(client: OkHttpClient, url: HttpUrl, recurse: Boolean = true) {
+        fun queryHomeSets(client: OkHttpClient, url: HttpUrl, personal: Boolean = true) {
             val related = mutableSetOf<HttpUrl>()
 
             fun findRelated(root: HttpUrl, dav: Response) {
@@ -230,72 +256,52 @@ class DavService : android.app.Service() {
             when (service.type) {
                 Service.TYPE_CARDDAV ->
                     try {
-                        dav.propfind(
-                            0,
-                            DisplayName.NAME,
-                            AddressbookHomeSet.NAME,
-                            GroupMembership.NAME
-                        ) { response, _ ->
+                        dav.propfind(0, DisplayName.NAME, AddressbookHomeSet.NAME, GroupMembership.NAME) { response, _ ->
                             response[AddressbookHomeSet::class.java]?.let { homeSet ->
                                 for (href in homeSet.hrefs)
                                     dav.location.resolve(href)?.let {
                                         val foundUrl = UrlUtils.withTrailingSlash(it)
-                                        homeSets[foundUrl] = HomeSet(0, service.id, foundUrl)
+                                        homeSets[foundUrl] = HomeSet(0, service.id, personal, foundUrl)
                                     }
                             }
 
-                            if (recurse)
+                            if (personal)
                                 findRelated(dav.location, response)
                         }
                     } catch (e: HttpException) {
-                        if (e.code / 100 == 4)
-                            Logger.log.log(
-                                Level.INFO,
-                                "Ignoring Client Error 4xx while looking for addressbook home sets",
-                                e
-                            )
+                        if (e.code/100 == 4)
+                            Logger.log.log(Level.INFO, "Ignoring Client Error 4xx while looking for addressbook home sets", e)
                         else
                             throw e
                     }
                 Service.TYPE_CALDAV -> {
                     try {
-                        dav.propfind(
-                            0,
-                            DisplayName.NAME,
-                            CalendarHomeSet.NAME,
-                            CalendarProxyReadFor.NAME,
-                            CalendarProxyWriteFor.NAME,
-                            GroupMembership.NAME
-                        ) { response, _ ->
+                        dav.propfind(0, DisplayName.NAME, CalendarHomeSet.NAME, CalendarProxyReadFor.NAME, CalendarProxyWriteFor.NAME, GroupMembership.NAME) { response, _ ->
                             response[CalendarHomeSet::class.java]?.let { homeSet ->
                                 for (href in homeSet.hrefs)
                                     dav.location.resolve(href)?.let {
                                         val foundUrl = UrlUtils.withTrailingSlash(it)
-                                        homeSets[foundUrl] = HomeSet(0, service.id, foundUrl)
+                                        homeSets[foundUrl] = HomeSet(0, service.id, personal, foundUrl)
                                     }
                             }
 
-                            if (recurse)
+                            if (personal)
                                 findRelated(dav.location, response)
                         }
                     } catch (e: HttpException) {
-                        if (e.code / 100 == 4)
-                            Logger.log.log(
-                                Level.INFO,
-                                "Ignoring Client Error 4xx while looking for calendar home sets",
-                                e
-                            )
+                        if (e.code/100 == 4)
+                            Logger.log.log(Level.INFO, "Ignoring Client Error 4xx while looking for calendar home sets", e)
                         else
                             throw e
                     }
                 }
             }
 
+            // query related homesets (those that do not belong to the current-user-principal)
             for (resource in related)
                 queryHomeSets(client, resource, false)
         }
 
-        @Transaction
         fun saveHomesets() {
             DaoTools(homeSetDao).syncAll(
                 homeSetDao.getByService(serviceId),
@@ -303,7 +309,6 @@ class DavService : android.app.Service() {
                 { it.url })
         }
 
-        @Transaction
         fun saveCollections() {
             DaoTools(collectionDao).syncAll(
                 collectionDao.getByService(serviceId),
@@ -311,11 +316,6 @@ class DavService : android.app.Service() {
                 new.forceReadOnly = old.forceReadOnly
                 new.sync = old.sync
             }
-        }
-
-        fun saveResults() {
-            saveHomesets()
-            saveCollections()
         }
 
         try {
@@ -326,10 +326,7 @@ class DavService : android.app.Service() {
                 .cancel(service.toString(), NotificationUtils.NOTIFY_REFRESH_COLLECTIONS)
 
             // create authenticating OkHttpClient (credentials taken from account settings)
-            HttpClient.Builder(
-                application,
-                accountSettings
-            )
+            HttpClient.Builder(application, accountSettings)
                 .setForeground(true)
                 .withUnauthorizedCallback {
                     Log.d("SyncPlus/DavService", "withUnauthorizedCallback()")
@@ -351,42 +348,34 @@ class DavService : android.app.Service() {
                     // now refresh homesets and their member collections
                     val itHomeSets = homeSets.iterator()
                     while (itHomeSets.hasNext()) {
-                        val homeSet = itHomeSets.next()
-                        Logger.log.fine("Listing home set ${homeSet.key}")
+                        val (homeSetUrl, homeSet) = itHomeSets.next()
+                        Logger.log.fine("Listing home set ${homeSetUrl}")
 
                         try {
-                            DavResource(httpClient, homeSet.key).propfind(
-                                1,
-                                *DAV_COLLECTION_PROPERTIES
-                            ) { response, relation ->
+                            DavResource(httpClient, homeSetUrl).propfind(1, *DAV_COLLECTION_PROPERTIES) { response, relation ->
                                 if (!response.isSuccess())
                                     return@propfind
 
                                 if (relation == Response.HrefRelation.SELF) {
                                     // this response is about the homeset itself
-                                    homeSet.value.displayName =
-                                        response[DisplayName::class.java]?.displayName
-                                    homeSet.value.privBind =
-                                        response[CurrentUserPrivilegeSet::class.java]?.mayBind
-                                            ?: true
+                                    homeSet.displayName = response[DisplayName::class.java]?.displayName
+                                    homeSet.privBind = response[CurrentUserPrivilegeSet::class.java]?.mayBind ?: true
                                 }
 
-                                /* in any case, check whether the response is about a useable collection */
-                                val info = Collection.fromDavResponse(response) ?: return@propfind
+                                // in any case, check whether the response is about a useable collection
+                                val info = fromDavResponse(response) ?: return@propfind
                                 info.serviceId = serviceId
+                                info.refHomeSet = homeSet
                                 info.confirmed = true
+                                info.owner = response[Owner::class.java]?.href?.let { response.href.resolve(it) }
                                 Logger.log.log(Level.FINE, "Found collection", info)
 
                                 // remember usable collections
-                                if ((service.type == Service.TYPE_CARDDAV && info.type == Collection.TYPE_ADDRESSBOOK) ||
-                                    (service.type == Service.TYPE_CALDAV && arrayOf(
-                                        Collection.TYPE_CALENDAR,
-                                        Collection.TYPE_WEBCAL
-                                    ).contains(info.type))
-                                )
+                                if ((service.type == Service.TYPE_CARDDAV && info.type == TYPE_ADDRESSBOOK) ||
+                                    (service.type == Service.TYPE_CALDAV && arrayOf(TYPE_CALENDAR, TYPE_WEBCAL).contains(info.type)))
                                     collections[response.href] = info
                             }
-                        } catch (e: HttpException) {
+                        } catch(e: HttpException) {
                             if (e.code in arrayOf(403, 404, 410))
                             // delete home set only if it was not accessible (40x)
                                 itHomeSets.remove()
@@ -399,28 +388,23 @@ class DavService : android.app.Service() {
                         val (url, info) = itCollections.next()
                         if (!info.confirmed)
                             try {
-                                DavResource(httpClient, url).propfind(
-                                    0,
-                                    *DAV_COLLECTION_PROPERTIES
-                                ) { response, _ ->
+                                // this collection doesn't belong to a homeset anymore, otherwise it would have been confirmed
+                                info.homeSetId = null
+
+                                DavResource(httpClient, url).propfind(0, *DAV_COLLECTION_PROPERTIES) { response, _ ->
                                     if (!response.isSuccess())
                                         return@propfind
 
-                                    val collection =
-                                        Collection.fromDavResponse(response) ?: return@propfind
+                                    val collection = fromDavResponse(response) ?: return@propfind
                                     collection.confirmed = true
 
                                     // remove unusable collections
-                                    if ((service.type == Service.TYPE_CARDDAV && collection.type != Collection.TYPE_ADDRESSBOOK) ||
-                                        (service.type == Service.TYPE_CALDAV && !arrayOf(
-                                            Collection.TYPE_CALENDAR,
-                                            Collection.TYPE_WEBCAL
-                                        ).contains(collection.type)) ||
-                                        (collection.type == Collection.TYPE_WEBCAL && collection.source == null)
-                                    )
+                                    if ((service.type == Service.TYPE_CARDDAV && collection.type != TYPE_ADDRESSBOOK) ||
+                                        (service.type == Service.TYPE_CALDAV && !arrayOf(TYPE_CALENDAR, TYPE_WEBCAL).contains(collection.type)) ||
+                                        (collection.type == TYPE_WEBCAL && collection.source == null))
                                         itCollections.remove()
                                 }
-                            } catch (e: HttpException) {
+                            } catch(e: HttpException) {
                                 if (e.code in arrayOf(403, 404, 410))
                                 // delete collection only if it was not accessible (40x)
                                     itCollections.remove()
@@ -430,19 +414,26 @@ class DavService : android.app.Service() {
                     }
                 }
 
-            saveResults()
+            db.runInTransaction {
+                saveHomesets()
 
-        } catch (e: InvalidAccountException) {
+                // use refHomeSet (if available) to determine homeset ID
+                for (collection in collections.values)
+                    collection.refHomeSet?.let { homeSet ->
+                        collection.homeSetId = homeSet.id
+                    }
+                saveCollections()
+            }
+
+        } catch(e: InvalidAccountException) {
             Logger.log.log(Level.SEVERE, "Invalid account", e)
-        } catch (e: UnauthorizedException) {
-            // Handled above.
-        } catch (e: Exception) {
+        } catch(e: Exception) {
             Logger.log.log(Level.SEVERE, "Couldn't refresh collection list", e)
 
             /*
             val debugIntent = Intent(this, DebugInfoActivity::class.java)
-            debugIntent.putExtra(DebugInfoActivity.KEY_THROWABLE, e)
-            debugIntent.putExtra(DebugInfoActivity.KEY_ACCOUNT, account)
+            debugIntent.putExtra(DebugInfoActivity.EXTRA_CAUSE, e)
+            debugIntent.putExtra(DebugInfoActivity.EXTRA_ACCOUNT, account)
             */
 
             /* AG: Not shown since not really of any use to the user */
@@ -451,14 +442,7 @@ class DavService : android.app.Service() {
                 .setSmallIcon(R.drawable.ic_sync_problem_notify)
                 .setContentTitle(getString(R.string.dav_service_refresh_failed))
                 .setContentText(getString(R.string.dav_service_refresh_couldnt_refresh))
-                /*.setContentIntent(
-                    PendingIntent.getActivity(
-                        this,
-                        0,
-                        debugIntent,
-                        PendingIntent.FLAG_UPDATE_CURRENT
-                    )
-                )*/
+                .setContentIntent(PendingIntent.getActivity(this, 0, debugIntent, PendingIntent.FLAG_UPDATE_CURRENT))
                 .setSubText(account.name)
                 .setCategory(NotificationCompat.CATEGORY_ERROR)
                 .build()

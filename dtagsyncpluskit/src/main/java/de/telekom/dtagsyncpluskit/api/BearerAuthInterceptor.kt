@@ -20,14 +20,12 @@
 package de.telekom.dtagsyncpluskit.api
 
 import android.app.Application
-import android.content.Context
 import android.os.Handler
 import de.telekom.dtagsyncpluskit.auth.IDMAuth
 import de.telekom.dtagsyncpluskit.davx5.log.Logger
 import de.telekom.dtagsyncpluskit.davx5.model.Credentials
 import okhttp3.Interceptor
 import okhttp3.Response
-import java.io.File
 
 class BearerAuthInterceptor(
     private val app: Application,
@@ -41,13 +39,35 @@ class BearerAuthInterceptor(
         unauthorizedCallback = callback
     }
 
+    private fun buildUnauthorized(cb: (() -> Unit)? = null): Response {
+        Handler(app.mainLooper).post {
+            unauthorizedCallback?.invoke()
+        }
+        cb?.invoke()
+        return Response.Builder()
+            .code(401)
+            .build()
+    }
+
+    private fun forwardUnauthorized(res: Response, cb: (() -> Unit)? = null): Response {
+        Handler(app.mainLooper).post {
+            unauthorizedCallback?.invoke()
+        }
+        cb?.invoke()
+        return res
+    }
+
     override fun intercept(chain: Interceptor.Chain): Response {
         Logger.log.info("intercept()")
 
         synchronized(BearerAuthInterceptor::class.java) {
             Logger.log.info("Enter Lock --->")
+
+            val accessToken = credentials.accessToken ?: return buildUnauthorized {
+                Logger.log.info("<--- Exit Lock (accessToken NULL)")
+            }
             val originalReq = chain.request().newBuilder()
-                .addHeader("Authorization", "Bearer ${credentials.accessToken}")
+                .addHeader("Authorization", "Bearer $accessToken")
                 .build()
 
             if (noTokenRefresh) {
@@ -55,24 +75,23 @@ class BearerAuthInterceptor(
                 return chain.proceed(originalReq)
             }
 
-            val res: Response
-            res = chain.proceed(originalReq)
+            val res: Response = chain.proceed(originalReq)
             if (res.code == 401) { /* unauthorized */
                 Logger.log.info("401 Unauthorized: Refresh AccessToken")
-
-                val unauthorized: (res: Response) -> Response = {
-                    Handler(app.mainLooper).post {
-                        unauthorizedCallback?.invoke()
-                    }
-                    Logger.log.info("<--- Exit Lock (401)")
-                    res
-                }
                 val idmEnv = credentials.idmEnv
-                val refreshToken = credentials.getRefreshTokenSync() ?: return unauthorized(res)
-                val (accessToken, newRefreshToken) =
+                val refreshToken = credentials.getRefreshTokenSync() ?: return forwardUnauthorized(res) {
+                    Logger.log.info("<--- Exit Lock (401)")
+                }
+                val (newAccessToken, newRefreshToken) =
                     mAuth.getAccessTokenSync1(idmEnv, refreshToken, app)
-                        ?: return unauthorized(res)
-                credentials.accessToken = accessToken
+                        ?: return forwardUnauthorized(res) {
+                            // We've been getting back an error,
+                            // reset accessToken and refreshToken to null.
+                            credentials.accessToken = null
+                            credentials.setRefreshToken(null)
+                            Logger.log.info("<--- Exit Lock (401)")
+                        }
+                credentials.accessToken = newAccessToken
                 credentials.setRefreshToken(newRefreshToken)
                 Logger.log.finest("!!! ACCESSTOKEN REFRESHED !!! ")
 
@@ -82,7 +101,9 @@ class BearerAuthInterceptor(
                     .build()
                 val newRes = chain.proceed(newReq)
                 if (newRes.code == 401)
-                    return unauthorized(newRes)
+                    return forwardUnauthorized(newRes) {
+                        Logger.log.info("<--- Exit Lock (401)")
+                    }
 
                 Logger.log.info("<--- Exit Lock (~401)")
                 return newRes

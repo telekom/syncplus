@@ -20,6 +20,7 @@
 package de.telekom.dtagsyncpluskit.davx5.settings
 
 import android.accounts.Account
+import android.annotation.SuppressLint
 import android.content.ContentResolver
 import android.content.Context
 import android.os.Bundle
@@ -27,17 +28,18 @@ import android.provider.CalendarContract
 import at.bitfire.vcard4android.GroupMethod
 import de.telekom.dtagsyncpluskit.R
 import de.telekom.dtagsyncpluskit.api.ServiceEnvironments
+import de.telekom.dtagsyncpluskit.davx5.log.Logger
 import de.telekom.dtagsyncpluskit.davx5.model.AppDatabase
 import de.telekom.dtagsyncpluskit.davx5.model.Credentials
 import de.telekom.dtagsyncpluskit.davx5.syncadapter.SyncAdapterService
 import de.telekom.dtagsyncpluskit.utils.IDMAccountManager
+import java.lang.reflect.Field
+import java.lang.reflect.Method
 import java.text.SimpleDateFormat
 import java.util.*
 
 /**
  * Manages settings of an account.
- *
- * @throws InvalidAccountException on construction when the account doesn't exist (anymore)
  */
 @Suppress("unused")
 class AccountSettings(
@@ -101,18 +103,32 @@ class AccountSettings(
     }
 
     fun getSyncInterval(authority: String): Long? {
-        if (ContentResolver.getIsSyncable(account, authority) <= 0)
+        Logger.log.info("getSyncInterval(${authority})")
+        if (ContentResolver.getIsSyncable(account, authority) <= 0) {
+            Logger.log.info("getIsSyncable <= 0")
             return null
+        }
 
-        return if (ContentResolver.getSyncAutomatically(account, authority)) {
+        val syncAutomatically = ContentResolver.getSyncAutomatically(account, authority)
+        Logger.log.info("getSyncInterval | syncAutomatically = $syncAutomatically")
+        if (ContentResolver.getSyncAutomatically(account, authority)) {
+            val syncs = ContentResolver.getPeriodicSyncs(account, authority)
+            Logger.log.info("getSyncInterval | syncs = $syncs")
+        }
+
+        val retVal = if (ContentResolver.getSyncAutomatically(account, authority)) {
             ContentResolver.getPeriodicSyncs(account, authority).firstOrNull()?.period
                 ?: SYNC_INTERVAL_MANUALLY
         } else {
             SYNC_INTERVAL_MANUALLY
         }
+
+        Logger.log.info("getSyncInterval | retVal = $retVal")
+        return retVal
     }
 
     fun setSyncInterval(authority: String, seconds: Long) {
+        Logger.log.info("setSyncInterval(${authority}, $seconds)")
         if (seconds == SYNC_INTERVAL_MANUALLY) {
             ContentResolver.setSyncAutomatically(account, authority, false)
         } else {
@@ -127,15 +143,22 @@ class AccountSettings(
         serviceEnvironments
     )
 
-    fun lastSyncDate(): String {
-        val currentSyncs = ContentResolver.getCurrentSyncs().filter { it.account == account }
-        if (currentSyncs.count() > 0) {
-            val date = Calendar.getInstance().time
-            return SimpleDateFormat("dd.MM.yyyy", Locale.getDefault()).format(date)
+    fun lastSyncDate(authority: String): Pair<String, String>? {
+        val synctime = getLastSyncTime(authority)
+        Logger.log.info("lastSyncDate: $synctime")
+        if (synctime == 0L) {
+            return null
         }
 
-        val date = Calendar.getInstance().time
-        return SimpleDateFormat("dd.MM.yyyy", Locale.getDefault()).format(date)
+        val date = Date(synctime)
+        Logger.log.info("date: $date")
+        val dayMonYear = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault()).format(date)
+        Logger.log.info("dayMonYear: $dayMonYear")
+        if (dayMonYear.isNullOrBlank()) return null
+        val hourMin = SimpleDateFormat("HH:mm", Locale.getDefault()).format(date)
+        Logger.log.info("hourMin: $hourMin")
+        if (hourMin.isNullOrBlank()) return null
+        return Pair(dayMonYear, hourMin)
     }
 
     fun resyncCalendars(fullResync: Boolean) {
@@ -156,5 +179,28 @@ class AccountSettings(
         )
 
         ContentResolver.requestSync(account, authority, args)
+    }
+
+    @SuppressLint("PrivateApi")
+    fun getLastSyncTime(authority: String): Long {
+        var result: Long = 0
+        try {
+            val getSyncStatus: Method = ContentResolver::class.java.getMethod(
+                "getSyncStatus", Account::class.java, String::class.java
+            )
+            val status = getSyncStatus.invoke(null, account, authority)
+            val statusClass = Class.forName("android.content.SyncStatusInfo")
+            val isStatusObject = statusClass.isInstance(status)
+            Logger.log.info("isStatusObject: $isStatusObject")
+            if (isStatusObject) {
+                val successTime: Field = statusClass.getField("lastSuccessTime")
+                result = successTime.getLong(status)
+            }
+        } catch (e: Exception) {
+            Logger.log.info("Error: Getting last sync time: $e")
+            Logger.log.severe("Error: Getting last sync time: $e")
+        }
+
+        return result
     }
 }

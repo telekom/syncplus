@@ -61,8 +61,9 @@ object APIFactory {
                         logger.finest(message)
                     }
                 })
-            loggingInterceptor.redactHeader("Authorization")
-            loggingInterceptor.redactHeader("Cookie")
+            // Temporary, log all headers.
+            //loggingInterceptor.redactHeader("Authorization")
+            //loggingInterceptor.redactHeader("Cookie")
             loggingInterceptor.level = HttpLoggingInterceptor.Level.BODY
             builder.addInterceptor(loggingInterceptor)
         }

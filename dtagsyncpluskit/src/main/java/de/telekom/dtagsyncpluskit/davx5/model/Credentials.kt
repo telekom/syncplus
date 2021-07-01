@@ -47,13 +47,18 @@ class Credentials(
     val idmEnv = serviceEnvironments.idmEnv
     val redirectUri = serviceEnvironments.redirectUri
 
-    var accessToken: String
-        get() = accountManager.getPassword(account)
+    var accessToken: String?
+        get() {
+            val accessToken = accountManager.getPassword(account)
+            Logger.log.info("GetAccessToken: $accessToken")
+            return accessToken
+        }
         set(value) {
+            Logger.log.info("SetAccessToken: $value")
             accountManager.setPassword(account, value)
         }
 
-    var idToken: String
+    var idToken: String?
         get() = accountManager.getUserData(account, IDMAccountManager.KEY_ID_TOKEN)
         set(value) {
             accountManager.setUserData(account, IDMAccountManager.KEY_ID_TOKEN, value)
@@ -72,7 +77,7 @@ class Credentials(
         return token
     }
 
-    fun setRefreshToken(refreshToken: String) {
+    fun setRefreshToken(refreshToken: String?) {
         if (BuildConfig.DEBUG) {
             Logger.log.info("setRefreshToken() | refreshToken: $refreshToken")
         } else {

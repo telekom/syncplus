@@ -158,12 +158,13 @@ class IDMAccountManager(
         withContext<Unit>(Dispatchers.IO) {
             val db = AppDatabase.getInstance(context)
             db.serviceDao().getIdByAccountAndType(account.name, Service.TYPE_CALDAV)
-                ?.let { serviceId ->
+                .let { serviceId ->
                     db.collectionDao().getByServiceAndType(serviceId, Collection.TYPE_CALENDAR)
                         .forEach { collection ->
                             val newCollection = collection.copy(sync = enabled)
                             db.collectionDao().update(newCollection)
                         }
+
                 }
         }
 
@@ -171,7 +172,7 @@ class IDMAccountManager(
         withContext<Unit>(Dispatchers.IO) {
             val db = AppDatabase.getInstance(context)
             db.serviceDao().getIdByAccountAndType(account.name, Service.TYPE_CARDDAV)
-                ?.let { serviceId ->
+                .let { serviceId ->
                     db.collectionDao().getByServiceAndType(serviceId, Collection.TYPE_ADDRESSBOOK)
                         .forEach { collection ->
                             val newCollection = collection.copy(sync = enabled)
@@ -270,7 +271,7 @@ class IDMAccountManager(
         // insert home sets
         val homeSetDao = db.homeSetDao()
         for (homeSet in info.homeSets) {
-            homeSetDao.insertOrReplace(HomeSet(0, serviceId, homeSet))
+            homeSetDao.insertOrReplace(HomeSet(0, serviceId, true, homeSet))
         }
 
         // insert collections

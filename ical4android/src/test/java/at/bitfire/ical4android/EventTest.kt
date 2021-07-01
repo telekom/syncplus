@@ -9,18 +9,17 @@ package at.bitfire.ical4android
 
 import net.fortuna.ical4j.model.Date
 import net.fortuna.ical4j.model.DateTime
-import net.fortuna.ical4j.model.Dur
+import net.fortuna.ical4j.model.Parameter
 import net.fortuna.ical4j.model.TimeZoneRegistryFactory
 import net.fortuna.ical4j.model.component.VAlarm
-import net.fortuna.ical4j.model.property.DtStart
-import net.fortuna.ical4j.model.property.RRule
-import net.fortuna.ical4j.model.property.RecurrenceId
+import net.fortuna.ical4j.model.property.*
 import org.junit.Assert.*
 import org.junit.Test
 import java.io.ByteArrayOutputStream
 import java.io.FileNotFoundException
 import java.io.InputStreamReader
 import java.nio.charset.Charset
+import java.time.Duration
 
 class EventTest {
 
@@ -59,6 +58,23 @@ class EventTest {
     }
 
     @Test
+    fun testGenerateEtcUTC() {
+        val tzUTC = DateUtils.ical4jTimeZone("Etc/UTC")
+
+        val e = Event()
+        e.uid = "etc-utc-test@example.com"
+        e.dtStart = DtStart("20200926T080000", tzUTC)
+        e.dtEnd = DtEnd("20200926T100000", tzUTC)
+        e.alarms += VAlarm(Duration.ofMinutes(-30))
+        e.attendees += Attendee("mailto:test@example.com")
+        val baos = ByteArrayOutputStream()
+        e.write(baos)
+        val ical = baos.toString()
+
+        assertTrue("BEGIN:VTIMEZONE.+BEGIN:STANDARD.+END:STANDARD.+END:VTIMEZONE".toRegex(RegexOption.DOT_MATCHES_ALL).containsMatchIn(ical))
+    }
+
+    @Test
     fun testGrouping() {
         val events = parseCalendar("multiple.ics")
         assertEquals(3, events.size)
@@ -80,13 +96,6 @@ class EventTest {
     }
 
     @Test
-    fun testIsAllDay() {
-        assertFalse(Event().isAllDay())
-        assertTrue(Event().apply { dtStart = DtStart(Date("20190101")) }.isAllDay())
-        assertFalse(Event().apply { dtStart = DtStart(DateTime("20190101T010100")) }.isAllDay())
-    }
-
-    @Test
     fun testParse() {
         val event = parseCalendar("utf8.ics").first()
         assertEquals("utf8@ical4android.EventTest", event.uid)
@@ -94,11 +103,15 @@ class EventTest {
         assertEquals("Test Description", event.description)
         assertEquals("中华人民共和国", event.location)
         assertEquals(Css3Color.aliceblue, event.color)
-        assertEquals("cyrus@example.com", event.attendees.first.parameters.getParameter("EMAIL").value)
+
+        // TODO: use attendee.getParameter<Email>(Parameter.EMAIL) when
+        // https://github.com/ical4j/ical4j/pull/413 and
+        // https://github.com/ical4j/ical4j/pull/414 are merged
+        assertEquals("cyrus@example.com", event.attendees.first.parameters.getParameter<Parameter>("EMAIL").value)
 
         val unknown = event.unknownProperties.first
         assertEquals("X-UNKNOWN-PROP", unknown.name)
-        assertEquals("xxx", unknown.getParameter("param1").value)
+        assertEquals("xxx", unknown.getParameter<Parameter>("param1").value)
         assertEquals("Unknown Value", unknown.value)
     }
 
@@ -106,13 +119,13 @@ class EventTest {
     fun testRecurringWriteFullDayException() {
         val event = Event().apply {
             uid = "test1"
-            dtStart = DtStart("20190117T083000", DateUtils.tzRegistry.getTimeZone("Europe/Berlin"))
+            dtStart = DtStart("20190117T083000", DateUtils.ical4jTimeZone("Europe/Berlin"))
             summary = "Main event"
-            rRule = RRule("FREQ=DAILY;COUNT=5")
+            rRules += RRule("FREQ=DAILY;COUNT=5")
             exceptions += arrayOf(
                     Event().apply {
                         uid = "test2"
-                        recurrenceId = RecurrenceId(DateTime("20190118T073000", DateUtils.tzRegistry.getTimeZone("Europe/London")))
+                        recurrenceId = RecurrenceId(DateTime("20190118T073000", DateUtils.ical4jTimeZone("Europe/London")))
                         summary = "Normal exception"
                     },
                     Event().apply {
@@ -143,7 +156,7 @@ class EventTest {
     @Test
     fun testRecurringWithException() {
         val event = parseCalendar("recurring-with-exception1.ics").first()
-        assertTrue(event.isAllDay())
+        assertTrue(DateUtils.isDate(event.dtStart))
 
         assertEquals(1, event.exceptions.size)
         val exception = event.exceptions.first
@@ -214,7 +227,7 @@ class EventTest {
         val e = Event()
         e.uid = "SAMPLEUID"
         e.dtStart = DtStart("20190101T100000", TimeZoneRegistryFactory.getInstance().createRegistry().getTimeZone("Europe/Berlin"))
-        e.alarms += VAlarm(Dur(0, -1, 0, 0))
+        e.alarms += VAlarm(Duration.ofHours(-1))
 
         val os = ByteArrayOutputStream()
         e.write(os)

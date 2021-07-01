@@ -192,7 +192,7 @@ vom Handy: 2202</string>
     <string name="sync_timing_description">Häufigkeit der Synchronisation</string>
     <string name="every_x_hours">Alle %1$d Stunden</string>
     <string name="every_x_minutes">Alle %1$d Minuten</string>
-    <string name="synctext_format">Letzte Synchronisation am %1$s</string>
+    <string name="synctext_format">Letzte Synchronisation am %1$s um %2$s</string>
     <string name="dialog_login_duplicated_title">Account existiert bereits</string>
     <string name="fallbackName"><![CDATA[<Unbekannt>]]></string>
     <string name="please_wait">Einen Moment bitte …</string>

@@ -25,16 +25,16 @@ import android.content.Intent
 import android.net.Uri
 import android.util.Log
 import androidx.fragment.app.Fragment
+import de.telekom.dtagsyncpluskit.BuildConfig
 import de.telekom.dtagsyncpluskit.api.IDMEnv
 import de.telekom.dtagsyncpluskit.api.TokenStore
 import de.telekom.dtagsyncpluskit.davx5.log.Logger
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import net.openid.appauth.*
 import okhttp3.internal.notifyAll
 import okhttp3.internal.wait
+import java.net.HttpURLConnection
+import java.net.URL
+import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
@@ -73,16 +73,19 @@ class IDMAuth(private val context: Context) {
 
     private var mAuthState: AuthState? = null
     private val mAuthService: AuthorizationService by lazy {
-        /*val config = AppAuthConfiguration.Builder()
+        Logger.log.fine("--> Building AuthService")
+        val config = AppAuthConfiguration.Builder()
             .setConnectionBuilder { uri ->
+                val userAgent = "${BuildConfig.userAgent}/${BuildConfig.VERSION_NAME} AOS"
                 val conn = URL(uri.toString()).openConnection() as HttpURLConnection
-                conn.connectTimeout = 15
-                conn.readTimeout = 10
+                conn.connectTimeout = TimeUnit.SECONDS.toMillis(15L).toInt()
+                conn.readTimeout = TimeUnit.SECONDS.toMillis(10L).toInt()
                 conn.instanceFollowRedirects = false
+                conn.setRequestProperty("User-Agent", userAgent)
                 conn
             }
-            .build()*/
-        AuthorizationService(context)
+            .build()
+        AuthorizationService(context, config)
     }
 
     private var mErrorHandler: ErrorHandler? = null
@@ -265,49 +268,49 @@ class IDMAuth(private val context: Context) {
         return result
     }
 
-    fun getAccessTokenSync(
-        env: IDMEnv,
-        @Suppress("UNUSED_PARAMETER") redirectUri: Uri,
-        refreshToken: String
-    ): Pair<String, String>? =
-        runBlocking func@{
-            val serviceConfiguration = fetchFromIssuer(env.baseUrl)
-            mAuthState = mAuthState ?: AuthState(serviceConfiguration)
-            val req = TokenRequest.Builder(serviceConfiguration, env.clientId)
-                .setGrantType(GrantTypeValues.REFRESH_TOKEN)
-                .setRefreshToken(refreshToken)
-                .setScope("spica")
-                .build()
+//    fun getAccessTokenSync(
+//        env: IDMEnv,
+//        @Suppress("UNUSED_PARAMETER") redirectUri: Uri,
+//        refreshToken: String
+//    ): Pair<String, String>? =
+//        runBlocking func@{
+//            val serviceConfiguration = fetchFromIssuer(env.baseUrl)
+//            mAuthState = mAuthState ?: AuthState(serviceConfiguration)
+//            val req = TokenRequest.Builder(serviceConfiguration, env.clientId)
+//                .setGrantType(GrantTypeValues.REFRESH_TOKEN)
+//                .setRefreshToken(refreshToken)
+//                .setScope("spica")
+//                .build()
+//
+//            val (resp, ex) = performTokenRequest(req)
+//            return@func when {
+//                ex != null -> {
+//                    Logger.log.severe("Error: Refreshing Token: $ex")
+//                    Logger.log.severe("refreshToken: $refreshToken")
+//                    Log.e("SyncPlus", "Error: Refreshing Token", ex)
+//                    null
+//                }
+//                resp != null -> {
+//                    Pair(resp.accessToken!!, resp.refreshToken!!)
+//                }
+//                else -> {
+//                    throw IllegalStateException("Should not happen")
+//                }
+//            }
+//        }
 
-            val (resp, ex) = performTokenRequest(req)
-            return@func when {
-                ex != null -> {
-                    Logger.log.severe("Error: Refreshing Token: $ex")
-                    Logger.log.severe("refreshToken: $refreshToken")
-                    Log.e("SyncPlus", "Error: Refreshing Token", ex)
-                    null
-                }
-                resp != null -> {
-                    Pair(resp.accessToken!!, resp.refreshToken!!)
-                }
-                else -> {
-                    throw IllegalStateException("Should not happen")
-                }
-            }
-        }
-
-    fun getAccessToken(
-        env: IDMEnv,
-        redirectUri: Uri,
-        refreshToken: String,
-        callback: (accessToken: String?, refreshToken: String?) -> Unit
-    ) {
-        GlobalScope.launch(Dispatchers.IO) {
-            val (accessToken, newRefreshToken) = getAccessTokenSync(env, redirectUri, refreshToken)
-                ?: Pair(null, null)
-            callback(accessToken, newRefreshToken)
-        }
-    }
+//    fun getAccessToken(
+//        env: IDMEnv,
+//        redirectUri: Uri,
+//        refreshToken: String,
+//        callback: (accessToken: String?, refreshToken: String?) -> Unit
+//    ) {
+//        GlobalScope.launch(Dispatchers.IO) {
+//            val (accessToken, newRefreshToken) = getAccessTokenSync(env, redirectUri, refreshToken)
+//                ?: Pair(null, null)
+//            callback(accessToken, newRefreshToken)
+//        }
+//    }
 
     private suspend fun performTokenRequest(tokenRequest: TokenRequest): Pair<TokenResponse?, AuthorizationException?> =
         suspendCoroutine { cont ->

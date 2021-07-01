@@ -39,6 +39,12 @@ data class HomeSet(
     override var id: Long,
 
     var serviceId: Long,
+
+    /**
+     * Whether this homeset belongs to the [Service.principal] given by [serviceId].
+     */
+    var personal: Boolean,
+
     var url: HttpUrl,
 
     var privBind: Boolean = true,

@@ -46,6 +46,7 @@ import java.io.ByteArrayOutputStream
 import java.util.*
 import java.util.logging.Level
 import de.telekom.dtagsyncpluskit.R
+import de.telekom.dtagsyncpluskit.davx5.syncadapter.AccountUtils
 
 /**
  * A local address book. Requires an own Android account, because Android manages contacts per
@@ -54,13 +55,10 @@ import de.telekom.dtagsyncpluskit.R
  * DAVx5 main account.
  */
 class LocalAddressBook(
-        private val context: Context,
-        account: Account,
-        provider: ContentProviderClient?
-): AndroidAddressBook<LocalContact, LocalGroup>(account, provider,
-    LocalContact.Factory,
-    LocalGroup.Factory
-), LocalCollection<LocalAddress> {
+    private val context: Context,
+    account: Account,
+    provider: ContentProviderClient?
+): AndroidAddressBook<LocalContact, LocalGroup>(account, provider, LocalContact.Factory, LocalGroup.Factory), LocalCollection<LocalAddress> {
 
     companion object {
 
@@ -70,22 +68,14 @@ class LocalAddressBook(
         const val USER_DATA_READ_ONLY = "read_only"
 
         fun create(context: Context, provider: ContentProviderClient, mainAccount: Account, info: Collection): LocalAddressBook {
-            val accountManager = AccountManager.get(context)
-
             val account = Account(accountName(mainAccount, info), context.getString(R.string.account_type_address_book))
             val userData = initialUserData(mainAccount, info.url.toString())
             Logger.log.log(Level.INFO, "Creating local address book $account", userData)
-            if (!accountManager.addAccountExplicitly(account, null, userData))
+            if (!AccountUtils.createAccount(context, account, userData))
                 throw IllegalStateException("Couldn't create address book account")
 
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N)
-                // Android < 7 seems to lose the initial user data sometimes, so set it a second time
-                // https://forums.bitfire.at/post/11644
-                userData.keySet().forEach { key ->
-                    accountManager.setUserData(account, key, userData.getString(key))
-                }
-
             val addressBook = LocalAddressBook(context, account, provider)
+            ContentResolver.setIsSyncable(account, ContactsContract.AUTHORITY, 1)
             ContentResolver.setSyncAutomatically(account, ContactsContract.AUTHORITY, true)
 
             // initialize Contacts Provider Settings
@@ -98,18 +88,24 @@ class LocalAddressBook(
             return addressBook
         }
 
-        fun findAll(context: Context, provider: ContentProviderClient?, mainAccount: Account?) = AccountManager.get(context)
-                .getAccountsByType(context.getString(R.string.account_type_address_book))
-                .map { LocalAddressBook(context, it, provider) }
-                .filter { mainAccount == null || it.mainAccount == mainAccount }
-                .toList()
+        fun findAll(context: Context, provider: ContentProviderClient?, mainAccount: Account) = AccountManager.get(context)
+            .getAccountsByType(context.getString(R.string.account_type_address_book))
+            .map { LocalAddressBook(context, it, provider) }
+            .filter {
+                try {
+                    it.mainAccount == mainAccount
+                } catch(e: IllegalStateException) {
+                    false
+                }
+            }
+            .toList()
 
         fun accountName(mainAccount: Account, info: Collection): String {
             val baos = ByteArrayOutputStream()
             baos.write(info.url.hashCode())
             val hash = Base64.encodeToString(baos.toByteArray(), Base64.NO_WRAP or Base64.NO_PADDING)
 
-            val sb = StringBuilder(info.displayName.let {
+            val sb = StringBuilder(info.displayName.let { it ->
                 if (it.isNullOrEmpty())
                     DavUtils.lastSegmentOfUrl(info.url)
                 else
@@ -128,16 +124,19 @@ class LocalAddressBook(
         }
 
         fun mainAccount(context: Context, account: Account): Account =
-                if (account.type == context.getString(R.string.account_type_address_book)) {
-                    val manager = AccountManager.get(context)
-                    Account(
-                            manager.getUserData(account, USER_DATA_MAIN_ACCOUNT_NAME),
-                            manager.getUserData(account, USER_DATA_MAIN_ACCOUNT_TYPE)
-                    )
-                } else
-                    account
+            if (account.type == context.getString(R.string.account_type_address_book)) {
+                val manager = AccountManager.get(context)
+                Account(
+                    manager.getUserData(account, USER_DATA_MAIN_ACCOUNT_NAME),
+                    manager.getUserData(account, USER_DATA_MAIN_ACCOUNT_TYPE)
+                )
+            } else
+                account
 
     }
+
+    override val tag: String
+        get() = "contacts-${account.name}"
 
     override val title = account.name!!
 
@@ -151,6 +150,10 @@ class LocalAddressBook(
     var includeGroups = true
 
     private var _mainAccount: Account? = null
+    /**
+     * The associated main account which this address book accounts belongs to.
+     * @throws IllegalStateException when no main account is assigned
+     */
     var mainAccount: Account
         get() {
             _mainAccount?.let { return it }
@@ -175,7 +178,7 @@ class LocalAddressBook(
 
     var url: String
         get() = AccountManager.get(context).getUserData(account, USER_DATA_URL)
-                ?: throw IllegalStateException("Address book has no URL")
+            ?: throw IllegalStateException("Address book has no URL")
         set(url) = AccountManager.get(context).setUserData(account, USER_DATA_URL, url)
 
     override var readOnly: Boolean
@@ -207,11 +210,11 @@ class LocalAddressBook(
 
     override fun removeNotDirtyMarked(flags: Int): Int {
         var number = provider!!.delete(rawContactsSyncUri(),
-                "NOT ${RawContacts.DIRTY} AND ${LocalContact.COLUMN_FLAGS}=?", arrayOf(flags.toString()))
+            "NOT ${RawContacts.DIRTY} AND ${LocalContact.COLUMN_FLAGS}=?", arrayOf(flags.toString()))
 
         if (includeGroups)
             number += provider.delete(groupsSyncUri(),
-                    "NOT ${Groups.DIRTY} AND ${LocalGroup.COLUMN_FLAGS}=?", arrayOf(flags.toString()))
+                "NOT ${Groups.DIRTY} AND ${LocalGroup.COLUMN_FLAGS}=?", arrayOf(flags.toString()))
 
         return number
     }
@@ -245,7 +248,10 @@ class LocalAddressBook(
         }
 
         // make sure it will still be synchronized when contacts are updated
-        ContentResolver.setSyncAutomatically(account, ContactsContract.AUTHORITY, true)
+        if (ContentResolver.getIsSyncable(account, ContactsContract.AUTHORITY) <= 0)
+            ContentResolver.setIsSyncable(account, ContactsContract.AUTHORITY, 1)
+        if (!ContentResolver.getSyncAutomatically(account, ContactsContract.AUTHORITY))
+            ContentResolver.setSyncAutomatically(account, ContactsContract.AUTHORITY, true)
     }
 
     fun delete() {
@@ -274,10 +280,10 @@ class LocalAddressBook(
      * @throws RemoteException on content provider errors
      */
     override fun findDeleted() =
-            if (includeGroups)
-                findDeletedContacts() + findDeletedGroups()
-            else
-                findDeletedContacts()
+        if (includeGroups)
+            findDeletedContacts() + findDeletedGroups()
+        else
+            findDeletedContacts()
 
     fun findDeletedContacts() = queryContacts(RawContacts.DELETED, null)
     fun findDeletedGroups() = queryGroups(Groups.DELETED, null)
@@ -287,24 +293,12 @@ class LocalAddressBook(
      * @throws RemoteException on content provider errors
      */
     override fun findDirty() =
-            if (includeGroups)
-                findDirtyContacts() + findDirtyGroups()
-            else
-                findDirtyContacts()
+        if (includeGroups)
+            findDirtyContacts() + findDirtyGroups()
+        else
+            findDirtyContacts()
     fun findDirtyContacts() = queryContacts(RawContacts.DIRTY, null)
     fun findDirtyGroups() = queryGroups(Groups.DIRTY, null)
-
-    override fun findDirtyWithoutNameOrUid() =
-            if (includeGroups)
-                findDirtyContactsWithoutNameOrUid() + findDirtyGroupsWithoutNameOrUid()
-            else
-                findDirtyContactsWithoutNameOrUid()
-    private fun findDirtyContactsWithoutNameOrUid() = queryContacts(
-            "${RawContacts.DIRTY} AND (${AndroidContact.COLUMN_FILENAME} IS NULL OR ${AndroidContact.COLUMN_UID} IS NULL)",
-            null)
-    private fun findDirtyGroupsWithoutNameOrUid() = queryGroups(
-            "${Groups.DIRTY} AND (${AndroidGroup.COLUMN_FILENAME} IS NULL OR ${AndroidGroup.COLUMN_UID} IS NULL)",
-            null)
 
     override fun forgetETags() {
         if (includeGroups) {
@@ -353,10 +347,10 @@ class LocalAddressBook(
     fun getByGroupMembership(groupID: Long): List<LocalContact> {
         val ids = HashSet<Long>()
         provider!!.query(syncAdapterURI(ContactsContract.Data.CONTENT_URI),
-                arrayOf(RawContacts.Data.RAW_CONTACT_ID),
-                "(${GroupMembership.MIMETYPE}=? AND ${GroupMembership.GROUP_ROW_ID}=?) OR (${CachedGroupMembership.MIMETYPE}=? AND ${CachedGroupMembership.GROUP_ID}=?)",
-                arrayOf(GroupMembership.CONTENT_ITEM_TYPE, groupID.toString(), CachedGroupMembership.CONTENT_ITEM_TYPE, groupID.toString()),
-                null)?.use { cursor ->
+            arrayOf(RawContacts.Data.RAW_CONTACT_ID),
+            "(${GroupMembership.MIMETYPE}=? AND ${GroupMembership.GROUP_ROW_ID}=?) OR (${CachedGroupMembership.MIMETYPE}=? AND ${CachedGroupMembership.GROUP_ID}=?)",
+            arrayOf(GroupMembership.CONTENT_ITEM_TYPE, groupID.toString(), CachedGroupMembership.CONTENT_ITEM_TYPE, groupID.toString()),
+            null)?.use { cursor ->
             while (cursor.moveToNext())
                 ids += cursor.getLong(0)
         }
@@ -376,7 +370,7 @@ class LocalAddressBook(
      */
     fun findOrCreateGroup(title: String): Long {
         provider!!.query(syncAdapterURI(Groups.CONTENT_URI), arrayOf(Groups._ID),
-                "${Groups.TITLE}=?", arrayOf(title), null)?.use { cursor ->
+            "${Groups.TITLE}=?", arrayOf(title), null)?.use { cursor ->
             if (cursor.moveToNext())
                 return cursor.getLong(0)
         }

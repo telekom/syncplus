@@ -47,6 +47,7 @@ object DavNotificationUtils {
     private const val CHANNEL_SYNC_WARNINGS = NotificationUtils.CHANNEL_SYNC_WARNINGS
     private const val CHANNEL_SYNC_IO_ERRORS = NotificationUtils.CHANNEL_SYNC_IO_ERRORS
 
+    /*
     private fun buildRetryAction(
         context: Context,
         authority: String,
@@ -54,6 +55,7 @@ object DavNotificationUtils {
     ): NotificationCompat.Action {
         val retryIntent = Intent(context, DavService::class.java)
         retryIntent.action = DavService.ACTION_FORCE_SYNC
+        // TODO: Missing 'serviceEnvironments' action.
 
         val syncAuthority = if (authority == ContactsContract.AUTHORITY) {
             // if this is a contacts sync, retry syncing all address books of the main account
@@ -74,6 +76,7 @@ object DavNotificationUtils {
             PendingIntent.getService(context, 0, retryIntent, PendingIntent.FLAG_UPDATE_CURRENT)
         )
     }
+    */
 
     /*
     fun buildSyncErrorNotification(

@@ -13,17 +13,18 @@ import net.fortuna.ical4j.data.ParserException
 import net.fortuna.ical4j.model.Calendar
 import net.fortuna.ical4j.model.Date
 import net.fortuna.ical4j.model.Parameter
+import net.fortuna.ical4j.model.Property
 import net.fortuna.ical4j.model.component.*
 import net.fortuna.ical4j.model.parameter.Related
-import net.fortuna.ical4j.model.property.ProdId
-import net.fortuna.ical4j.model.property.TzUrl
+import net.fortuna.ical4j.model.property.*
 import net.fortuna.ical4j.validate.ValidationException
 import java.io.Reader
 import java.io.StringReader
+import java.time.Duration
+import java.time.Period
 import java.util.*
 import java.util.logging.Level
 import java.util.logging.Logger
-import kotlin.math.roundToInt
 
 open class ICalendar {
 
@@ -67,13 +68,18 @@ open class ICalendar {
          * @throws ParserException when the iCalendar can't be parsed
          * @throws IllegalArgumentException when the iCalendar resource contains an invalid value
          */
+        @UsesThreadContextClassLoader
         fun fromReader(reader: Reader, properties: MutableMap<String, String>? = null): Calendar {
-            Constants.log.fine("Parsing iCalendar stream")
+            Ical4Android.log.fine("Parsing iCalendar stream")
+            Ical4Android.checkThreadContextClassLoader()
+
+            // apply hacks and workarounds that operate on plain text level
+            val reader2 = ICalPreprocessor.fixInvalidUtcOffset(reader)
 
             // parse stream
             val calendar: Calendar
             try {
-                calendar = CalendarBuilder().build(reader)
+                calendar = CalendarBuilder().build(reader2)
             } catch(e: ParserException) {
                 throw InvalidCalendarException("Couldn't parse iCalendar", e)
             } catch(e: IllegalArgumentException) {
@@ -84,12 +90,12 @@ open class ICalendar {
             try {
                 ICalPreprocessor.preProcess(calendar)
             } catch (e: Exception) {
-                Constants.log.log(Level.WARNING, "Couldn't pre-process iCalendar", e)
+                Ical4Android.log.log(Level.WARNING, "Couldn't pre-process iCalendar", e)
             }
 
             // fill calendar properties
             properties?.let {
-                calendar.getProperty(CALENDAR_NAME)?.let { calName ->
+                calendar.getProperty<Property>(CALENDAR_NAME)?.let { calName ->
                     properties[CALENDAR_NAME] = calName.value
                 }
             }
@@ -101,57 +107,100 @@ open class ICalendar {
         // time zone helpers
 
         /**
-         * Minifies a VTIMEZONE so that only components after [start] are kept.
-         * Doesn't return the smallest possible VTIMEZONE at the moment, but
-         * reduces its size significantly.
+         * Minifies a VTIMEZONE so that only these observances are kept:
          *
-         * @param tz      Time zone definition to minify. Attention: the observances of this object
-         *                will be modified!
-         * @param start   Start date for components
+         *   - the last STANDARD observance matching [start], and
+         *   - the last DAYLIGHT observance matching [start], and
+         *   - observances beginning after [start]
+         *
+         * Additionally, TZURL properties are filtered.
+         *
+         * @param originalTz    time zone definition to minify
+         * @param start         start date for components (usually DTSTART); *null* if unknown
+         * @return              minified time zone definition
          */
-        fun minifyVTimeZone(tz: VTimeZone, start: Date) {
-            // find latest matching STANDARD/DAYLIGHT component,
-            // keep components at/after "start"
-            val iter = tz.observances.iterator()
-            var latestDaylight: Pair<Date, Observance>? = null
-            var latestStandard: Pair<Date, Observance>? = null
+        fun minifyVTimeZone(originalTz: VTimeZone, start: Date?): VTimeZone {
+            val newTz = originalTz.copy() as VTimeZone
             val keep = mutableSetOf<Observance>()
-            while (iter.hasNext()) {
-                val entry = iter.next() as Observance
-                val latest = entry.getLatestOnset(start)
 
-                if (latest == null  /* observance begins after "start" */ ||
-                    latest >= start /* observance has onsets at/after "start" */ ) {
-                    keep += entry
-                    continue
+            if (start != null) {
+                // find latest matching STANDARD/DAYLIGHT observances
+                var latestDaylight: Pair<Date, Observance>? = null
+                var latestStandard: Pair<Date, Observance>? = null
+                for (observance in newTz.observances) {
+                    val latest = observance.getLatestOnset(start)
+
+                    if (latest == null)         // observance begins after "start", keep in any case
+                        keep += observance
+                    else
+                        when (observance) {
+                            is Standard ->
+                                if (latestStandard == null || latest > latestStandard.first)
+                                    latestStandard = Pair(latest, observance)
+                            is Daylight ->
+                                if (latestDaylight == null || latest > latestDaylight.first)
+                                    latestDaylight = Pair(latest, observance)
+                        }
                 }
 
-                when (entry) {
-                    is Standard -> {
-                        if (latestStandard == null || latest.after(latestStandard.first))
-                            latestStandard = Pair(latest, entry)
+                // keep latest STANDARD observance
+                latestStandard?.second?.let { keep += it }
+
+                // Check latest DAYLIGHT for whether it can apply in the future. Otherwise, DST is not
+                // used in this time zone anymore and the DAYLIGHT component can be dropped completely.
+                latestDaylight?.second?.let { daylight ->
+                    // check whether start time is in DST
+                    if (latestStandard != null) {
+                        val latestStandardOnset = latestStandard.second.getLatestOnset(start)
+                        val latestDaylightOnset = daylight.getLatestOnset(start)
+                        if (latestStandardOnset != null && latestDaylightOnset != null && latestDaylightOnset > latestStandardOnset) {
+                            // we're currently in DST
+                            keep += daylight
+                            return@let
+                        }
                     }
-                    is Daylight -> {
-                        if (latestDaylight == null || latest.after(latestDaylight.first))
-                            latestDaylight = Pair(latest, entry)
+
+                    // check RRULEs
+                    for (rRule in daylight.getProperties<RRule>(Property.RRULE)) {
+                        val nextDstOnset = rRule.recur.getNextDate(daylight.startDate.date, start)
+                        if (nextDstOnset != null) {
+                            // there will be a DST onset in the future -> keep DAYLIGHT
+                            keep += daylight
+                            return@let
+                        }
+                    }
+                    // no RRULE, check whether there's an RDATE in the future
+                    for (rDate in daylight.getProperties<RDate>(Property.RDATE)) {
+                        if (rDate.dates.any { it >= start }) {
+                            // RDATE in the future
+                            keep += daylight
+                            return@let
+                        }
                     }
                 }
-            }
-            latestStandard?.second?.let { keep += it }
-            latestDaylight?.second?.let { keep += it }
 
-            // actually remove all observances that shall not be kept
-            val iter2 = tz.observances.iterator()
-            while (iter2.hasNext()) {
-                val entry = iter2.next() as Observance
-                if (!keep.contains(entry))
-                    iter2.remove()
+                // remove all observances that shall not be kept
+                val iterator = newTz.observances.iterator() as MutableIterator<Observance>
+                while (iterator.hasNext()) {
+                    val entry = iterator.next()
+                    if (!keep.contains(entry))
+                        iterator.remove()
+                }
             }
 
-            // remove TZURL
-            tz.properties.filterIsInstance<TzUrl>().forEach {
-                tz.properties.remove(it)
+            // remove unnecessary properties
+            newTz.properties.removeAll { it is TzUrl || it is XProperty }
+
+            // validate minified timezone
+            try {
+                newTz.validate()
+            } catch (e: ValidationException) {
+                // This should never happen!
+                Ical4Android.log.log(Level.WARNING, "Minified timezone is invalid, using original one", e)
+                return originalTz
             }
+
+            return newTz
         }
 
         /**
@@ -159,14 +208,16 @@ open class ICalendar {
          * @param timezoneDef time zone definition (VCALENDAR with VTIMEZONE component)
          * @return time zone id (TZID) if VTIMEZONE contains a TZID, null otherwise
          */
+        @UsesThreadContextClassLoader
         fun timezoneDefToTzId(timezoneDef: String): String? {
+            Ical4Android.checkThreadContextClassLoader()
             try {
                 val builder = CalendarBuilder()
                 val cal = builder.build(StringReader(timezoneDef))
                 val timezone = cal.getComponent(VTimeZone.VTIMEZONE) as VTimeZone?
                 timezone?.timeZoneId?.let { return it.value }
             } catch (e: ParserException) {
-                Constants.log.log(Level.SEVERE, "Can't understand time zone definition", e)
+                Ical4Android.log.log(Level.SEVERE, "Can't understand time zone definition", e)
             }
             return null
         }
@@ -189,7 +240,7 @@ open class ICalendar {
                     // debug build, re-throw ValidationException
                     throw e
                 else
-                    Constants.log.log(Level.WARNING, "iCalendar validation failed - This is only a warning!", e)
+                    Ical4Android.log.log(Level.WARNING, "iCalendar validation failed - This is only a warning!", e)
             }
         }
 
@@ -197,83 +248,99 @@ open class ICalendar {
         // misc. iCalendar helpers
 
         /**
-         * Calculates the minutes before/after an event/task a certain alarm occurs.
+         * Calculates the minutes before/after an event/task a given alarm occurs.
          *
          * @param alarm the alarm to calculate the minutes from
          * @param reference reference [VEvent] or [VToDo] to take start/end time from (required for calculations)
          * @param allowRelEnd *true*: caller accepts minutes related to the end;
          * *false*: caller only accepts minutes related to the start
          *
+         * Android's alarm granularity is minutes. This methods calculates with milliseconds, but the result
+         * is rounded down to minutes (seconds cut off).
+         *
          * @return Pair of values:
          *
          * 1. whether the minutes are related to the start or end (always [Related.START] if [allowRelEnd] is *false*)
          * 2. number of minutes before start/end (negative value means number of minutes *after* start/end)
          *
-         * May be *null* if the minutes can't be calculated.
+         * May be *null* if there's not enough information to calculate the number of minutes.
          */
         fun vAlarmToMin(alarm: VAlarm, reference: ICalendar, allowRelEnd: Boolean): Pair<Related, Int>? {
             val trigger = alarm.trigger ?: return null
 
-            var minutes = 0       // minutes before/after the event
-            var related = trigger.getParameter(Parameter.RELATED) as? Related ?: Related.START
+            val minutes: Int    // minutes before/after the event
+            var related = trigger.getParameter<Related>(Parameter.RELATED) ?: Related.START
 
-            val alarmDur = trigger.duration
-            val alarmTime = trigger.dateTime
+            // event/task start time
+            val start: java.util.Date?
+            var end: java.util.Date?
+            when (reference) {
+                is Event -> {
+                    start = reference.dtStart?.date
+                    end = reference.dtEnd?.date
+                }
+                is Task -> {
+                    start = reference.dtStart?.date
+                    end = reference.due?.date
+                }
+                else -> throw IllegalArgumentException("reference must be Event or Task")
+            }
 
-            if (alarmDur != null) {
-                // TRIGGER value is a DURATION
+            // event/task end time
+            if (end == null && start != null) {
+                val duration = when (reference) {
+                    is Event -> reference.duration?.duration
+                    is Task -> reference.duration?.duration
+                    else -> throw IllegalArgumentException("reference must be Event or Task")
+                }
+                if (duration != null)
+                    end = Date.from(start.toInstant() + duration)
+            }
 
-                // negative value in TRIGGER means positive value in Reminders.MINUTES and vice versa
-                minutes = -(((alarmDur.weeks * 7 + alarmDur.days) * 24 + alarmDur.hours) * 60 + alarmDur.minutes + (alarmDur.seconds/60.0).roundToInt())
-                // duration.weeks etc. always contain positive values → evaluate duration.isNegative
-                if (alarmDur.isNegative)
-                    minutes *= -1
+            // event/task duration
+            val duration: Duration? =
+                    if (start != null && end != null)
+                        Duration.between(start.toInstant(), end.toInstant())
+                    else
+                        null
 
-                // DURATION triggers may have RELATED=END (default: RELATED=START), which may not be useful for caller
+            val triggerDur = trigger.duration
+            val triggerTime = trigger.dateTime
+
+            if (triggerDur != null) {
+                // TRIGGER value is a DURATION. Important:
+                // 1) Negative values in TRIGGER mean positive values in Reminders.MINUTES and vice versa.
+                // 2) Android doesn't know alarm seconds, but only minutes. Cut off seconds from the final result.
+                // 3) DURATION can be a Duration (time-based) or a Period (date-based), which have to be treated differently.
+                var millisBefore =
+                        if (triggerDur is Duration)
+                            -triggerDur.toMillis()
+                        else if (triggerDur is Period)
+                            // TODO: Take time zones into account (will probably be possible with ical4j 4.x).
+                            // For instance, an alarm one day before the DST change should be 23/25 hours before the event.
+                            -triggerDur.days.toLong()*24*3600000     // months and years are not used in DURATION values; weeks are calculated to days
+                        else
+                            throw AssertionError("triggerDur must be Duration or Period")
+
                 if (related == Related.END && !allowRelEnd) {
-                    // Related.END is not accepted by caller (for instance because the calendar storage doesn't support it)
-
-                    val start = when (reference) {
-                        is Event -> reference.dtStart?.date?.time
-                        is Task -> reference.dtStart?.date?.time
-                        else -> null
-                    }
-                    if (start == null) {
-                        Constants.log.warning("iCalendar with RELATED=END VALARM doesn't have start time (required for calculation), ignoring")
+                    if (duration == null) {
+                        Ical4Android.log.warning("Event/task without duration; can't calculate END-related alarm")
                         return null
                     }
-
-                    val end = when (reference) {
-                        is Event -> reference.dtEnd?.date?.time
-                        is Task -> reference.due?.date?.time
-                        else -> null
-                    }
-                    if (end == null) {
-                        Constants.log.warning("iCalendar with RELATED=END VALARM doesn't have end time, ignoring")
-                        return null
-                    }
-                    val durMin = ((end - start)/60000.0).roundToInt()      // ms → min
-
                     // move alarm towards end
                     related = Related.START
-                    minutes -= durMin
+                    millisBefore -= duration.toMillis()
                 }
+                minutes = (millisBefore / 60000).toInt()
 
-            } else if (alarmTime != null) {
+            } else if (triggerTime != null && start != null) {
                 // TRIGGER value is a DATE-TIME, calculate minutes from start time
-                val start = if (reference is Event)
-                            reference.dtStart?.date?.time
-                        else if (reference is Task)
-                            reference.dtStart?.date?.time
-                        else
-                            null
-                if (start == null) {
-                    Constants.log.warning("iCalendar with DATE-TIME VALARM doesn't have start time (required for calculation), ignoring")
-                    return null
-                }
-
                 related = Related.START
-                minutes = ((start - alarmTime.time)/60000.0).roundToInt()   // ms → min
+                minutes = Duration.between(triggerTime.toInstant(), start.toInstant()).toMinutes().toInt()
+
+            } else {
+                Ical4Android.log.log(Level.WARNING, "VALARM TRIGGER type is not DURATION or DATE-TIME (requires event DTSTART for Android), ignoring alarm", alarm)
+                return null
             }
 
             return Pair(related, minutes)

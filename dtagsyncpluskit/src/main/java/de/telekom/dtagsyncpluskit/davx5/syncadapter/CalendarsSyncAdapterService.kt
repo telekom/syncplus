@@ -49,7 +49,7 @@ abstract class CalendarsSyncAdapterService: SyncAdapterService() {
     override fun syncAdapter() = CalendarsSyncAdapter(this)
 
 
-	class CalendarsSyncAdapter(
+    class CalendarsSyncAdapter(
         private val service: SyncAdapterService
     ): SyncAdapter(service) {
 
@@ -75,8 +75,8 @@ abstract class CalendarsSyncAdapterService: SyncAdapterService() {
 
                 val priorityCalendars = priorityCollections(extras)
                 val calendars = AndroidCalendar
-                        .find(account, provider, LocalCalendar.Factory, "${CalendarContract.Calendars.SYNC_EVENTS}!=0", null)
-                        .sortedByDescending { priorityCalendars.contains(it.id) }
+                    .find(account, provider, LocalCalendar.Factory, "${CalendarContract.Calendars.SYNC_EVENTS}!=0", null)
+                    .sortedByDescending { priorityCalendars.contains(it.id) }
                 for (calendar in calendars) {
                     Logger.log.info("Synchronizing calendar #${calendar.id}, URL: ${calendar.name}")
                     CalendarSyncManager(

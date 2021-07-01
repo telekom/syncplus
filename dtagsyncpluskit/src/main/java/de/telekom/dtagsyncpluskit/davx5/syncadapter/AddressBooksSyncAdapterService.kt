@@ -94,10 +94,8 @@ abstract class AddressBooksSyncAdapterService : SyncAdapterService() {
             if (ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
                 if (remoteAddressBooks.isEmpty())
                     Logger.log.info("No contacts permission, but no address book selected for synchronization")
-                else {
-                    // no contacts permission, but address books should be synchronized -> show notification
-                    securityExceptionOccurred(account, syncResult)
-                }
+                else
+                    Logger.log.warning("No contacts permission, but address books are selected for synchronization")
                 return false
             }
 

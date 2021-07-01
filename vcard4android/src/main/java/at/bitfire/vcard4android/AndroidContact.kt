@@ -8,7 +8,6 @@
 
 package at.bitfire.vcard4android
 
-import android.content.ContentProviderOperation
 import android.content.ContentUris
 import android.content.ContentValues
 import android.content.EntityIterator
@@ -26,6 +25,7 @@ import android.provider.ContactsContract.CommonDataKinds.Photo
 import android.provider.ContactsContract.CommonDataKinds.StructuredName
 import android.provider.ContactsContract.RawContacts
 import android.provider.ContactsContract.RawContacts.Data
+import androidx.annotation.CallSuper
 import ezvcard.parameter.*
 import ezvcard.property.*
 import ezvcard.util.PartialDate
@@ -52,18 +52,19 @@ open class AndroidContact(
         const val COLUMN_UID = RawContacts.SYNC1
         const val COLUMN_ETAG = RawContacts.SYNC2
 
-        fun labelToXName(label: String) = "X-" + label
-                .replace(" ","_")
+        fun labelToXName(label: String) = "x-" + label
+                .replace(' ','-')
                 .replace(Regex("[^\\p{L}\\p{Nd}\\-_]"), "")
-                .toUpperCase(Locale.getDefault())
+                .toLowerCase()
 
         fun xNameToLabel(xname: String): String {
-            // "X-MY_PROPERTY"
+            // "x-my_property"
             var s = xname.toLowerCase(Locale.getDefault())    // 1. ensure lower case -> "x-my_property"
-            if (s.startsWith("x-"))                     // 2. remove x- from beginning -> "my_property"
+            if (s.startsWith("x-"))                    // 2. remove x- from beginning -> "my_property"
                 s = s.substring(2)
-            s = s.replace('_', ' ')          // 3. replace "_" by " " -> "my property"
-            return WordUtils.capitalize(s)                    // 4. capitalize -> "My Property"
+            s = s   .replace('_', ' ')       // 3. replace "_" and "-" by " " -> "my property"
+                    .replace('-', ' ')
+            return WordUtils.capitalize(s)                   // 4. capitalize -> "My Property"
         }
 
         fun toURIScheme(s: String?) =
@@ -177,6 +178,7 @@ open class AndroidContact(
             }
         }
 
+    @CallSuper
     protected open fun populateContact(row: ContentValues) {
         fileName = row.getAsString(COLUMN_FILENAME)
         eTag = row.getAsString(COLUMN_ETAG)
@@ -456,7 +458,7 @@ open class AndroidContact(
         val dateStr = row.getAsString(Event.START_DATE)
         var full: Date? = null
         var partial: PartialDate? = null
-        val fullFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+        val fullFormat = SimpleDateFormat("yyyy-MM-dd", Locale.ROOT)
         try {
             full = fullFormat.parse(dateStr)
         } catch(e: ParseException) {
@@ -547,20 +549,20 @@ open class AndroidContact(
     fun add(): Uri {
         val batch = BatchOperation(addressBook.provider!!)
 
-        val builder = ContentProviderOperation.newInsert(addressBook.syncAdapterURI(RawContacts.CONTENT_URI))
+        val builder = BatchOperation.CpoBuilder.newInsert(addressBook.syncAdapterURI(RawContacts.CONTENT_URI))
         buildContact(builder, false)
-        batch.enqueue(BatchOperation.Operation(builder))
+        batch.enqueue(builder)
 
         insertDataRows(batch)
 
         batch.commit()
-        val result = batch.getResult(0) ?: throw ContactsStorageException("Empty result from content provider when adding contact")
-        id = ContentUris.parseId(result.uri)
+        val resultUri = batch.getResult(0)?.uri ?: throw ContactsStorageException("Empty result from content provider when adding contact")
+        id = ContentUris.parseId(resultUri)
 
         // we need a raw contact ID to insert the photo
         insertPhoto(contact!!.photo)
 
-        return result.uri
+        return resultUri
     }
 
     fun update(contact: Contact): Uri {
@@ -568,16 +570,16 @@ open class AndroidContact(
 
         val batch = BatchOperation(addressBook.provider!!)
         val uri = rawContactSyncURI()
-        val builder = ContentProviderOperation.newUpdate(uri)
+        val builder = BatchOperation.CpoBuilder.newUpdate(uri)
         buildContact(builder, true)
-        batch.enqueue(BatchOperation.Operation(builder))
+        batch.enqueue(builder)
 
         // Delete known data rows before adding the new ones.
         // - We don't delete group memberships.
         // - We'll only delete rows we have inserted so that unknown rows like
         //   vnd.android.cursor.item/important_people (= contact is in Samsung "edge panel") remain untouched.
-        batch.enqueue(BatchOperation.Operation(
-                ContentProviderOperation.newDelete(dataSyncURI())
+        batch.enqueue(BatchOperation.CpoBuilder
+                .newDelete(dataSyncURI())
                 .withSelection(Data.RAW_CONTACT_ID + "=? AND " +
                         Data.MIMETYPE + " IN (?,?,?,?,?,?,?,?,?,?,?,?,?)",
                         arrayOf(id.toString(),
@@ -594,7 +596,7 @@ open class AndroidContact(
                                 Event.CONTENT_ITEM_TYPE,
                                 Relation.CONTENT_ITEM_TYPE,
                                 SipAddress.CONTENT_ITEM_TYPE))
-        ))
+        )
         insertDataRows(batch)
         batch.commit()
 
@@ -606,7 +608,8 @@ open class AndroidContact(
     fun delete() = addressBook.provider!!.delete(rawContactSyncURI(), null, null)
 
 
-    protected open fun buildContact(builder: ContentProviderOperation.Builder, update: Boolean) {
+    @CallSuper
+    protected open fun buildContact(builder: BatchOperation.CpoBuilder, update: Boolean) {
         if (!update)
             builder	.withValue(RawContacts.ACCOUNT_NAME, addressBook.account.name)
                     .withValue(RawContacts.ACCOUNT_TYPE, addressBook.account.type)
@@ -619,8 +622,6 @@ open class AndroidContact(
 
         if (addressBook.readOnly)
             builder.withValue(RawContacts.RAW_CONTACT_IS_READ_ONLY, 1)
-
-        Constants.log.log(Level.FINER, "Built RawContact data row", builder.build())
     }
 
 
@@ -631,6 +632,7 @@ open class AndroidContact(
      * @param  batch    batch operation used to insert the data rows
      * @throws RemoteException on contact provider errors
      */
+    @CallSuper
     protected open fun insertDataRows(batch: BatchOperation) {
         val contact = requireNotNull(contact)
 
@@ -660,15 +662,8 @@ open class AndroidContact(
                 contact.phoneticGivenName == null && contact.phoneticMiddleName == null && contact.phoneticFamilyName == null)
             return
 
-        val op: BatchOperation.Operation
-        val builder = ContentProviderOperation.newInsert(dataSyncURI())
-        if (id == null)
-            op = BatchOperation.Operation(builder, StructuredName.RAW_CONTACT_ID, 0)
-        else {
-            op = BatchOperation.Operation(builder)
-            builder.withValue(StructuredName.RAW_CONTACT_ID, id)
-        }
-        builder .withValue(Data.MIMETYPE, StructuredName.CONTENT_ITEM_TYPE)
+        val builder = insertDataBuilder(StructuredName.RAW_CONTACT_ID)
+                .withValue(Data.MIMETYPE, StructuredName.CONTENT_ITEM_TYPE)
                 .withValue(StructuredName.DISPLAY_NAME, contact.displayName)
                 .withValue(StructuredName.PREFIX, contact.prefix)
                 .withValue(StructuredName.GIVEN_NAME, contact.givenName)
@@ -678,12 +673,7 @@ open class AndroidContact(
                 .withValue(StructuredName.PHONETIC_GIVEN_NAME, contact.phoneticGivenName)
                 .withValue(StructuredName.PHONETIC_MIDDLE_NAME, contact.phoneticMiddleName)
                 .withValue(StructuredName.PHONETIC_FAMILY_NAME, contact.phoneticFamilyName)
-
-        if (addressBook.readOnly)
-            builder.withValue(Data.IS_READ_ONLY, 1)
-
-        Constants.log.log(Level.FINER, "Built StructuredName data row", builder.build())
-        batch.enqueue(op)
+        batch.enqueue(builder)
     }
 
     protected open fun insertPhoneNumber(batch: BatchOperation, labeledNumber: LabeledProperty<Telephone>) {
@@ -761,26 +751,14 @@ open class AndroidContact(
             }
         }
 
-        val op: BatchOperation.Operation
-        val builder = ContentProviderOperation.newInsert(dataSyncURI())
-        if (id == null)
-            op = BatchOperation.Operation(builder, Phone.RAW_CONTACT_ID, 0)
-        else {
-            op = BatchOperation.Operation(builder)
-            builder.withValue(Phone.RAW_CONTACT_ID, id)
-        }
-        builder	.withValue(Phone.MIMETYPE, Phone.CONTENT_ITEM_TYPE)
+        val builder = insertDataBuilder(Phone.RAW_CONTACT_ID)
+                .withValue(Phone.MIMETYPE, Phone.CONTENT_ITEM_TYPE)
                 .withValue(Phone.NUMBER, number.text)
                 .withValue(Phone.TYPE, typeCode)
                 .withValue(Phone.LABEL, typeLabel)
                 .withValue(Phone.IS_PRIMARY, if (isPrimary) 1 else 0)
                 .withValue(Phone.IS_SUPER_PRIMARY, if (isPrimary) 1 else 0)
-
-        if (addressBook.readOnly)
-            builder.withValue(Data.IS_READ_ONLY, 1)
-
-        Constants.log.log(Level.FINER, "Built Phone data row", builder.build())
-        batch.enqueue(op)
+        batch.enqueue(builder)
     }
 
     protected open fun insertEmail(batch: BatchOperation, labeledEmail: LabeledProperty<ezvcard.property.Email>) {
@@ -826,26 +804,14 @@ open class AndroidContact(
             }
         }
 
-        val op: BatchOperation.Operation
-        val builder = ContentProviderOperation.newInsert(dataSyncURI())
-        if (id == null)
-            op = BatchOperation.Operation(builder, Email.RAW_CONTACT_ID, 0)
-        else {
-            op = BatchOperation.Operation(builder)
-            builder.withValue(Email.RAW_CONTACT_ID, id)
-        }
-        builder	.withValue(Email.MIMETYPE, Email.CONTENT_ITEM_TYPE)
+        val builder = insertDataBuilder(Email.RAW_CONTACT_ID)
+                .withValue(Email.MIMETYPE, Email.CONTENT_ITEM_TYPE)
                 .withValue(Email.ADDRESS, email.value)
                 .withValue(Email.TYPE, typeCode)
                 .withValue(Email.LABEL, typeLabel)
                 .withValue(Email.IS_PRIMARY, if (isPrimary) 1 else 0)
                 .withValue(Phone.IS_SUPER_PRIMARY, if (isPrimary) 1 else 0)
-
-        if (addressBook.readOnly)
-            builder.withValue(Data.IS_READ_ONLY, 1)
-
-        Constants.log.log(Level.FINER, "Built Email data row", builder.build())
-        batch.enqueue(op)
+        batch.enqueue(builder)
     }
 
     protected open fun insertOrganization(batch: BatchOperation) {
@@ -864,25 +830,13 @@ open class AndroidContact(
                 department = org.next()
         }
 
-        val op: BatchOperation.Operation
-        val builder = ContentProviderOperation.newInsert(dataSyncURI())
-        if (id == null)
-            op = BatchOperation.Operation(builder, Organization.RAW_CONTACT_ID, 0)
-        else {
-            op = BatchOperation.Operation(builder)
-            builder.withValue(Organization.RAW_CONTACT_ID, id)
-        }
-        builder .withValue(Organization.MIMETYPE, Organization.CONTENT_ITEM_TYPE)
+        val builder = insertDataBuilder(Organization.RAW_CONTACT_ID)
+                .withValue(Organization.MIMETYPE, Organization.CONTENT_ITEM_TYPE)
                 .withValue(Organization.COMPANY, company)
                 .withValue(Organization.DEPARTMENT, department)
                 .withValue(Organization.TITLE, contact.jobTitle)
                 .withValue(Organization.JOB_DESCRIPTION, contact.jobDescription)
-
-        if (addressBook.readOnly)
-            builder.withValue(Data.IS_READ_ONLY, 1)
-
-        Constants.log.log(Level.FINER, "Built Organization data row", builder.build())
-        batch.enqueue(op)
+        batch.enqueue(builder)
     }
 
     protected open fun insertIMPP(batch: BatchOperation, labeledImpp: LabeledProperty<Impp>) {
@@ -936,36 +890,23 @@ open class AndroidContact(
             }
         }
 
-        val op: BatchOperation.Operation
-        val builder = ContentProviderOperation.newInsert(dataSyncURI())
-        if (id == null)
-            op = BatchOperation.Operation(builder, Im.RAW_CONTACT_ID, 0)
-        else {
-            op = BatchOperation.Operation(builder)
-            builder.withValue(Im.RAW_CONTACT_ID, id)
-        }
-
-        if (addressBook.readOnly)
-            builder.withValue(Data.IS_READ_ONLY, 1)
-
-        if (sipAddress) {
+        val builder = if (sipAddress)
             // save as SIP address
-            builder .withValue(SipAddress.MIMETYPE, SipAddress.CONTENT_ITEM_TYPE)
+            insertDataBuilder(SipAddress.RAW_CONTACT_ID)
+                    .withValue(SipAddress.MIMETYPE, SipAddress.CONTENT_ITEM_TYPE)
                     .withValue(SipAddress.DATA, impp.handle)
                     .withValue(SipAddress.TYPE, typeCode)
                     .withValue(SipAddress.LABEL, typeLabel)
-            Constants.log.log(Level.FINER, "Built SipAddress data row", builder.build())
-        } else {
+        else
             // save as IM address
-            builder	.withValue(Im.MIMETYPE, Im.CONTENT_ITEM_TYPE)
+            insertDataBuilder(Im.RAW_CONTACT_ID)
+                    .withValue(Im.MIMETYPE, Im.CONTENT_ITEM_TYPE)
                     .withValue(Im.DATA, impp.handle)
                     .withValue(Im.TYPE, typeCode)
                     .withValue(Im.LABEL, typeLabel)
                     .withValue(Im.PROTOCOL, protocolCode)
                     .withValue(Im.CUSTOM_PROTOCOL, protocolLabel)
-            Constants.log.log(Level.FINER, "Built Im data row", builder.build())
-        }
-        batch.enqueue(op)
+        batch.enqueue(builder)
     }
 
     protected open fun insertNickname(batch: BatchOperation) {
@@ -976,7 +917,7 @@ open class AndroidContact(
         val typeCode: Int
         var typeLabel: String? = null
 
-        val type = nick.type
+        val type = nick.type?.toLowerCase()
         typeCode = when (type) {
             Contact.NICKNAME_TYPE_MAIDEN_NAME -> Nickname.TYPE_MAIDEN_NAME
             Contact.NICKNAME_TYPE_SHORT_NAME ->  Nickname.TYPE_SHORT_NAME
@@ -989,24 +930,12 @@ open class AndroidContact(
             }
         }
 
-        val op: BatchOperation.Operation
-        val builder = ContentProviderOperation.newInsert(dataSyncURI())
-        if (id == null)
-            op = BatchOperation.Operation(builder, Nickname.RAW_CONTACT_ID, 0)
-        else {
-            op = BatchOperation.Operation(builder)
-            builder.withValue(Nickname.RAW_CONTACT_ID, id)
-        }
-        builder .withValue(Nickname.MIMETYPE, Nickname.CONTENT_ITEM_TYPE)
+        val builder = insertDataBuilder(Nickname.RAW_CONTACT_ID)
+                .withValue(Nickname.MIMETYPE, Nickname.CONTENT_ITEM_TYPE)
                 .withValue(Nickname.NAME, nick.values.first())
                 .withValue(Nickname.TYPE, typeCode)
                 .withValue(Nickname.LABEL, typeLabel)
-
-        if (addressBook.readOnly)
-            builder.withValue(Data.IS_READ_ONLY, 1)
-
-        Constants.log.log(Level.FINER, "Built Nickname data row", builder.build())
-        batch.enqueue(op)
+        batch.enqueue(builder)
     }
 
     protected open fun insertNote(batch: BatchOperation) {
@@ -1014,22 +943,10 @@ open class AndroidContact(
         if (contact.note.isNullOrEmpty())
             return
 
-        val op: BatchOperation.Operation
-        val builder = ContentProviderOperation.newInsert(dataSyncURI())
-        if (id == null)
-            op = BatchOperation.Operation(builder, Note.RAW_CONTACT_ID, 0)
-        else {
-            op = BatchOperation.Operation(builder)
-            builder.withValue(Note.RAW_CONTACT_ID, id)
-        }
-        builder .withValue(Note.MIMETYPE, Note.CONTENT_ITEM_TYPE)
+        val builder = insertDataBuilder(Note.RAW_CONTACT_ID)
+                .withValue(Note.MIMETYPE, Note.CONTENT_ITEM_TYPE)
                 .withValue(Note.NOTE, contact.note)
-
-        if (addressBook.readOnly)
-            builder.withValue(Data.IS_READ_ONLY, 1)
-
-        Constants.log.log(Level.FINER, "Built Note data row", builder.build())
-        batch.enqueue(op)
+        batch.enqueue(builder)
     }
 
     protected open fun insertStructuredPostal(batch: BatchOperation, labeledAddress: LabeledProperty<Address>) {
@@ -1079,15 +996,8 @@ open class AndroidContact(
             }
         }
 
-        val op: BatchOperation.Operation
-        val builder = ContentProviderOperation.newInsert(dataSyncURI())
-        if (id == null)
-            op = BatchOperation.Operation(builder, StructuredPostal.RAW_CONTACT_ID, 0)
-        else {
-            op = BatchOperation.Operation(builder)
-            builder.withValue(StructuredPostal.RAW_CONTACT_ID, id)
-        }
-        builder .withValue(StructuredPostal.MIMETYPE, StructuredPostal.CONTENT_ITEM_TYPE)
+        val builder = insertDataBuilder(StructuredPostal.RAW_CONTACT_ID)
+                .withValue(StructuredPostal.MIMETYPE, StructuredPostal.CONTENT_ITEM_TYPE)
                 .withValue(StructuredPostal.FORMATTED_ADDRESS, formattedAddress)
                 .withValue(StructuredPostal.TYPE, typeCode)
                 .withValue(StructuredPostal.LABEL, typeLabel)
@@ -1098,12 +1008,7 @@ open class AndroidContact(
                 .withValue(StructuredPostal.REGION, address.region)
                 .withValue(StructuredPostal.POSTCODE, address.postalCode)
                 .withValue(StructuredPostal.COUNTRY, address.country)
-
-        if (addressBook.readOnly)
-            builder.withValue(Data.IS_READ_ONLY, 1)
-
-        Constants.log.log(Level.FINER, "Built StructuredPostal data row", builder.build())
-        batch.enqueue(op)
+        batch.enqueue(builder)
     }
 
     protected open fun insertWebsite(batch: BatchOperation, labeledUrl: LabeledProperty<Url>) {
@@ -1115,7 +1020,7 @@ open class AndroidContact(
             typeCode = Website.TYPE_CUSTOM
             typeLabel = labeledUrl.label
         } else {
-            val type = url.type
+            val type = url.type?.toLowerCase()
             typeCode = when (type) {
                 Contact.URL_TYPE_HOMEPAGE -> Website.TYPE_HOMEPAGE
                 Contact.URL_TYPE_BLOG ->     Website.TYPE_BLOG
@@ -1131,31 +1036,19 @@ open class AndroidContact(
             }
         }
 
-        val op: BatchOperation.Operation
-        val builder = ContentProviderOperation.newInsert(dataSyncURI())
-        if (id == null)
-            op = BatchOperation.Operation(builder, Website.RAW_CONTACT_ID, 0)
-        else {
-            op = BatchOperation.Operation(builder)
-            builder.withValue(Website.RAW_CONTACT_ID, id)
-        }
-        builder .withValue(Website.MIMETYPE, Website.CONTENT_ITEM_TYPE)
+        val builder = insertDataBuilder(Website.RAW_CONTACT_ID)
+                .withValue(Website.MIMETYPE, Website.CONTENT_ITEM_TYPE)
                 .withValue(Website.URL, url.value)
                 .withValue(Website.TYPE, typeCode)
                 .withValue(Website.LABEL, typeLabel)
-
-        if (addressBook.readOnly)
-            builder.withValue(Data.IS_READ_ONLY, 1)
-
-        Constants.log.log(Level.FINER, "Built Website data row", builder.build())
-        batch.enqueue(op)
+        batch.enqueue(builder)
     }
 
     protected open fun insertEvent(batch: BatchOperation, type: Int, dateOrTime: DateOrTimeProperty) {
         val dateStr: String
         dateStr = when {
             dateOrTime.date != null -> {
-                val format = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+                val format = SimpleDateFormat("yyyy-MM-dd", Locale.ROOT)
                 format.format(dateOrTime.date)
             }
             dateOrTime.partialDate != null ->
@@ -1166,23 +1059,11 @@ open class AndroidContact(
             }
         }
 
-        val op: BatchOperation.Operation
-        val builder = ContentProviderOperation.newInsert(dataSyncURI())
-        if (id == null)
-            op = BatchOperation.Operation(builder, Event.RAW_CONTACT_ID, 0)
-        else {
-            op = BatchOperation.Operation(builder)
-            builder.withValue(Event.RAW_CONTACT_ID, id)
-        }
-        builder .withValue(Event.MIMETYPE, Event.CONTENT_ITEM_TYPE)
+        val builder = insertDataBuilder(Event.RAW_CONTACT_ID)
+                .withValue(Event.MIMETYPE, Event.CONTENT_ITEM_TYPE)
                 .withValue(Event.TYPE, type)
                 .withValue(Event.START_DATE, dateStr)
-
-        if (addressBook.readOnly)
-            builder.withValue(Data.IS_READ_ONLY, 1)
-
-        batch.enqueue(op)
-        Constants.log.log(Level.FINER, "Built Event data row", builder.build())
+        batch.enqueue(builder)
     }
 
     protected open fun insertRelation(batch: BatchOperation, related: Related) {
@@ -1202,24 +1083,12 @@ open class AndroidContact(
                 else               -> labels += type.value
             }
 
-        val op: BatchOperation.Operation
-        val builder = ContentProviderOperation.newInsert(dataSyncURI())
-        if (id == null)
-            op = BatchOperation.Operation(builder, Relation.RAW_CONTACT_ID, 0)
-        else {
-            op = BatchOperation.Operation(builder)
-            builder.withValue(Relation.RAW_CONTACT_ID, id)
-        }
-        builder .withValue(Relation.MIMETYPE, Relation.CONTENT_ITEM_TYPE)
+        val builder = insertDataBuilder(Relation.RAW_CONTACT_ID)
+                .withValue(Relation.MIMETYPE, Relation.CONTENT_ITEM_TYPE)
                 .withValue(Relation.NAME, related.text)
                 .withValue(Relation.TYPE, typeCode)
                 .withValue(Relation.LABEL, StringUtils.trimToNull(labels.joinToString(", ")))
-
-        if (addressBook.readOnly)
-            builder.withValue(Data.IS_READ_ONLY, 1)
-
-        Constants.log.log(Level.FINER, "Built Relation data row", builder.build())
-        batch.enqueue(op)
+        batch.enqueue(builder)
     }
 
     protected open fun insertPhoto(orig: ByteArray?) {
@@ -1302,6 +1171,19 @@ open class AndroidContact(
 
 
     // helpers
+
+    protected fun insertDataBuilder(rawContactKeyName: String): BatchOperation.CpoBuilder {
+        val builder = BatchOperation.CpoBuilder.newInsert(dataSyncURI())
+        if (id == null)
+            builder.withValueBackReference(rawContactKeyName, 0)
+        else
+            builder.withValue(rawContactKeyName, id)
+
+        if (addressBook.readOnly)
+            builder.withValue(Data.IS_READ_ONLY, 1)
+
+        return builder
+    }
 
     protected open fun queryPhotoMaxDimensions(): Int {
         try {

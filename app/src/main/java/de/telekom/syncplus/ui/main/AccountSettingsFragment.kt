@@ -30,6 +30,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.provider.CalendarContract
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -38,8 +39,8 @@ import android.widget.CheckBox
 import android.widget.ImageView
 import android.widget.ListView
 import android.widget.TextView
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.activityViewModels
-import androidx.lifecycle.Observer
 import androidx.lifecycle.lifecycleScope
 import de.telekom.dtagsyncpluskit.davx5.log.Logger
 import de.telekom.dtagsyncpluskit.davx5.model.Collection
@@ -119,18 +120,19 @@ class AccountSettingsFragment : BaseFragment() {
         setupCalendarSubView(v, accountSettings)
         setupAddressBookSubView(v, accountSettings)
         setupSyncDropdown(v, accountSettings)
+        updateLastSyncDate(v, accountSettings)
 
         val context = requireContext()
         v.syncnowButton.setOnClickListener {
             v.syncnowButton.isEnabled = false
-            v.syncnowButton.icon = context.getDrawable(R.drawable.ic_sync_now_icon)
+            v.syncnowButton.icon = ContextCompat.getDrawable(context, R.drawable.ic_sync_now_icon)
             v.syncnowtextview.text = requireContext().getString(R.string.sync_now)
             accountSettings.resyncCalendars(false)
             accountSettings.resyncContacts(false)
 
             mHandler.postDelayed({
                 v.syncnowButton.isEnabled = true
-                val drawable = context.getDrawable(R.drawable.ic_sync_check_animated)
+                val drawable = ContextCompat.getDrawable(context, R.drawable.ic_sync_check_animated)
                 v.syncnowButton.icon = drawable
                 v.syncnowtextview.text = requireContext().getString(R.string.sync_done)
                 mHandler.post { (drawable as? AnimatedVectorDrawable)?.start() }
@@ -138,9 +140,16 @@ class AccountSettingsFragment : BaseFragment() {
                     if (v.syncnowButton.isEnabled) {
                         v.syncnowtextview.text = requireContext().getString(R.string.sync_now)
                         v.syncnowButton.icon =
-                            requireContext().getDrawable(R.drawable.ic_sync_now_icon)
+                            ContextCompat.getDrawable(requireContext(), R.drawable.ic_sync_now_icon)
                     }
+
+                    // Sync should be completed now, update last synced date.
+                    updateLastSyncDate(v, accountSettings)
                 }, 5000)
+
+                // It's not guaranteed that the sync is done at this point, we'll try updating it
+                // once again in a couple seconds.
+                updateLastSyncDate(v, accountSettings)
             }, 2500)
         }
 
@@ -150,6 +159,28 @@ class AccountSettingsFragment : BaseFragment() {
     override fun onStop() {
         super.onStop()
         mHandler.removeCallbacksAndMessages(null)
+    }
+
+    private fun updateLastSyncDate(view: View, accountSettings: AccountSettings) {
+        val calendarSyncDate = accountSettings.lastSyncDate(CalendarContract.AUTHORITY)
+        if (calendarSyncDate != null) {
+            val (dayMonYear, hourMin) = calendarSyncDate
+            view.synctext_calendar?.text = getString(R.string.synctext_format, dayMonYear, hourMin)
+            view.synctext_calendar?.visibility =
+                if (accountSettings.isCalendarSyncEnabled()) View.VISIBLE else View.GONE
+        } else {
+            view.synctext_calendar?.visibility = View.GONE
+        }
+
+        val addressSyncDate = accountSettings.lastSyncDate(getString(de.telekom.dtagsyncpluskit.R.string.address_books_authority))
+        if (addressSyncDate != null) {
+            val (dayMonYear, hourMin) = addressSyncDate
+            view.synctext?.text = getString(R.string.synctext_format, dayMonYear, hourMin)
+            view.synctext?.visibility =
+                if (accountSettings.isContactSyncEnabled()) View.VISIBLE else View.GONE
+        } else {
+            view.synctext?.visibility = View.GONE
+        }
     }
 
     @SuppressLint("MissingPermission")
@@ -193,9 +224,9 @@ class AccountSettingsFragment : BaseFragment() {
         }
 
         model.fetch(mAccount, App.serviceEnvironments(requireContext()), Collection.TYPE_CALENDAR)
-        model.fetcher.observe(viewLifecycleOwner, Observer { fetcher ->
+        model.fetcher.observe(viewLifecycleOwner, { fetcher ->
             fetcher?.collections?.removeObservers(viewLifecycleOwner)
-            fetcher?.collections?.observe(viewLifecycleOwner, Observer { collections ->
+            fetcher?.collections?.observe(viewLifecycleOwner, { collections ->
                 val adapter = v.calendarList.adapter as? CalendarAdapter
                 adapter?.dataSource = sortCalendarCollections(collections.toList())
                 adapter?.notifyDataSetChanged()
@@ -210,9 +241,6 @@ class AccountSettingsFragment : BaseFragment() {
 
     private fun setupAddressBookSubView(v: View, accountSettings: AccountSettings) {
         v.addressBookSwitch.isChecked = accountSettings.isContactSyncEnabled()
-        v.synctext.text = getString(R.string.synctext_format, accountSettings.lastSyncDate())
-        v.synctext.visibility =
-            if (accountSettings.isContactSyncEnabled()) View.VISIBLE else View.GONE
 
         val enableContactSync: (isEnabled: Boolean) -> Unit = { isEnabled ->
             accountSettings.setContactSyncEnabled(isEnabled)
@@ -223,7 +251,7 @@ class AccountSettingsFragment : BaseFragment() {
         }
 
         v.addressBookSwitch.setOnCheckedChangeListener { _, isChecked ->
-            v.synctext.visibility = if (isChecked) View.VISIBLE else View.GONE
+            //v.synctext.visibility = if (isChecked) View.VISIBLE else View.GONE
 
             if (isChecked) {
                 // Request required permissions first.
@@ -252,7 +280,9 @@ class AccountSettingsFragment : BaseFragment() {
         val getSyncInterval: () -> Long? = {
             val addressBookSyncInterval = accountSettings.getSyncInterval(addressBookAuthority)
             val calendarSyncInterval = accountSettings.getSyncInterval(CalendarContract.AUTHORITY)
-            (addressBookSyncInterval ?: calendarSyncInterval)
+            val ret = (addressBookSyncInterval ?: calendarSyncInterval)
+            Logger.log.info("getSyncInterval = $ret")
+            ret
         }
 
         val syncInterval = getSyncInterval()
@@ -262,6 +292,7 @@ class AccountSettingsFragment : BaseFragment() {
         }
 
         v.more_settings_wrapper.visibility = View.VISIBLE
+        Logger.log.info("formatSyncIntervalString = ${formatSyncIntervalString(syncInterval)}")
         v.moreSettingsText.text = formatSyncIntervalString(syncInterval)
         v.moreSettingsButton.setOnClickListener {
             showSyncIntervalDialog(getSyncInterval()) { interval ->
@@ -277,6 +308,7 @@ class AccountSettingsFragment : BaseFragment() {
 
     // Interval is in seconds!
     private fun formatSyncIntervalString(interval: Long): String {
+        Logger.log.info("formatSyncIntervalString($interval)")
         val intervalInMinutes = interval / 60
         if (intervalInMinutes <= 60) {
             return getString(R.string.every_x_minutes, intervalInMinutes)

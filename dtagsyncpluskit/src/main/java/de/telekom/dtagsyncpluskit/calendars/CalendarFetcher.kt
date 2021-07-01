@@ -26,7 +26,8 @@ import android.provider.CalendarContract
 import androidx.annotation.RequiresPermission
 import kotlinx.android.parcel.Parcelize
 
-class CalendarFetcher(private val context: Context) {
+@Suppress("unused")
+class CalendarFetcher(context: Context) {
     private val contentResolver: ContentResolver = context.contentResolver
 
     @Parcelize

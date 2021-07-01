@@ -25,12 +25,14 @@ import at.bitfire.dav4jvm.Response
 import at.bitfire.dav4jvm.UrlUtils
 import at.bitfire.dav4jvm.exception.DavException
 import at.bitfire.dav4jvm.exception.HttpException
+import at.bitfire.dav4jvm.exception.UnauthorizedException
 import at.bitfire.dav4jvm.property.*
 import de.telekom.dtagsyncpluskit.api.BearerAuthInterceptor
 import de.telekom.dtagsyncpluskit.davx5.DavUtils
 import de.telekom.dtagsyncpluskit.davx5.HttpClient
 import de.telekom.dtagsyncpluskit.davx5.log.StringHandler
 import de.telekom.dtagsyncpluskit.davx5.model.Collection
+import de.telekom.dtagsyncpluskit.davx5.model.Collection.Companion.fromDavResponse
 import de.telekom.dtagsyncpluskit.davx5.model.Credentials
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
@@ -45,13 +47,11 @@ import java.net.URISyntaxException
 import java.util.*
 import java.util.logging.Level
 import java.util.logging.Logger
-import kotlin.collections.HashMap
-import kotlin.collections.HashSet
 
 class DavResourceFinder(
     app: Application,
     private val credentials: Credentials
-) : AutoCloseable {
+): AutoCloseable {
 
     private val context = app.applicationContext
 
@@ -62,21 +62,24 @@ class DavResourceFinder(
         override fun toString() = wellKnownName
     }
 
-    val log = Logger.getLogger("syncplus.DavResourceFinder")
+    val log: Logger = Logger.getLogger("davx5.DavResourceFinder")
     private val logBuffer = StringHandler()
-
     init {
         log.level = Level.FINEST
         log.addHandler(logBuffer)
     }
 
-    private val httpClient: HttpClient = HttpClient.Builder(app, logger = log)
-        .addAuthentication(BearerAuthInterceptor(app, credentials))
-        .withUnauthorizedCallback {
-            // TODO
-        }
-        .setForeground(true)
-        .build()
+    var encountered401 = false
+
+    private val httpClient: HttpClient = HttpClient.Builder(app, logger = log).let {
+        /*loginModel.credentials?.let { credentials ->
+            it.addAuthentication(null, credentials)
+        }*/
+        it.addAuthentication(BearerAuthInterceptor(app, credentials))
+        it.withUnauthorizedCallback { /* TODO */ }
+        it.setForeground(true)
+        it.build()
+    }
 
     override fun close() {
         httpClient.close()
@@ -96,16 +99,16 @@ class DavResourceFinder(
                 cardDavConfig = findInitialConfiguration(Service.CARDDAV)
             } catch (e: Exception) {
                 log.log(Level.INFO, "CardDAV service detection failed", e)
-                rethrowIfInterrupted(e)
+                processException(e)
             }
 
             try {
                 calDavConfig = findInitialConfiguration(Service.CALDAV)
             } catch (e: Exception) {
                 log.log(Level.INFO, "CalDAV service detection failed", e)
-                rethrowIfInterrupted(e)
+                processException(e)
             }
-        } catch (e: Exception) {
+        } catch(e: Exception) {
             // we have been interrupted; reset results so that an error message will be shown
             cardDavConfig = null
             calDavConfig = null
@@ -113,6 +116,7 @@ class DavResourceFinder(
 
         return Configuration(
             cardDavConfig, calDavConfig,
+            encountered401,
             logBuffer.toString()
         )
     }
@@ -139,13 +143,10 @@ class DavResourceFinder(
 
                 if (config.principal == null)
                     try {
-                        config.principal = getCurrentUserPrincipal(
-                            baseURL.resolve("/.well-known/" + service.wellKnownName)!!,
-                            service
-                        )
-                    } catch (e: Exception) {
+                        config.principal = getCurrentUserPrincipal(baseURL.resolve("/.well-known/" + service.wellKnownName)!!, service)
+                    } catch(e: Exception) {
                         log.log(Level.FINE, "Well-known URL detection failed", e)
-                        rethrowIfInterrupted(e)
+                        processException(e)
                     }
             }
         } else if (baseURI.scheme.equals("mailto", true)) {
@@ -162,57 +163,34 @@ class DavResourceFinder(
                 log.info("No principal found at user-given URL, trying to discover")
                 try {
                     config.principal = discoverPrincipalUrl(it, service)
-                } catch (e: Exception) {
+                } catch(e: Exception) {
                     log.log(Level.FINE, "$service service discovery failed", e)
-                    rethrowIfInterrupted(e)
+                    processException(e)
                 }
             }
 
-        if (config.principal != null && service == Service.CALDAV)
-        // query email address (CalDAV scheduling: calendar-user-address-set)
-            try {
-                DavResource(httpClient.okHttpClient, config.principal!!, log).propfind(
-                    0,
-                    CalendarUserAddressSet.NAME
-                ) { response, _ ->
-                    response[CalendarUserAddressSet::class.java]?.let { addressSet ->
-                        for (href in addressSet.hrefs)
-                            try {
-                                val uri = URI(href)
-                                if (uri.scheme.equals("mailto", true))
-                                    config.email = uri.schemeSpecificPart
-                            } catch (e: URISyntaxException) {
-                                log.log(Level.WARNING, "Couldn't parse user address", e)
-                            }
-                    }
-                }
-            } catch (e: Exception) {
-                log.log(Level.WARNING, "Couldn't query user email address", e)
-                rethrowIfInterrupted(e)
+        // detect email address
+        if (service == Service.CALDAV)
+            config.principal?.let {
+                config.emails.addAll(queryEmailAddress(it))
             }
 
         // return config or null if config doesn't contain useful information
-        val serviceAvailable =
-            config.principal != null || config.homeSets.isNotEmpty() || config.collections.isNotEmpty()
+        val serviceAvailable = config.principal != null || config.homeSets.isNotEmpty() || config.collections.isNotEmpty()
         return if (serviceAvailable)
             config
         else
             null
     }
 
-    private fun checkUserGivenURL(
-        baseURL: HttpUrl,
-        service: Service,
-        config: Configuration.ServiceInfo
-    ) {
+    private fun checkUserGivenURL(baseURL: HttpUrl, service: Service, config: Configuration.ServiceInfo) {
         log.info("Checking user-given URL: $baseURL")
 
         val davBase = DavResource(httpClient.okHttpClient, baseURL, log)
         try {
             when (service) {
                 Service.CARDDAV -> {
-                    davBase.propfind(
-                        0,
+                    davBase.propfind(0,
                         ResourceType.NAME, DisplayName.NAME, AddressbookDescription.NAME,
                         AddressbookHomeSet.NAME,
                         CurrentUserPrincipal.NAME
@@ -221,15 +199,8 @@ class DavResourceFinder(
                     }
                 }
                 Service.CALDAV -> {
-                    davBase.propfind(
-                        0,
-                        ResourceType.NAME,
-                        DisplayName.NAME,
-                        CalendarColor.NAME,
-                        CalendarDescription.NAME,
-                        CalendarTimezone.NAME,
-                        CurrentUserPrivilegeSet.NAME,
-                        SupportedCalendarComponentSet.NAME,
+                    davBase.propfind(0,
+                        ResourceType.NAME, DisplayName.NAME, CalendarColor.NAME, CalendarDescription.NAME, CalendarTimezone.NAME, CurrentUserPrivilegeSet.NAME, SupportedCalendarComponentSet.NAME,
                         CalendarHomeSet.NAME,
                         CurrentUserPrincipal.NAME
                     ) { response, _ ->
@@ -237,10 +208,37 @@ class DavResourceFinder(
                     }
                 }
             }
-        } catch (e: Exception) {
+        } catch(e: Exception) {
             log.log(Level.FINE, "PROPFIND/OPTIONS on user-given URL failed", e)
-            rethrowIfInterrupted(e)
+            processException(e)
         }
+    }
+
+    /**
+     * Queries a user's email address using CalDAV scheduling: calendar-user-address-set.
+     * @param principal principal URL of the user
+     * @return list of found email addresses (empty if none)
+     */
+    fun queryEmailAddress(principal: HttpUrl): List<String> {
+        val mailboxes = LinkedList<String>()
+        try {
+            DavResource(httpClient.okHttpClient, principal, log).propfind(0, CalendarUserAddressSet.NAME) { response, _ ->
+                response[CalendarUserAddressSet::class.java]?.let { addressSet ->
+                    for (href in addressSet.hrefs)
+                        try {
+                            val uri = URI(href)
+                            if (uri.scheme.equals("mailto", true))
+                                mailboxes.add(uri.schemeSpecificPart)
+                        } catch(e: URISyntaxException) {
+                            log.log(Level.WARNING, "Couldn't parse user address", e)
+                        }
+                }
+            }
+        } catch(e: Exception) {
+            log.log(Level.WARNING, "Couldn't query user email address", e)
+            processException(e)
+        }
+        return mailboxes
     }
 
     /**
@@ -262,7 +260,7 @@ class DavResourceFinder(
         // Is it an address book and/or principal?
         dav[ResourceType::class.java]?.let {
             if (it.types.contains(ResourceType.ADDRESSBOOK)) {
-                val info = Collection.fromDavResponse(dav)!!
+                val info = fromDavResponse(dav)!!
                 log.info("Found address book at ${info.url}")
                 config.collections[info.url] = info
             }
@@ -307,7 +305,7 @@ class DavResourceFinder(
         // Is it a calendar book and/or principal?
         dav[ResourceType::class.java]?.let {
             if (it.types.contains(ResourceType.CALENDAR)) {
-                val info = Collection.fromDavResponse(dav)!!
+                val info = fromDavResponse(dav)!!
                 log.info("Found calendar at ${info.url}")
                 config.collections[info.url] = info
             }
@@ -340,11 +338,10 @@ class DavResourceFinder(
         try {
             DavResource(httpClient.okHttpClient, url, log).options { capabilities, _ ->
                 if ((service == Service.CARDDAV && capabilities.contains("addressbook")) ||
-                    (service == Service.CALDAV && capabilities.contains("calendar-access"))
-                )
+                    (service == Service.CALDAV && capabilities.contains("calendar-access")))
                     provided = true
             }
-        } catch (e: Exception) {
+        } catch(e: Exception) {
             log.log(Level.SEVERE, "Couldn't detect services on $url", e)
             if (e !is HttpException && e !is DavException)
                 throw e
@@ -371,7 +368,7 @@ class DavResourceFinder(
         log.fine("Looking up SRV records for $query")
         val srvLookup = Lookup(query, Type.SRV)
         DavUtils.prepareLookup(context, srvLookup)
-        val srv = DavUtils.selectSRVRecord(srvLookup.run())
+        val srv = DavUtils.selectSRVRecord(srvLookup.run().orEmpty())
         if (srv != null) {
             // choose SRV record to use (query may return multiple SRV records)
             scheme = "https"
@@ -408,9 +405,9 @@ class DavResourceFinder(
                 val principal = getCurrentUserPrincipal(initialContextPath, service)
 
                 principal?.let { return it }
-            } catch (e: Exception) {
+            } catch(e: Exception) {
                 log.log(Level.WARNING, "No resource found", e)
-                rethrowIfInterrupted(e)
+                processException(e)
             }
         return null
     }
@@ -425,10 +422,7 @@ class DavResourceFinder(
     @Throws(IOException::class, HttpException::class, DavException::class)
     fun getCurrentUserPrincipal(url: HttpUrl, service: Service?): HttpUrl? {
         var principal: HttpUrl? = null
-        DavResource(httpClient.okHttpClient, url, log).propfind(
-            0,
-            CurrentUserPrincipal.NAME
-        ) { response, _ ->
+        DavResource(httpClient.okHttpClient, url, log).propfind(0, CurrentUserPrincipal.NAME) { response, _ ->
             response[CurrentUserPrincipal::class.java]?.href?.let { href ->
                 response.requestedUrl.resolve(href)?.let {
                     log.info("Found current-user-principal: $it")
@@ -445,11 +439,15 @@ class DavResourceFinder(
     }
 
     /**
-     * Re-throws the exception if it signals that the current thread was interrupted
-     * to stop the current operation.
+     * Processes a thrown exception likes this:
+     *
+     *   - If the Exception is an [UnauthorizedException] (HTTP 401), [encountered401] is set to *true*.
+     *   - Re-throws the exception if it signals that the current thread was interrupted to stop the current operation.
      */
-    private fun rethrowIfInterrupted(e: Exception) {
-        if ((e is InterruptedIOException && e !is SocketTimeoutException) || e is InterruptedException)
+    private fun processException(e: Exception) {
+        if (e is UnauthorizedException)
+            encountered401 = true
+        else if ((e is InterruptedIOException && e !is SocketTimeoutException) || e is InterruptedException)
             throw e
     }
 
@@ -460,15 +458,16 @@ class DavResourceFinder(
         val cardDAV: ServiceInfo?,
         val calDAV: ServiceInfo?,
 
+        val encountered401: Boolean,
         val logs: String
     ) {
 
         data class ServiceInfo(
             var principal: HttpUrl? = null,
-            val homeSets: MutableSet<HttpUrl> = HashSet(),
-            val collections: MutableMap<HttpUrl, Collection> = HashMap(),
+            val homeSets: MutableSet<HttpUrl> = java.util.HashSet(),
+            val collections: MutableMap<HttpUrl, Collection> = java.util.HashMap(),
 
-            var email: String? = null
+            val emails: MutableList<String> = LinkedList()
         )
 
         override fun toString(): String {

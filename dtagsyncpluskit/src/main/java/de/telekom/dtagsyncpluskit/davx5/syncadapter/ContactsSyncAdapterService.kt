@@ -49,7 +49,7 @@ abstract class ContactsSyncAdapterService: SyncAdapterService() {
     override fun syncAdapter() = ContactsSyncAdapter(this)
 
 
-	class ContactsSyncAdapter(
+    class ContactsSyncAdapter(
         private val service: SyncAdapterService
     ): SyncAdapter(service) {
 
@@ -107,5 +107,7 @@ abstract class ContactsSyncAdapterService: SyncAdapterService() {
             }
             Logger.log.info("Contacts sync complete")
         }
+
     }
+
 }

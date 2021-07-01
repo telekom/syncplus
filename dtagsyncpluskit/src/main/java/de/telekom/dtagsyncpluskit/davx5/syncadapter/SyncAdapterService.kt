@@ -33,18 +33,21 @@ import android.content.*
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.Uri
+import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.getSystemService
 import de.telekom.dtagsyncpluskit.R
 import de.telekom.dtagsyncpluskit.api.ServiceEnvironments
+import de.telekom.dtagsyncpluskit.davx5.InvalidAccountException
 import de.telekom.dtagsyncpluskit.davx5.log.Logger
 import de.telekom.dtagsyncpluskit.davx5.settings.AccountSettings
 import java.lang.ref.WeakReference
 import java.util.logging.Level
 
-abstract class SyncAdapterService : Service() {
+abstract class SyncAdapterService: Service() {
 
     companion object {
         /** Keep a list of running syncs to block multiple calls at the same time,
@@ -84,55 +87,40 @@ abstract class SyncAdapterService : Service() {
          * Useful if settings which modify parsing/local behavior have been changed.
          */
         const val SYNC_EXTRAS_FULL_RESYNC = "full_resync"
-
-        /* Migrated from the companion object from the SyncAdapter */
-        fun priorityCollections(extras: Bundle): Set<Long> {
-            val ids = mutableSetOf<Long>()
-            extras.getString(SYNC_EXTRAS_PRIORITY_COLLECTIONS)?.let { rawIds ->
-                for (rawId in rawIds.split(','))
-                    try {
-                        ids += rawId.toLong()
-                    } catch (e: NumberFormatException) {
-                        Logger.log.log(
-                            Level.WARNING,
-                            "Couldn't parse SYNC_EXTRAS_PRIORITY_COLLECTIONS",
-                            e
-                        )
-                    }
-            }
-            return ids
-        }
     }
 
     protected abstract fun syncAdapter(): AbstractThreadedSyncAdapter
 
     override fun onBind(intent: Intent?) = syncAdapter().syncAdapterBinder!!
 
+
     abstract class SyncAdapter(
         private val service: SyncAdapterService
-    ) : AbstractThreadedSyncAdapter(service.applicationContext, false) {
+    ): AbstractThreadedSyncAdapter(
+        service.applicationContext,
+        true    // isSyncable shouldn't be -1 because DAVx5 sets it to 0 or 1.
+        // However, if it is -1 by accident, set it to 1 to avoid endless sync loops.
+    ) {
 
-        abstract fun sync(
-            serviceEnvironments: ServiceEnvironments,
-            account: Account,
-            extras: Bundle,
-            authority: String,
-            provider: ContentProviderClient,
-            syncResult: SyncResult
-        )
+        companion object {
+            fun priorityCollections(extras: Bundle): Set<Long> {
+                val ids = mutableSetOf<Long>()
+                extras.getString(SYNC_EXTRAS_PRIORITY_COLLECTIONS)?.let { rawIds ->
+                    for (rawId in rawIds.split(','))
+                        try {
+                            ids += rawId.toLong()
+                        } catch (e: NumberFormatException) {
+                            Logger.log.log(Level.WARNING, "Couldn't parse SYNC_EXTRAS_PRIORITY_COLLECTIONS", e)
+                        }
+                }
+                return ids
+            }
+        }
 
-        override fun onPerformSync(
-            account: Account,
-            extras: Bundle,
-            authority: String,
-            provider: ContentProviderClient,
-            syncResult: SyncResult
-        ) {
-            Logger.log.log(
-                Level.INFO,
-                "$authority sync of $account has been initiated",
-                extras.keySet().joinToString(", ")
-            )
+        abstract fun sync(serviceEnvironments: ServiceEnvironments, account: Account, extras: Bundle, authority: String, provider: ContentProviderClient, syncResult: SyncResult)
+
+        override fun onPerformSync(account: Account, extras: Bundle, authority: String, provider: ContentProviderClient, syncResult: SyncResult) {
+            Logger.log.log(Level.INFO, "$authority sync of $account has been initiated", extras.keySet().joinToString(", "))
             val redirectUri = Uri.parse(context.getString(R.string.REDIRECT_URI))
             val serviceEnvironments = ServiceEnvironments
                 .fromBuildConfig(
@@ -150,85 +138,79 @@ abstract class SyncAdapterService : Service() {
                 runningSyncs += WeakReference(currentSync)
             }
 
-            try {
-                // required for dav4jvm (ServiceLoader)
-                Thread.currentThread().contextClassLoader = context.classLoader
+            // required for ServiceLoader -> ical4j -> ical4android
+            Thread.currentThread().contextClassLoader = context.classLoader
 
-                SyncManager.cancelNotifications(
-                    NotificationManagerCompat.from(context),
-                    authority,
-                    account
-                )
-                sync(serviceEnvironments, account, extras, authority, provider, syncResult)
+            try {
+                if (/* always true in open-source edition */ true)
+                    sync(serviceEnvironments, account, extras, authority, provider, syncResult)
+            } catch (e: InvalidAccountException) {
+                Logger.log.log(Level.WARNING, "Account was removed during synchronization", e)
             } finally {
                 synchronized(runningSyncs) {
                     runningSyncs.removeAll { it.get() == null || it.get() == currentSync }
                 }
             }
 
-            Logger.log.info("Sync for $currentSync finished")
+            Logger.log.log(Level.INFO, "Sync for $currentSync finished", syncResult)
         }
 
-        override fun onSecurityException(
-            account: Account,
-            extras: Bundle,
-            authority: String,
-            syncResult: SyncResult
-        ) {
-            Logger.log.log(
-                Level.WARNING,
-                "Security exception when opening content provider for $authority"
-            )
-            syncResult.databaseError = true
+        override fun onSecurityException(account: Account, extras: Bundle, authority: String, syncResult: SyncResult) {
+            Logger.log.log(Level.WARNING, "Security exception when opening content provider for $authority")
             securityExceptionOccurred(account, syncResult)
         }
+
+        override fun onSyncCanceled() {
+            Logger.log.info("Sync thread cancelled! Interrupting sync")
+            super.onSyncCanceled()
+        }
+
+        override fun onSyncCanceled(thread: Thread) {
+            Logger.log.info("Sync thread ${thread.id} cancelled! Interrupting sync")
+            super.onSyncCanceled(thread)
+        }
+
 
         protected fun checkSyncConditions(settings: AccountSettings): Boolean {
             if (settings.getSyncWifiOnly()) {
                 // WiFi required
-                val connectivityManager =
-                    context.getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
+                //val connectivityManager = context.getSystemService<ConnectivityManager>()!!
 
                 // check for connected WiFi network
-                var wifiAvailable = false
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                    connectivityManager.allNetworks.forEach { network ->
-                        connectivityManager.getNetworkCapabilities(network)?.let { capabilities ->
-                            if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) &&
-                                capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
-                            )
-                                wifiAvailable = true
-                        }
+                /*var wifiAvailable = false
+                connectivityManager.allNetworks.forEach { network ->
+                    connectivityManager.getNetworkCapabilities(network)?.let { capabilities ->
+                        if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) &&
+                            capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED))
+                            wifiAvailable = true
                     }
-                } else {
-                    val network = connectivityManager.activeNetworkInfo
-                    if (network?.isConnected == true && network.type == ConnectivityManager.TYPE_WIFI)
-                        wifiAvailable = true
                 }
                 if (!wifiAvailable) {
                     Logger.log.info("Not on connected WiFi, stopping")
                     return false
-                }
+                }*/
                 // if execution reaches this point, we're on a connected WiFi
 
                 /*settings.getSyncWifiOnlySSIDs()?.let { onlySSIDs ->
-                    // getting the WiFi name requires location permission (and active location services) since Android 8.1
-                    // see https://issuetracker.google.com/issues/70633700
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1 &&
-                        ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                        val intent = Intent(context, SettingsActivity::class.java)
-                        intent.putExtra(SettingsActivity.EXTRA_ACCOUNT, settings.account)
+                    // check required permissions and location status
+                    if (!PermissionUtils.canAccessWifiSsid(context)) {
+                        // not all permissions granted; show notification
+                        val intent = Intent(context, WifiPermissionsActivity::class.java)
                         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        intent.putExtra(WifiPermissionsActivity.EXTRA_ACCOUNT, settings.account)
+                        PermissionUtils.notifyPermissions(context, intent)
 
-                        notifyPermissions(intent)
-                    }
-
-                    val wifi = context.applicationContext.getSystemService(WIFI_SERVICE) as WifiManager
-                    val info = wifi.connectionInfo
-                    if (info == null || !onlySSIDs.contains(info.ssid.trim('"'))) {
-                        Logger.log.info("Connected to wrong WiFi network (${info.ssid}), ignoring")
+                        Logger.log.warning("Can't access WiFi SSID, aborting sync")
                         return false
                     }
+
+                    val wifi = context.getSystemService<WifiManager>()!!
+                    val info = wifi.connectionInfo
+                    if (info == null || !onlySSIDs.contains(info.ssid.trim('"'))) {
+                        Logger.log.info("Connected to wrong WiFi network (${info.ssid}), aborting sync")
+                        return false
+                    } else
+                        Logger.log.fine("Connected to WiFi network ${info.ssid}")
                 }*/
             }
             return true

@@ -69,7 +69,6 @@ class CalendarCollectionsViewModel(private val app: Application) : AndroidViewMo
 
             val serviceId =
                 mDB.serviceDao().getIdByAccountAndType(account.name, serviceType)
-                    ?: return@launch
 
             val newFetcher = CollectionFetcher(
                 app,
