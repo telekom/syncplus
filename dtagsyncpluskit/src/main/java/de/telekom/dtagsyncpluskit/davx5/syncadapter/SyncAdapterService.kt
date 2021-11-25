@@ -225,8 +225,18 @@ abstract class SyncAdapterService: Service() {
             Logger.log.finest("loginExceptionOccurred")
             service.onLoginException(authority, account)
         }
+
+        protected fun syncWillRun(serviceEnvironments: ServiceEnvironments, account: Account, extras: Bundle, authority: String, provider: ContentProviderClient, syncResult: SyncResult) {
+            service.onSyncWillRun(serviceEnvironments, account, extras, authority, provider, syncResult)
+        }
+
+        protected fun syncDidRun(serviceEnvironments: ServiceEnvironments, account: Account, extras: Bundle, authority: String, provider: ContentProviderClient, syncResult: SyncResult) {
+            service.onSyncWillRun(serviceEnvironments, account, extras, authority, provider, syncResult)
+        }
     }
 
     abstract fun onSecurityException(account: Account, syncResult: SyncResult)
     abstract fun onLoginException(authority: String, account: Account)
+    abstract fun onSyncWillRun(serviceEnvironments: ServiceEnvironments, account: Account, extras: Bundle, authority: String, provider: ContentProviderClient, syncResult: SyncResult)
+    abstract fun onSyncDidRun(serviceEnvironments: ServiceEnvironments, account: Account, extras: Bundle, authority: String, provider: ContentProviderClient, syncResult: SyncResult)
 }

@@ -699,10 +699,9 @@ abstract class SyncManager<ResourceType: LocalResource<*>, out CollectionType: L
     // exception helpers
 
     private fun notifyException(e: Throwable, local: ResourceType?, remote: HttpUrl?) {
-        Log.d("SyncPlus/SyncManager", "notifyException", e)
-
         // Catch the unauthorized exception early. Call our custom onUnauthorized handler.
         if (e is UnauthorizedException) {
+            Logger.log.log(Level.SEVERE, "SyncPlus/SyncManager: Unauthorized", e)
             onUnauthorized(
                 if (authority == ContactsContract.AUTHORITY)
                     mainAccount
@@ -738,8 +737,10 @@ abstract class SyncManager<ResourceType: LocalResource<*>, out CollectionType: L
             }
             else -> {
                 Logger.log.log(Level.SEVERE, "Unclassified sync error", e)
-                message = e.localizedMessage ?: e::class.java.simpleName
-                syncResult.stats.numParseExceptions++
+                // AG: #112: Removed due to pushing very cryptic messages.
+                return
+                //message = e.localizedMessage ?: e::class.java.simpleName
+                //syncResult.stats.numParseExceptions++
             }
         }
 

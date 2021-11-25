@@ -1,21 +1,21 @@
 apply plugin: 'com.android.application'
-apply plugin: 'com.jaredsburrows.license'
+//apply plugin: 'com.jaredsburrows.license'
 apply plugin: 'kotlin-android'
 apply plugin: 'kotlin-android-extensions'
 apply plugin: 'kotlin-kapt'
+apply plugin: 'kotlinx-serialization'
 apply from: '../env/env.gradle'
 apply from: '../utils.gradle'
-apply plugin: 'birdflightupload'
 
-licenseReport {
-    // To generate the report, run the gradle task 'licenseDevDebugReport'.
-    generateHtmlReport = true
-    generateJsonReport = false
-}
+//licenseReport {
+//    // To generate the report, run the gradle task 'licenseDevDebugReport'.
+//    generateHtmlReport = true
+//    generateJsonReport = false
+//}
 
 def getGithubSourceCodeZipURL = { ->
     def gitRef = System.getenv("CI_COMMIT_REF_NAME")
-    if(!gitRef){
+    if(!gitRef) {
         gitRef = gitBranch()
     }
     def githubUrl = "https://github.com/telekom/syncplus/archive/" + gitRef + ".zip"
@@ -59,10 +59,10 @@ android {
 
     defaultConfig {
         applicationId "de.telekom.sync.plus"
-        minSdkVersion 21    // Android 5
+        minSdkVersion 26    // Android 8
         targetSdkVersion 30 // Android 11
-        versionCode 36
-        versionName "1.5.1"
+        versionCode 46
+        versionName "1.5.3"
         multiDexEnabled true
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
@@ -139,6 +139,7 @@ dependencies {
     implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.3.1'
     implementation "androidx.lifecycle:lifecycle-runtime-ktx:2.3.1"
     implementation 'androidx.multidex:multidex:2.0.1'
+    implementation "org.jetbrains.kotlinx:kotlinx-serialization-json:1.2.2"
 
     implementation 'com.google.android.material:material:1.1.0'
     implementation 'com.github.AppIntro:AppIntro:5.1.0'
@@ -154,18 +155,3 @@ dependencies {
     androidTestImplementation 'androidx.test.ext:junit:1.1.2'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.3.0'
 }
-
-
-// Configure the extension
-birdflightuploadExtension {
-    apiKey = birdflightApiKey
-    appKey = birdflightAppKey
-    id = "syncplus-aos-cicd-" + System.getenv("CI_PIPELINE_ID") + "-" + System.getenv("CI_JOB_ID")
-    appVersion = gitBranch()
-    compatiblity = "Android"
-    notes = System.getenv("CI_COMMIT_REF_NAME") + "\n" + System.getenv("CI_COMMIT_MESSAGE")+ "\n" + System.getenv("CI_COMMIT_SHORT_SHA")
-    isPublic = "true"
-    httpProxyHost = "proxy.infrastruktur.aul.t-online.de"
-    httpProxyPort = 3128
-}
-

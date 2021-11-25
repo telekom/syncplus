@@ -66,6 +66,7 @@ abstract class AddressBooksSyncAdapterService : SyncAdapterService() {
                  */
                 if (!extras.containsKey(ContentResolver.SYNC_EXTRAS_MANUAL) && !checkSyncConditions(accountSettings))
                     return
+                syncWillRun(serviceEnvironments, account, extras, authority, provider, syncResult)
 
                 if (updateLocalAddressBooks(account, syncResult))
                     for (addressBookAccount in LocalAddressBook.findAll(context, null, account).map { it.account }) {
@@ -79,6 +80,7 @@ abstract class AddressBooksSyncAdapterService : SyncAdapterService() {
                 Logger.log.log(Level.SEVERE, "Couldn't sync address books", e)
             }
 
+            syncDidRun(serviceEnvironments, account, extras, authority, provider, syncResult)
             Logger.log.info("Address book sync complete")
         }
 

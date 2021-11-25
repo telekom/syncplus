@@ -19,14 +19,18 @@
 
 package de.telekom.syncplus.ui.main
 
+import android.accounts.Account
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.constraintlayout.widget.ConstraintLayout
+import de.telekom.dtagsyncpluskit.extraNotNull
 import de.telekom.dtagsyncpluskit.ui.BaseFragment
 import de.telekom.dtagsyncpluskit.utils.IDMAccountManager
+import de.telekom.syncplus.AccountSettingsActivity
 import de.telekom.syncplus.IntroActivity
 import de.telekom.syncplus.LoginActivity
 import de.telekom.syncplus.R
@@ -39,8 +43,17 @@ class WelcomeFragment : BaseFragment() {
         get() = "WELCOME_FRAGMENT"
 
     companion object {
-        fun newInstance() = WelcomeFragment()
+        private const val ARG_ACCOUNTS_DELETED = "ARG_ACCOUNTS_DELETED"
+        fun newInstance(accountsDeleted: Boolean = false): WelcomeFragment {
+            val args = Bundle(1)
+            args.putBoolean(ARG_ACCOUNTS_DELETED, accountsDeleted)
+            val fragment = WelcomeFragment()
+            fragment.arguments = args
+            return fragment
+        }
     }
+
+    private val mAccountDeleted by extraNotNull(ARG_ACCOUNTS_DELETED, false)
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -73,6 +86,11 @@ class WelcomeFragment : BaseFragment() {
             }
 
             prefs.starts += 1
+        }
+
+        if (mAccountDeleted) {
+            val dialog = AccountDeletedDialog(requireContext())
+            dialog.show(childFragmentManager, "AccountDeleted")
         }
 
         return v

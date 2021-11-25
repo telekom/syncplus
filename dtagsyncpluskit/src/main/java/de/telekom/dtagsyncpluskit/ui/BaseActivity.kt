@@ -19,6 +19,7 @@
 
 package de.telekom.dtagsyncpluskit.ui
 
+import android.annotation.SuppressLint
 import android.content.pm.ActivityInfo
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
@@ -34,11 +35,9 @@ open class BaseActivity : AppCompatActivity(), FragmentCallbacks {
     // Bookkeeping for backstack.
     private var backstackSize: Int = 0
 
+    @SuppressLint("SourceLockedOrientationActivity")
     override fun onCreate(savedInstanceState: Bundle?) {
-        val isTablet = resources.getBoolean(R.bool.isTablet)
-        if (!isTablet) {
-            requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
-        }
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
 
         super.onCreate(savedInstanceState)
         backstackSize = supportFragmentManager.backStackEntryCount

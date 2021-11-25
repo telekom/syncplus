@@ -120,7 +120,7 @@ class AccountSettingsFragment : BaseFragment() {
         setupCalendarSubView(v, accountSettings)
         setupAddressBookSubView(v, accountSettings)
         setupSyncDropdown(v, accountSettings)
-        updateLastSyncDate(v, accountSettings)
+        // Update sync interval in onResume()
 
         val context = requireContext()
         v.syncnowButton.setOnClickListener {
@@ -154,6 +154,20 @@ class AccountSettingsFragment : BaseFragment() {
         }
 
         return v
+    }
+
+    override fun onResume() {
+        super.onResume()
+        val ctx = requireContext()
+        val accountSettings =
+            AccountSettings(
+                ctx,
+                App.serviceEnvironments(ctx),
+                mAccount,
+                DavNotificationUtils.reloginCallback(ctx, "authority"))
+        view?.let {
+            updateLastSyncDate(it, accountSettings)
+        }
     }
 
     override fun onStop() {
@@ -199,6 +213,7 @@ class AccountSettingsFragment : BaseFragment() {
             adapter?.notifyDataSetChanged()
             setListOpened(isEnabled, v.calendarListWrapper, v.calendarList)
             setupSyncDropdown(v, accountSettings)
+            updateLastSyncDate(v, accountSettings)
         }
 
         v.calendarSwitch.setOnCheckedChangeListener { _, isChecked ->
@@ -248,6 +263,7 @@ class AccountSettingsFragment : BaseFragment() {
                 accountSettings.setSyncAllAddressBooks(isEnabled)
             }
             setupSyncDropdown(v, accountSettings)
+            updateLastSyncDate(v, accountSettings)
         }
 
         v.addressBookSwitch.setOnCheckedChangeListener { _, isChecked ->

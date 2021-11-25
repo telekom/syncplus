@@ -60,7 +60,7 @@
 
     <!-- INTRO -->
     <string name="button_next">Weiter</string>
-    <string name="button_setup">Jetzt Einrichten</string>
+    <string name="button_setup">Jetzt einrichten</string>
     <string name="intro_cloud_text">Ihre Kontakte, Kalender und E-Mails <b>– immer aktuell auf allen Geräten und sicher gespeichert in der Telekom Cloud.</b></string>
     <string name="intro_calendar_title">Keine Geburtstage mehr vergessen – <b>behalten Sie alle Termine im Blick.</b></string>
     <string name="intro_calendar_text">Die Sync-Plus App synchronisiert den Telekom Kalender mit Ihrem Smartphone. Sie finden dann alle Ihre Termine gesammelt in der Kalender-App.</string>
@@ -155,7 +155,7 @@
     <string name="manage_accounts">Manage accounts</string>
     <string name="calendar">Kalender</string>
     <string name="address_book">Adressbuch</string>
-    <string name="copyright">© 2020 Telekom Deutschland AG</string>
+    <string name="copyright">© 2021 Telekom Deutschland GmbH</string>
     <string name="information">Informationen</string>
     <string name="help_and_answers">Hilfe und Antworten</string>
     <string name="help_for_syncplus">Hilfe zu Sync-Plus</string>
@@ -200,4 +200,9 @@ vom Handy: 2202</string>
     <string name="placeholder">CHANGE ME PLEASE</string>
     <string name="sync_now">Daten jetzt synchronisieren</string>
     <string name="sync_done">Synchronisation abgeschlossen</string>
+    <string name="energy_saver_title">Wichtiger Hinweis zur Nutzung von Sync-Plus</string>
+    <string name="energy_saver_text">Bitte schalten Sie die Akku-Optimierung für Sync-Plus in den Einstellungen Ihres Gerätes aus.\nDie Synchronisation mit Sync-Plus auf Android ist nur mit ausgeschalteter Akku-Optimierung gewährleistet.</string>
+    <string name="energy_saver_radio_text">Nicht mehr anzeigen</string>
+    <string name="energy_saver_button_text">OK</string>
+    <string name="account_deleted_text"><b>Hinweis:</b> Der Einrichtungsprozess von Sync-Plus wurde unterbrochen. Bitte richten Sie die Synchronisation erneut ein.</string>
 </resources>

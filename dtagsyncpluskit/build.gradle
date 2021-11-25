@@ -1,26 +1,26 @@
 apply plugin: 'com.android.library'
-apply plugin: 'com.jaredsburrows.license'
+//apply plugin: 'com.jaredsburrows.license'
 apply plugin: 'kotlin-android'
 apply plugin: 'kotlin-android-extensions'
 apply plugin: 'kotlin-kapt'
 apply from: '../env/env.gradle'
 apply from: '../utils.gradle'
 
-licenseReport {
-    // To generate the report, run the gradle task 'licenseDevDebugReport'.
-    generateHtmlReport = true
-    generateJsonReport = false
-}
+//licenseReport {
+//    // To generate the report, run the gradle task 'licenseDevDebugReport'.
+//    generateHtmlReport = true
+//    generateJsonReport = false
+//}
 
 android {
     compileSdkVersion 30
     buildToolsVersion '30.0.2'
 
     defaultConfig {
-        minSdkVersion 21    // Android 5
+        minSdkVersion 26    // Android 5
         targetSdkVersion 30 // Android 11
-        versionCode 36
-        versionName "1.5.1"
+        versionCode 37
+        versionName "1.5.3"
         multiDexEnabled true
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"

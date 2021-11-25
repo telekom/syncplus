@@ -24,7 +24,6 @@ import android.app.Activity
 import android.app.Application
 import android.net.Uri
 import android.os.Bundle
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -32,7 +31,7 @@ import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.*
 import de.telekom.dtagsyncpluskit.api.APIFactory
 import de.telekom.dtagsyncpluskit.api.ServiceEnvironments
-import de.telekom.dtagsyncpluskit.awaitResponseOrNull
+import de.telekom.dtagsyncpluskit.awaitResponse
 import de.telekom.dtagsyncpluskit.contacts.ContactsFetcher
 import de.telekom.dtagsyncpluskit.davx5.log.Logger
 import de.telekom.dtagsyncpluskit.davx5.model.Credentials
@@ -44,6 +43,8 @@ import de.telekom.dtagsyncpluskit.model.spica.ContactList
 import de.telekom.dtagsyncpluskit.model.spica.Duplicate
 import de.telekom.dtagsyncpluskit.runOnMain
 import de.telekom.dtagsyncpluskit.ui.BaseFragment
+import de.telekom.dtagsyncpluskit.utils.Err
+import de.telekom.dtagsyncpluskit.utils.Ok
 import de.telekom.syncplus.App
 import de.telekom.syncplus.BuildConfig
 import de.telekom.syncplus.ContactsCopyActivity
@@ -100,25 +101,28 @@ class CopyViewModel(private val app: Application) : AndroidViewModel(app) {
             }
             */
 
-            val duplicatesResponse = spicaAPI.checkDuplicates(contacts).awaitResponseOrNull()
-            if (duplicatesResponse == null || !duplicatesResponse.isSuccessful) {
-                Logger.log.severe("Error: checkDuplicates: $duplicatesResponse")
-                _lastError = duplicatesResponse.toString()
-                runOnMain { _progress.value = ERROR }
-                return@launch
-            }
+            when (val duplicatesResponse = spicaAPI.checkDuplicates(contacts).awaitResponse()) {
+                is Err -> {
+                    Logger.log.severe("Error: checkDuplicates: ${duplicatesResponse.error}")
+                    _lastError = duplicatesResponse.error.toString()
+                    runOnMain { _progress.value = ERROR }
+                    return@launch
+                }
 
-            val duplicates = duplicatesResponse.body()
-            val count = duplicates?.count ?: 0
-            runOnMain {
-                if (count > 0) {
-                    _duplicates = duplicates?.duplicates
-                    _originals = contacts.contacts
-                    _progress.value = SUCCESS
-                } else {
-                    _duplicates = null
-                    _originals = contacts.contacts
-                    _progress.value = SUCCESS
+                is Ok -> {
+                    val duplicates = duplicatesResponse.value.body()
+                    val count = duplicates?.count ?: 0
+                    runOnMain {
+                        if (count > 0) {
+                            _duplicates = duplicates?.duplicates
+                            _originals = contacts.contacts
+                            _progress.value = SUCCESS
+                        } else {
+                            _duplicates = null
+                            _originals = contacts.contacts
+                            _progress.value = SUCCESS
+                        }
+                    }
                 }
             }
         }

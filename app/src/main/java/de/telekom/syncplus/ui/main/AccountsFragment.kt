@@ -37,11 +37,9 @@ import de.telekom.dtagsyncpluskit.extraNotNull
 import de.telekom.dtagsyncpluskit.ui.BaseFragment
 import de.telekom.dtagsyncpluskit.ui.BaseListAdapter
 import de.telekom.dtagsyncpluskit.utils.IDMAccountManager
-import de.telekom.syncplus.AccountSettingsActivity
-import de.telekom.syncplus.App
-import de.telekom.syncplus.R
-import de.telekom.syncplus.WelcomeActivity
+import de.telekom.syncplus.*
 import de.telekom.syncplus.dav.DavNotificationUtils
+import de.telekom.syncplus.util.Prefs
 import kotlinx.android.synthetic.main.dialog_delete_account.view.*
 import kotlinx.android.synthetic.main.fragment_account.view.*
 
@@ -70,6 +68,17 @@ class AccountsFragment : BaseFragment() {
             requireContext(),
             DavNotificationUtils.reloginCallback(requireContext(), "authority")
         )
+
+        val prefs = Prefs(requireContext())
+        val currentVersionCode = BuildConfig.VERSION_CODE
+        if (prefs.currentVersionCode < currentVersionCode) {
+            prefs.currentVersionCode = currentVersionCode
+        }
+
+        if (!prefs.energySavingDialogShown && accountManager.getAccounts().isNotEmpty()) {
+            val dialog = EnergySaverDialog(requireContext())
+            dialog.show(childFragmentManager, "EnergySaver")
+        }
     }
 
     override fun onCreateView(

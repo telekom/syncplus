@@ -58,6 +58,14 @@ class AccountSettings(
 
     fun db(): AppDatabase = mDB
 
+    fun isSetupCompleted(): Boolean {
+        return am.isSetupCompleted(account)
+    }
+
+    fun setSetupCompleted(completed: Boolean) {
+        am.setSetupCompleted(account, completed)
+    }
+
     fun isCalendarSyncEnabled(): Boolean {
         return am.isCalendarSyncEnabled(account)
     }

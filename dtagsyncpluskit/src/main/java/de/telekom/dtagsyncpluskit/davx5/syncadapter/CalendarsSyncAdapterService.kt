@@ -65,6 +65,7 @@ abstract class CalendarsSyncAdapterService: SyncAdapterService() {
                  */
                 if (!extras.containsKey(ContentResolver.SYNC_EXTRAS_MANUAL) && !checkSyncConditions(accountSettings))
                     return
+                syncWillRun(serviceEnvironments, account, extras, authority, provider, syncResult)
 
                 if (accountSettings.getEventColors())
                     AndroidCalendar.insertColors(provider, account)
@@ -94,9 +95,12 @@ abstract class CalendarsSyncAdapterService: SyncAdapterService() {
                         it.performSync()
                     }
                 }
+
             } catch(e: Exception) {
                 Logger.log.log(Level.SEVERE, "Couldn't sync calendars", e)
             }
+
+            syncDidRun(serviceEnvironments, account, extras, authority, provider, syncResult)
             Logger.log.info("Calendar sync complete")
         }
 

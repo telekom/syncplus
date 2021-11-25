@@ -184,6 +184,7 @@ class SetupContactsFragment : BaseFragment() {
                 push(R.id.container, SetupEmailFragment.newInstance())
             }
             else -> {
+                accountSettings.setSetupCompleted(true)
                 startActivity(AccountsActivity.newIntent(requireActivity(), true))
             }
         }

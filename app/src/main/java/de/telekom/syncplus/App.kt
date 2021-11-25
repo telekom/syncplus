@@ -35,12 +35,14 @@ import androidx.multidex.MultiDexApplication
 import de.telekom.dtagsyncpluskit.api.APIFactory
 import de.telekom.dtagsyncpluskit.api.IDMEnv
 import de.telekom.dtagsyncpluskit.api.ServiceEnvironments
-import de.telekom.dtagsyncpluskit.awaitResponseOrNull
+import de.telekom.dtagsyncpluskit.awaitResponse
 import de.telekom.dtagsyncpluskit.davx5.log.Logger
 import de.telekom.dtagsyncpluskit.davx5.ui.NotificationUtils
 import de.telekom.dtagsyncpluskit.model.idm.WellKnownInfo
 import de.telekom.dtagsyncpluskit.model.spica.Contact
 import de.telekom.dtagsyncpluskit.model.spica.Duplicate
+import de.telekom.dtagsyncpluskit.utils.Err
+import de.telekom.dtagsyncpluskit.utils.Ok
 import de.telekom.syncplus.dav.DavNotificationUtils
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -73,8 +75,10 @@ class App : MultiDexApplication() {
 
         val env = IDMEnv.fromBuildConfig(BuildConfig.ENVIRON[BuildConfig.FLAVOR]!!)
         val idm = APIFactory.idmAPI(env)
-        val wellKnownResults = idm.wellKnown().awaitResponseOrNull()
-        _wellKnownInfo = wellKnownResults?.body()
+        when (val wellKnownResults = idm.wellKnown().awaitResponse()) {
+            is Ok -> _wellKnownInfo = wellKnownResults.value.body();
+            is Err -> Logger.log.severe("Error: WellKnownResults: ${wellKnownResults.error}");
+        }
         return _wellKnownInfo!!
     }
 
@@ -122,6 +126,13 @@ class App : MultiDexApplication() {
             AppCompatDelegate.setCompatVectorFromResourcesEnabled(true)
 
         DavNotificationUtils.createChannels(this)
+
+        /*val notificationManager = NotificationManagerCompat.from(this)
+        notificationManager.notify(
+            "test",
+            NotificationUtils.NOTIFY_SYNC_ERROR,
+            DavNotificationUtils.energySavingNotification(this)
+        )*/
 
         /*
         // !!! DEBUG !!!
