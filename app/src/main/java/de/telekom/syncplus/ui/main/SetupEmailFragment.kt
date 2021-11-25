@@ -19,6 +19,7 @@
 
 package de.telekom.syncplus.ui.main
 
+import android.accounts.Account
 import android.content.Intent
 import android.os.Bundle
 import android.provider.Settings
@@ -27,12 +28,11 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.lifecycle.lifecycleScope
+import de.telekom.dtagsyncpluskit.davx5.settings.AccountSettings
 import de.telekom.dtagsyncpluskit.ui.BaseFragment
 import de.telekom.dtagsyncpluskit.utils.openPlayStore
-import de.telekom.syncplus.AccountsActivity
-import de.telekom.syncplus.HelpActivity
-import de.telekom.syncplus.R
-import de.telekom.syncplus.SetupActivity
+import de.telekom.syncplus.*
+import de.telekom.syncplus.dav.DavNotificationUtils
 import kotlinx.android.synthetic.main.fragment_setup_email.view.*
 import kotlinx.coroutines.launch
 
@@ -87,6 +87,15 @@ class SetupEmailFragment : BaseFragment() {
     }
 
     private fun goNext() {
+        val account = Account(authHolder.accountName, getString(R.string.account_type))
+        val accountSettings =
+            AccountSettings(
+                requireContext(),
+                App.serviceEnvironments(requireContext()),
+                account,
+                DavNotificationUtils.reloginCallback(requireContext(), "authority")
+            )
+        accountSettings.setSetupCompleted(true)
         startActivity(AccountsActivity.newIntent(requireActivity(), true))
     }
 }

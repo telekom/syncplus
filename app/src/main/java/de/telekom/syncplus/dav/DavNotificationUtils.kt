@@ -23,15 +23,10 @@ import android.accounts.Account
 import android.annotation.TargetApi
 import android.app.*
 import android.content.Context
-import android.content.Intent
-import android.net.Uri
 import android.os.Build
-import android.provider.ContactsContract
-import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import de.telekom.dtagsyncpluskit.davx5.log.Logger
-import de.telekom.dtagsyncpluskit.davx5.syncadapter.DavService
 import de.telekom.dtagsyncpluskit.davx5.ui.NotificationUtils
 import de.telekom.dtagsyncpluskit.davx5.ui.NotificationUtils.CHANNEL_DEBUG
 import de.telekom.dtagsyncpluskit.davx5.ui.NotificationUtils.CHANNEL_GENERAL
@@ -184,6 +179,35 @@ object DavNotificationUtils {
 
     fun reloginCallback(context: Context, authority: String): (account: Account) -> Unit {
         return { showReloginNotification(context, authority, it) }
+    }
+
+    fun energySavingNotification(context: Context): Notification {
+        Logger.log.finest("BUILD ENERGY SAVING NOTIFICATION")
+        val message = context.getString(de.telekom.dtagsyncpluskit.R.string.energy_saving_notification_title)
+        val contentIntent = AccountsActivity.newIntent(context, false)
+        val builder = NotificationUtils.newBuilder(context, NotificationUtils.CHANNEL_SYNC_ERRORS)
+
+        builder
+            .setSmallIcon(de.telekom.dtagsyncpluskit.R.drawable.ic_sync_problem_notify)
+            .setContentTitle(context.getString(de.telekom.dtagsyncpluskit.R.string.app_name))
+            .setContentText(message)
+            .setStyle(NotificationCompat.BigTextStyle(builder).bigText(message))
+            .setOnlyAlertOnce(true)
+            .setAutoCancel(true)
+            .setContentIntent(
+                PendingIntent.getActivity(
+                    context,
+                    0,
+                    contentIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT
+                )
+            )
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setCategory(NotificationCompat.CATEGORY_ERROR)
+
+        val notif = builder.build()
+        notif.flags = notif.flags or Notification.FLAG_ONLY_ALERT_ONCE
+        return notif
     }
 
     fun createChannels(context: Context) {

@@ -57,12 +57,21 @@ class HttpClient private constructor(
         /** max. size of disk cache (10 MB) */
         const val DISK_CACHE_MAX_SIZE: Long = 10 * 1024 * 1024
 
+        private val connectionSpec = ConnectionSpec.Builder(ConnectionSpec.MODERN_TLS)
+            .tlsVersions(TlsVersion.TLS_1_2)
+            .cipherSuites(
+                CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+                CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+                CipherSuite.TLS_DHE_RSA_WITH_AES_128_GCM_SHA256)
+            .build()
+
         /** [OkHttpClient] singleton to build all clients from */
         val sharedClient: OkHttpClient = OkHttpClient.Builder()
             // set timeouts
             .connectTimeout(15, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
             .readTimeout(120, TimeUnit.SECONDS)
+            .connectionSpecs(Collections.singletonList(connectionSpec))
 
             // don't allow redirects by default, because it would break PROPFIND handling
             .followRedirects(false)

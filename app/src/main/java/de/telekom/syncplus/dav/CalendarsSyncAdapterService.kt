@@ -20,14 +20,20 @@
 package de.telekom.syncplus.dav
 
 import android.accounts.Account
+import android.content.ContentProviderClient
 import android.content.SyncResult
+import android.os.Bundle
 import androidx.core.app.NotificationManagerCompat
+import de.telekom.dtagsyncpluskit.api.ServiceEnvironments
+import de.telekom.dtagsyncpluskit.davx5.settings.AccountSettings
 import de.telekom.dtagsyncpluskit.davx5.syncadapter.CalendarsSyncAdapterService
 import de.telekom.dtagsyncpluskit.davx5.ui.NotificationUtils
 import de.telekom.syncplus.App
+import de.telekom.syncplus.util.Prefs
 
 class CalendarsSyncAdapterService : CalendarsSyncAdapterService() {
     private val notificationManager by lazy { NotificationManagerCompat.from(this) }
+    private val prefs by lazy { Prefs(this.applicationContext) }
 
     override fun onSecurityException(account: Account, syncResult: SyncResult) {
         if ((this.applicationContext as? App)?.inSetup == true) return
@@ -44,5 +50,41 @@ class CalendarsSyncAdapterService : CalendarsSyncAdapterService() {
             NotificationUtils.NOTIFY_SYNC_ERROR,
             DavNotificationUtils.buildReloginNotification(this, account)
         )
+    }
+
+    override fun onSyncWillRun(
+        serviceEnvironments: ServiceEnvironments,
+        account: Account,
+        extras: Bundle,
+        authority: String,
+        provider: ContentProviderClient,
+        syncResult: SyncResult
+    ) {
+    }
+
+    override fun onSyncDidRun(
+        serviceEnvironments: ServiceEnvironments,
+        account: Account,
+        extras: Bundle,
+        authority: String,
+        provider: ContentProviderClient,
+        syncResult: SyncResult
+    ) {
+        val accountSettings = AccountSettings(this, serviceEnvironments, account) {
+            onLoginException(authority, it)
+        }
+        val lastSyncs = prefs.lastSyncs
+        val currentSync = System.currentTimeMillis()
+        val lastSync = lastSyncs.lastSyncs.put("Calendars.$authority", currentSync)
+        val i = accountSettings.getSyncInterval(authority)
+        val interval = if (i == null) Long.MAX_VALUE else i * 1000
+        if (lastSync != null && (currentSync - lastSync) > (interval * 2)) {
+            notificationManager.notify(
+                NotificationUtils.notificationTag(authority, account),
+                NotificationUtils.NOTIFY_SYNC_ERROR,
+                DavNotificationUtils.energySavingNotification(this)
+            )
+        }
+        prefs.lastSyncs = lastSyncs
     }
 }

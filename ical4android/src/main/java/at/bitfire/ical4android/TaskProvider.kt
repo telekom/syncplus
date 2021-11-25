@@ -14,12 +14,11 @@ import android.content.ContentProviderClient
 import android.content.Context
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import androidx.core.content.pm.PackageInfoCompat
-import at.bitfire.ical4android.MiscUtils.ContentProviderClientHelper.closeCompat
 import org.dmfs.tasks.contract.TaskContract
 import java.io.Closeable
 import java.util.logging.Level
-
 
 class TaskProvider private constructor(
         val name: ProviderName,
@@ -30,76 +29,48 @@ class TaskProvider private constructor(
             val authority: String,
             val packageName: String,
             val minVersionCode: Long,
-            val minVersionName: String,
-            private val readPermission: String,
-            private val writePermission: String
+            val minVersionName: String
     ) {
-        OpenTasks("org.dmfs.tasks", "org.dmfs.tasks", 103, "1.1.8.2", PERMISSION_OPENTASKS_READ, PERMISSION_OPENTASKS_WRITE),
-        TasksOrg("org.tasks.opentasks", "org.tasks", 100000, "10.0", PERMISSION_TASKS_ORG_READ, PERMISSION_TASKS_ORG_WRITE);
-
-        companion object {
-            fun fromAuthority(authority: String): ProviderName {
-                for (provider in values())
-                    if (provider.authority == authority)
-                        return provider
-                throw IllegalArgumentException("Unknown tasks authority $authority")
-            }
-        }
-
-        val permissions: Array<String>
-            get() = arrayOf(readPermission, writePermission)
+        //Mirakel("de.azapps.mirakel.provider"),
+        OpenTasks("org.dmfs.tasks", "org.dmfs.tasks", 103, "1.1.8.2")
     }
 
     companion object {
 
-        val TASK_PROVIDERS = listOf(
-                ProviderName.OpenTasks,
-                ProviderName.TasksOrg
-        )
-
-        const val PERMISSION_OPENTASKS_READ = "org.dmfs.permission.READ_TASKS"
-        const val PERMISSION_OPENTASKS_WRITE = "org.dmfs.permission.WRITE_TASKS"
-        val PERMISSIONS_OPENTASKS = arrayOf(PERMISSION_OPENTASKS_READ, PERMISSION_OPENTASKS_WRITE)
-
-        const val PERMISSION_TASKS_ORG_READ = "org.tasks.permission.READ_TASKS"
-        const val PERMISSION_TASKS_ORG_WRITE = "org.tasks.permission.WRITE_TASKS"
-        val PERMISSIONS_TASKS_ORG = arrayOf(PERMISSION_TASKS_ORG_READ, PERMISSION_TASKS_ORG_WRITE)
+        const val PERMISSION_READ_TASKS = "org.dmfs.permission.READ_TASKS"
+        const val PERMISSION_WRITE_TASKS = "org.dmfs.permission.WRITE_TASKS"
 
         /**
          * Acquires a content provider for a given task provider. The content provider will
          * be released when the TaskProvider is closed with [close].
          * @param context will be used to acquire the content provider client
-         * @param name task provider to acquire content provider for; *null* to try all supported providers
-         * @return content provider for the given task provider (may be *null*)
+         * @param name task provider to acquire content provider for
+         * @return content provider for the given task provider (may be {@code null})
          * @throws [ProviderTooOldException] if the tasks provider is installed, but doesn't meet the minimum version requirement
          */
         @SuppressLint("Recycle")
-        fun acquire(context: Context, name: ProviderName? = null): TaskProvider? {
-            val providers =
-                    name?.let { arrayOf(it) }       // provider name given? create array from it
-                    ?: ProviderName.values()        // otherwise, try all providers
-            for (provider in providers)
-                try {
-                    checkVersion(context, provider)
+        fun acquire(context: Context, name: ProviderName): TaskProvider? {
+            return try {
+                checkVersion(context, name)
 
-                    val client = context.contentResolver.acquireContentProviderClient(provider.authority)
-                    if (client != null)
-                        return TaskProvider(provider, client)
-                } catch(e: SecurityException) {
-                    Ical4Android.log.log(Level.WARNING, "Not allowed to access task provider", e)
-                } catch(e: PackageManager.NameNotFoundException) {
-                    Ical4Android.log.warning("Package ${provider.packageName} not installed")
-                }
-            return null
+                val client = context.contentResolver.acquireContentProviderClient(name.authority)
+                if (client != null)
+                    TaskProvider(name, client)
+                else
+                    null
+            } catch(e: SecurityException) {
+                Constants.log.log(Level.WARNING, "Not allowed to access task provider", e)
+                null
+            } catch(e: PackageManager.NameNotFoundException) {
+                Constants.log.warning("Package ${name.packageName} not installed")
+                null
+            }
         }
 
-        fun fromProviderClient(
-                context: Context,
-                provider: ProviderName,
-                client: ContentProviderClient
-        ): TaskProvider {
-            checkVersion(context, provider)
-            return TaskProvider(provider, client)
+        fun fromProviderClient(context: Context, client: ContentProviderClient): TaskProvider {
+            // at the moment, only OpenTasks is supported
+            checkVersion(context, ProviderName.OpenTasks)
+            return TaskProvider(ProviderName.OpenTasks, client)
         }
 
         /**
@@ -113,7 +84,7 @@ class TaskProvider private constructor(
             val installedVersionCode = PackageInfoCompat.getLongVersionCode(info)
             if (installedVersionCode < name.minVersionCode) {
                 val exception = ProviderTooOldException(name, installedVersionCode, info.versionName)
-                Ical4Android.log.log(Level.WARNING, "Task provider too old", exception)
+                Constants.log.log(Level.WARNING, "Task provider too old", exception)
                 throw exception
             }
         }
@@ -137,7 +108,11 @@ class TaskProvider private constructor(
 
 
     override fun close() {
-        client.closeCompat()
+        if (Build.VERSION.SDK_INT >= 24)
+            client.close()
+        else
+            @Suppress("DEPRECATION")
+            client.release()
     }
 
 

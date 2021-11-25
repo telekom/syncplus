@@ -1,9 +1,10 @@
 package at.bitfire.ical4android
 
 import android.content.ContentResolver
-import net.fortuna.ical4j.data.DefaultParameterFactorySupplier
-import net.fortuna.ical4j.data.DefaultPropertyFactorySupplier
-import net.fortuna.ical4j.model.*
+import net.fortuna.ical4j.model.ParameterFactoryRegistry
+import net.fortuna.ical4j.model.ParameterList
+import net.fortuna.ical4j.model.Property
+import net.fortuna.ical4j.model.PropertyFactoryRegistry
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -27,9 +28,9 @@ object UnknownProperty {
      */
     const val MAX_UNKNOWN_PROPERTY_SIZE = 25000
 
-    val propertyFactorySupplier: List<PropertyFactory<out Property>> = DefaultPropertyFactorySupplier().get()
-    val parameterFactorySupplier: List<ParameterFactory<out Parameter>> = DefaultParameterFactorySupplier().get()
 
+    private val parameterFactory = ParameterFactoryRegistry()
+    private val propertyFactory = PropertyFactoryRegistry()
 
     /**
      * Deserializes a JSON string from an ExtendedProperty value to an ical4j property.
@@ -43,23 +44,16 @@ object UnknownProperty {
         val name = json.getString(0)
         val value = json.getString(1)
 
-        val builder = PropertyBuilder()
-                .factories(propertyFactorySupplier)
-                .name(name)
-                .value(value)
-
+        val params = ParameterList()
         json.optJSONObject(2)?.let { jsonParams ->
             for (paramName in jsonParams.keys())
-                builder.parameter(
-                        ParameterBuilder()
-                                .factories(parameterFactorySupplier)
-                                .name(paramName)
-                                .value(jsonParams.getString(paramName))
-                                .build()
-                )
+                params.add(parameterFactory.createParameter(
+                        paramName,
+                        jsonParams.getString(paramName)
+                ))
         }
 
-        return builder.build()
+        return propertyFactory.createProperty(name, params, value)
     }
 
     /**

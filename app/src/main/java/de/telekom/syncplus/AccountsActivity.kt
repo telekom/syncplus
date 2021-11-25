@@ -22,23 +22,37 @@ package de.telekom.syncplus
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
+import de.telekom.dtagsyncpluskit.davx5.log.Logger
 import de.telekom.dtagsyncpluskit.extraNotNull
 import de.telekom.dtagsyncpluskit.ui.BaseActivity
+import de.telekom.syncplus.ui.main.AccountDeletedDialog
 import de.telekom.syncplus.ui.main.AccountsFragment
+import de.telekom.syncplus.ui.main.EnergySaverDialog
 import kotlinx.android.synthetic.main.activity_accounts.*
 
 class AccountsActivity : BaseActivity() {
     companion object {
         private const val ARG_NEW = "ARG_NEW"
-        fun newIntent(context: Context, newAccountCreated: Boolean): Intent {
+        private const val ARG_ENERGY_SAVING = "ARG_ENERGY_SAVING"
+        private const val ARG_ACCOUNT_DELETED = "ARG_ACCOUNT_DELETED"
+        fun newIntent(
+            context: Context,
+            newAccountCreated: Boolean,
+            energySaving: Boolean = false,
+            accountDeleted: Boolean = false
+        ): Intent {
             val intent = Intent(context, AccountsActivity::class.java)
             intent.putExtra(ARG_NEW, newAccountCreated)
+            intent.putExtra(ARG_ENERGY_SAVING, energySaving)
+            intent.putExtra(ARG_ACCOUNT_DELETED, accountDeleted)
             intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_NEW_TASK
             return intent
         }
     }
 
     private val mNewAccountCreated by extraNotNull(ARG_NEW, false)
+    private val mAccountDeleted by extraNotNull(ARG_ACCOUNT_DELETED, false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -63,6 +77,11 @@ class AccountsActivity : BaseActivity() {
 
         helpButton.setOnClickListener {
             startActivity(HelpActivity.newIntent(this))
+        }
+
+        if (mAccountDeleted) {
+            val dialog = AccountDeletedDialog(this)
+            dialog.show(supportFragmentManager, "AccountDeleted")
         }
     }
 }

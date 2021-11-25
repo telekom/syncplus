@@ -9,16 +9,20 @@
 package at.bitfire.ical4android
 
 import androidx.test.runner.permission.PermissionRequester
+import junit.framework.AssertionFailedError
 
 object TestUtils {
 
     fun requestTaskPermissions() {
-        PermissionRequester().apply {
-            addPermissions(
-                    *TaskProvider.PERMISSIONS_OPENTASKS,
-                    *TaskProvider.PERMISSIONS_TASKS_ORG
-            )
-        }.requestPermissions()
+        val perm = PermissionRequester()
+        perm.addPermissions(
+                TaskProvider.PERMISSION_READ_TASKS,
+                TaskProvider.PERMISSION_WRITE_TASKS
+        )
+        try {
+            perm.requestPermissions()
+        } catch (ignored: AssertionFailedError) {
+        }
     }
 
 }

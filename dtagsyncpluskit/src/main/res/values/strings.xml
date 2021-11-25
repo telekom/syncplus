@@ -45,4 +45,5 @@
     <string name="sync_invalid_resources_ignoring">Eine/mehrere ungültige Ressourcen ignoriert</string>
     <string name="dav_service_refresh_failed">Diensterkennung fehlgeschlagen</string>
     <string name="dav_service_refresh_couldnt_refresh">Ordnerliste konnte nicht aktualisiert werden</string>
+    <string name="energy_saving_notification_title">Achtung: Synchronisation eingeschränkt</string>
 </resources>

@@ -21,6 +21,7 @@ package de.telekom.dtagsyncpluskit.utils
 
 import android.accounts.Account
 import android.accounts.AccountManager
+import android.accounts.AccountManagerFuture
 import android.app.Activity
 import android.app.Application
 import android.content.*
@@ -59,6 +60,7 @@ class IDMAccountManager(
         const val KEY_CONTACT_GROUP_METHOD = "group_method"
         const val KEY_CAL_ENABLED = "calEnabled"
         const val KEY_CARD_ENABLED = "cardEnabled"
+        const val KEY_SETUP_COMPLETED = "setupCompleted"
     }
 
     private val accountManager: AccountManager = AccountManager.get(context)
@@ -80,6 +82,7 @@ class IDMAccountManager(
         bundle.putString(KEY_REFRESH_TOKEN, password)
         bundle.putString(KEY_CAL_ENABLED, calEnabled.toString())
         bundle.putString(KEY_CARD_ENABLED, cardEnabled.toString())
+        bundle.putString(KEY_SETUP_COMPLETED, false.toString())
         // Did SWAP password and authToken
         if (!accountManager.addAccountExplicitly(account, authToken, bundle))
             return@func null
@@ -102,6 +105,10 @@ class IDMAccountManager(
             accountManager.removeAccount(account, {}, null)
         }
         return true
+    }
+
+    fun removeAccountAsync(account: Account, activity: Activity): AccountManagerFuture<Bundle> {
+        return accountManager.removeAccount(account, activity, null, null)
     }
 
     fun getAccounts(): Array<Account> {
@@ -154,17 +161,30 @@ class IDMAccountManager(
         )
     }
 
+    fun setSetupCompleted(account: Account, completed: Boolean) {
+        accountManager.setUserData(account, KEY_SETUP_COMPLETED, completed.toString())
+    }
+
+    fun isSetupCompleted(account: Account): Boolean {
+        return when (accountManager.getUserData(account, KEY_SETUP_COMPLETED)) {
+            "true" -> true
+            "false" -> false
+            // Default to "true", rather than "false" to prevent already created accounts from
+            // being tagged as "incomplete".
+            else -> true
+        }
+    }
+
     suspend fun setAllCalendarsSyncEnabled(account: Account, enabled: Boolean) =
         withContext<Unit>(Dispatchers.IO) {
             val db = AppDatabase.getInstance(context)
             db.serviceDao().getIdByAccountAndType(account.name, Service.TYPE_CALDAV)
-                .let { serviceId ->
+                ?.let { serviceId ->
                     db.collectionDao().getByServiceAndType(serviceId, Collection.TYPE_CALENDAR)
                         .forEach { collection ->
                             val newCollection = collection.copy(sync = enabled)
                             db.collectionDao().update(newCollection)
                         }
-
                 }
         }
 
@@ -172,7 +192,7 @@ class IDMAccountManager(
         withContext<Unit>(Dispatchers.IO) {
             val db = AppDatabase.getInstance(context)
             db.serviceDao().getIdByAccountAndType(account.name, Service.TYPE_CARDDAV)
-                .let { serviceId ->
+                ?.let { serviceId ->
                     db.collectionDao().getByServiceAndType(serviceId, Collection.TYPE_ADDRESSBOOK)
                         .forEach { collection ->
                             val newCollection = collection.copy(sync = enabled)
@@ -271,7 +291,7 @@ class IDMAccountManager(
         // insert home sets
         val homeSetDao = db.homeSetDao()
         for (homeSet in info.homeSets) {
-            homeSetDao.insertOrReplace(HomeSet(0, serviceId, true, homeSet))
+            homeSetDao.insertOrReplace(HomeSet(0, serviceId, homeSet))
         }
 
         // insert collections

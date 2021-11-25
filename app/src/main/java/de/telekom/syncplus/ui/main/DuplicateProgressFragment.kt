@@ -30,13 +30,16 @@ import android.view.ViewGroup
 import androidx.lifecycle.lifecycleScope
 import de.telekom.dtagsyncpluskit.api.APIFactory
 import de.telekom.dtagsyncpluskit.api.ServiceEnvironments
-import de.telekom.dtagsyncpluskit.awaitResponseOrNull
+import de.telekom.dtagsyncpluskit.awaitResponse
 import de.telekom.dtagsyncpluskit.davx5.log.Logger
 import de.telekom.dtagsyncpluskit.davx5.model.Credentials
 import de.telekom.dtagsyncpluskit.model.spica.Contact
 import de.telekom.dtagsyncpluskit.model.spica.ContactIdentifiersResponse
 import de.telekom.dtagsyncpluskit.model.spica.ContactList
 import de.telekom.dtagsyncpluskit.ui.BaseFragment
+import de.telekom.dtagsyncpluskit.utils.Err
+import de.telekom.dtagsyncpluskit.utils.ResultExt
+import de.telekom.dtagsyncpluskit.utils.isOk
 import de.telekom.syncplus.App
 import de.telekom.syncplus.BuildConfig
 import de.telekom.syncplus.ContactsCopyActivity
@@ -87,17 +90,18 @@ class DuplicateProgressFragment : BaseFragment() {
 
             val contactList = ContactList(mOriginals)
             var retry = true
-            var response: Response<ContactIdentifiersResponse>? = null
+            var response: ResultExt<Response<ContactIdentifiersResponse>, Throwable> =
+                Err(Throwable())
             while (retry) {
-                response = spicaAPI.importAndMergeContacts(contactList).awaitResponseOrNull()
-                if (response?.isSuccessful == true)
+                response = spicaAPI.importAndMergeContacts(contactList).awaitResponse()
+                if (response.isOk())
                     break
 
                 Logger.log.severe("Error: Merging Contacts: $response")
                 retry = showRetryDialog()
             }
 
-            if (response?.isSuccessful == true)
+            if (response.isOk())
                 push(R.id.container, CopySuccessFragment.newInstance())
             else
                 finishWithResult(Activity.RESULT_CANCELED, null)

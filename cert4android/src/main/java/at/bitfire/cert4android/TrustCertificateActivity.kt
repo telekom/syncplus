@@ -15,15 +15,17 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.databinding.DataBindingUtil
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.ViewModelProviders
 import at.bitfire.cert4android.databinding.ActivityTrustCertificateBinding
 import java.io.ByteArrayInputStream
+import java.security.MessageDigest
 import java.security.cert.CertificateFactory
 import java.security.cert.CertificateParsingException
 import java.security.cert.X509Certificate
 import java.security.spec.MGF1ParameterSpec.SHA1
 import java.security.spec.MGF1ParameterSpec.SHA256
 import java.text.DateFormat
+import java.util.*
 import java.util.logging.Level
 import kotlin.concurrent.thread
 
@@ -38,7 +40,7 @@ class TrustCertificateActivity: AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        model = ViewModelProvider(this).get(Model::class.java)
+        model = ViewModelProviders.of(this).get(Model::class.java)
         model.processIntent(intent)
 
         val binding = DataBindingUtil.setContentView<ActivityTrustCertificateBinding>(this, R.layout.activity_trust_certificate)
@@ -95,15 +97,16 @@ class TrustCertificateActivity: AppCompatActivity() {
                     val cert = certFactory.generateCertificate(ByteArrayInputStream(raw)) as? X509Certificate ?: return@thread
 
                     try {
-                        val subject = cert.subjectAlternativeNames?.let { altNames ->
+                        val subject = if (cert.issuerAlternativeNames != null) {
                             val sb = StringBuilder()
-                            for (altName in altNames) {
+                            for (altName in cert.subjectAlternativeNames.orEmpty()) {
                                 val name = altName[1]
                                 if (name is String)
                                     sb.append("[").append(altName[0]).append("]").append(name).append(" ")
                             }
                             sb.toString()
-                        } ?: /* use CN if alternative names are not available */ cert.subjectDN.name
+                        } else
+                            cert.subjectDN.name
                         issuedFor.postValue(subject)
 
                         issuedBy.postValue(cert.issuerDN.toString())
@@ -112,14 +115,27 @@ class TrustCertificateActivity: AppCompatActivity() {
                         validFrom.postValue(formatter.format(cert.notBefore))
                         validTo.postValue(formatter.format(cert.notAfter))
 
-                        sha1.postValue("SHA1: " + CertUtils.fingerprint(cert, SHA1.digestAlgorithm))
-                        sha256.postValue("SHA256: " + CertUtils.fingerprint(cert, SHA256.digestAlgorithm))
+                        sha1.postValue(fingerprint(cert, SHA1.digestAlgorithm))
+                        sha256.postValue(fingerprint(cert, SHA256.digestAlgorithm))
 
                     } catch(e: CertificateParsingException) {
                         Constants.log.log(Level.WARNING, "Couldn't parse certificate", e)
                     }
                 }
             }
+        }
+
+        private fun fingerprint(cert: X509Certificate, algorithm: String) =
+                try {
+                    val md = MessageDigest.getInstance(algorithm)
+                    "$algorithm: ${hexString(md.digest(cert.encoded))}"
+                } catch(e: Exception) {
+                    e.message ?: "Couldn't create message digest"
+                }
+
+        private fun hexString(data: ByteArray): String {
+            val str = data.mapTo(LinkedList()) { String.format("%02x", it) }
+            return str.joinToString(":")
         }
 
     }

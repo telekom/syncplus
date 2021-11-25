@@ -49,12 +49,13 @@ abstract class ContactsSyncAdapterService: SyncAdapterService() {
     override fun syncAdapter() = ContactsSyncAdapter(this)
 
 
-    class ContactsSyncAdapter(
+	class ContactsSyncAdapter(
         private val service: SyncAdapterService
     ): SyncAdapter(service) {
 
         override fun sync(serviceEnvironments: ServiceEnvironments, account: Account, extras: Bundle, authority: String, provider: ContentProviderClient, syncResult: SyncResult) {
             try {
+                syncWillRun(serviceEnvironments, account, extras, authority, provider, syncResult)
                 val addressBook = LocalAddressBook(context, account, provider)
                 val accountSettings = AccountSettings(context, serviceEnvironments, addressBook.mainAccount) {
                     service.onLoginException(authority, it)
@@ -105,9 +106,9 @@ abstract class ContactsSyncAdapterService: SyncAdapterService() {
             } catch(e: Exception) {
                 Logger.log.log(Level.SEVERE, "Couldn't sync contacts", e)
             }
+
+            syncDidRun(serviceEnvironments, account, extras, authority, provider, syncResult)
             Logger.log.info("Contacts sync complete")
         }
-
     }
-
 }

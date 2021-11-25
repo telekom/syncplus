@@ -26,7 +26,7 @@ import androidx.room.Update
 interface SyncableDao<T: IdEntity> {
 
     @Insert
-    fun insert(items: List<T>): LongArray
+    fun insert(items: List<T>)
 
     @Update
     fun update(item: T)

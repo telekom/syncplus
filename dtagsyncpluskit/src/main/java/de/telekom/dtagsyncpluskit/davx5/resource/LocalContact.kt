@@ -27,6 +27,7 @@
 
 package de.telekom.dtagsyncpluskit.davx5.resource
 
+import android.content.ContentProviderOperation
 import android.content.ContentValues
 import android.os.Build
 import android.os.RemoteException
@@ -40,7 +41,6 @@ import ezvcard.Ezvcard
 import java.io.FileNotFoundException
 import java.util.*
 import de.telekom.dtagsyncpluskit.BuildConfig
-import org.apache.commons.lang3.StringUtils
 
 class LocalContact: AndroidContact, LocalAddress {
 
@@ -56,10 +56,6 @@ class LocalContact: AndroidContact, LocalAddress {
     private val cachedGroupMemberships = HashSet<Long>()
     private val groupMemberships = HashSet<Long>()
 
-    override var scheduleTag: String?
-        get() = null
-        set(_) = throw NotImplementedError()
-
     override var flags: Int = 0
 
     constructor(addressBook: AndroidAddressBook<LocalContact,*>, values: ContentValues)
@@ -73,34 +69,20 @@ class LocalContact: AndroidContact, LocalAddress {
     }
 
 
-    override fun prepareForUpload(): String {
-        var uid: String? = null
-        addressBook.provider!!.query(rawContactSyncURI(), arrayOf(COLUMN_UID), null, null, null)?.use { cursor ->
-            if (cursor.moveToNext())
-                uid = StringUtils.trimToNull(cursor.getString(0))
-        }
+    override fun assignNameAndUID() {
+        val uid = UUID.randomUUID().toString()
+        val newFileName = "$uid.vcf"
 
-        if (uid == null) {
-            // generate new UID
-            uid = UUID.randomUUID().toString()
+        val values = ContentValues(2)
+        values.put(COLUMN_FILENAME, newFileName)
+        values.put(COLUMN_UID, uid)
+        addressBook.provider!!.update(rawContactSyncURI(), values, null, null)
 
-            val values = ContentValues(1)
-            values.put(COLUMN_UID, uid)
-            addressBook.provider!!.update(rawContactSyncURI(), values, null, null)
-
-            contact!!.uid = uid
-        }
-
-        return "$uid.vcf"
+        fileName = newFileName
     }
 
-    override fun clearDirty(fileName: String?, eTag: String?, scheduleTag: String?) {
-        if (scheduleTag != null)
-            throw IllegalArgumentException("Contacts must not have a Schedule-Tag")
-
-        val values = ContentValues(4)
-        if (fileName != null)
-            values.put(COLUMN_FILENAME, fileName)
+    override fun clearDirty(eTag: String?) {
+        val values = ContentValues(3)
         values.put(COLUMN_ETAG, eTag)
         values.put(ContactsContract.RawContacts.DIRTY, 0)
 
@@ -113,8 +95,6 @@ class LocalContact: AndroidContact, LocalAddress {
 
         addressBook.provider!!.update(rawContactSyncURI(), values, null, null)
 
-        if (fileName != null)
-            this.fileName = fileName
         this.eTag = eTag
     }
 
@@ -154,10 +134,17 @@ class LocalContact: AndroidContact, LocalAddress {
         super.insertDataRows(batch)
 
         contact!!.unknownProperties?.let { unknownProperties ->
-            val builder = insertDataBuilder(UnknownProperties.RAW_CONTACT_ID)
-                .withValue(UnknownProperties.MIMETYPE, UnknownProperties.CONTENT_ITEM_TYPE)
-                .withValue(UnknownProperties.UNKNOWN_PROPERTIES, unknownProperties)
-            batch.enqueue(builder)
+            val op: BatchOperation.Operation
+            val builder = ContentProviderOperation.newInsert(dataSyncURI())
+            if (id == null)
+                op = BatchOperation.Operation(builder, UnknownProperties.RAW_CONTACT_ID, 0)
+            else {
+                op = BatchOperation.Operation(builder)
+                builder.withValue(UnknownProperties.RAW_CONTACT_ID, id)
+            }
+            builder .withValue(UnknownProperties.MIMETYPE, UnknownProperties.CONTENT_ITEM_TYPE)
+                    .withValue(UnknownProperties.UNKNOWN_PROPERTIES, unknownProperties)
+            batch.enqueue(op)
         }
     }
 
@@ -185,17 +172,19 @@ class LocalContact: AndroidContact, LocalAddress {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N || Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
             throw IllegalStateException("updateHashCode() should not be called on Android != 7")
 
+        val values = ContentValues(1)
         val hashCode = dataHashCode()
         Logger.log.fine("Storing contact hash = $hashCode")
+        values.put(COLUMN_HASHCODE, hashCode)
 
-        if (batch == null) {
-            val values = ContentValues(1)
-            values.put(COLUMN_HASHCODE, hashCode)
+        if (batch == null)
             addressBook.provider!!.update(rawContactSyncURI(), values, null, null)
-        } else
-            batch.enqueue(BatchOperation.CpoBuilder
-                .newUpdate(rawContactSyncURI())
-                .withValue(COLUMN_HASHCODE, hashCode))
+        else {
+            val builder = ContentProviderOperation
+                    .newUpdate(rawContactSyncURI())
+                    .withValues(values)
+            batch.enqueue(BatchOperation.Operation(builder))
+        }
     }
 
     fun getLastHashCode(): Int {
@@ -211,29 +200,33 @@ class LocalContact: AndroidContact, LocalAddress {
 
 
     fun addToGroup(batch: BatchOperation, groupID: Long) {
-        batch.enqueue(BatchOperation.CpoBuilder
-            .newInsert(dataSyncURI())
-            .withValue(GroupMembership.MIMETYPE, GroupMembership.CONTENT_ITEM_TYPE)
-            .withValue(GroupMembership.RAW_CONTACT_ID, id)
-            .withValue(GroupMembership.GROUP_ROW_ID, groupID))
+        batch.enqueue(BatchOperation.Operation(
+                ContentProviderOperation.newInsert(dataSyncURI())
+                        .withValue(GroupMembership.MIMETYPE, GroupMembership.CONTENT_ITEM_TYPE)
+                        .withValue(GroupMembership.RAW_CONTACT_ID, id)
+                        .withValue(GroupMembership.GROUP_ROW_ID, groupID)
+        ))
         groupMemberships += groupID
 
-        batch.enqueue(BatchOperation.CpoBuilder
-            .newInsert(dataSyncURI())
-            .withValue(CachedGroupMembership.MIMETYPE, CachedGroupMembership.CONTENT_ITEM_TYPE)
-            .withValue(CachedGroupMembership.RAW_CONTACT_ID, id)
-            .withValue(CachedGroupMembership.GROUP_ID, groupID)
-        )
+        batch.enqueue(BatchOperation.Operation(
+                ContentProviderOperation.newInsert(dataSyncURI())
+                        .withValue(CachedGroupMembership.MIMETYPE, CachedGroupMembership.CONTENT_ITEM_TYPE)
+                        .withValue(CachedGroupMembership.RAW_CONTACT_ID, id)
+                        .withValue(CachedGroupMembership.GROUP_ID, groupID)
+                        .withYieldAllowed(true)
+        ))
         cachedGroupMemberships += groupID
     }
 
     fun removeGroupMemberships(batch: BatchOperation) {
-        batch.enqueue(BatchOperation.CpoBuilder
-            .newDelete(dataSyncURI())
-            .withSelection(
-                "${Data.RAW_CONTACT_ID}=? AND ${Data.MIMETYPE} IN (?,?)",
-                arrayOf(id.toString(), GroupMembership.CONTENT_ITEM_TYPE, CachedGroupMembership.CONTENT_ITEM_TYPE)
-            ))
+        batch.enqueue(BatchOperation.Operation(
+                ContentProviderOperation.newDelete(dataSyncURI())
+                        .withSelection(
+                                Data.RAW_CONTACT_ID + "=? AND " + Data.MIMETYPE + " IN (?,?)",
+                                arrayOf(id.toString(), GroupMembership.CONTENT_ITEM_TYPE, CachedGroupMembership.CONTENT_ITEM_TYPE)
+                        )
+                        .withYieldAllowed(true)
+        ))
         groupMemberships.clear()
         cachedGroupMemberships.clear()
     }
@@ -264,7 +257,7 @@ class LocalContact: AndroidContact, LocalAddress {
 
 
     // data rows
-    override fun buildContact(builder: BatchOperation.CpoBuilder, update: Boolean) {
+    override fun buildContact(builder: ContentProviderOperation.Builder, update: Boolean) {
         builder.withValue(COLUMN_FLAGS, flags)
         super.buildContact(builder, update)
     }
@@ -273,7 +266,7 @@ class LocalContact: AndroidContact, LocalAddress {
 
     object Factory: AndroidContactFactory<LocalContact> {
         override fun fromProvider(addressBook: AndroidAddressBook<LocalContact, *>, values: ContentValues) =
-            LocalContact(addressBook, values)
+                LocalContact(addressBook, values)
     }
 
 }

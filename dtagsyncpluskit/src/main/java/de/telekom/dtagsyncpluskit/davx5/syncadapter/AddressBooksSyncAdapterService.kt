@@ -66,6 +66,7 @@ abstract class AddressBooksSyncAdapterService : SyncAdapterService() {
                  */
                 if (!extras.containsKey(ContentResolver.SYNC_EXTRAS_MANUAL) && !checkSyncConditions(accountSettings))
                     return
+                syncWillRun(serviceEnvironments, account, extras, authority, provider, syncResult)
 
                 if (updateLocalAddressBooks(account, syncResult))
                     for (addressBookAccount in LocalAddressBook.findAll(context, null, account).map { it.account }) {
@@ -79,6 +80,7 @@ abstract class AddressBooksSyncAdapterService : SyncAdapterService() {
                 Logger.log.log(Level.SEVERE, "Couldn't sync address books", e)
             }
 
+            syncDidRun(serviceEnvironments, account, extras, authority, provider, syncResult)
             Logger.log.info("Address book sync complete")
         }
 
@@ -94,8 +96,10 @@ abstract class AddressBooksSyncAdapterService : SyncAdapterService() {
             if (ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
                 if (remoteAddressBooks.isEmpty())
                     Logger.log.info("No contacts permission, but no address book selected for synchronization")
-                else
-                    Logger.log.warning("No contacts permission, but address books are selected for synchronization")
+                else {
+                    // no contacts permission, but address books should be synchronized -> show notification
+                    securityExceptionOccurred(account, syncResult)
+                }
                 return false
             }
 

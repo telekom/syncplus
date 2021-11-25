@@ -49,7 +49,7 @@ abstract class CalendarsSyncAdapterService: SyncAdapterService() {
     override fun syncAdapter() = CalendarsSyncAdapter(this)
 
 
-    class CalendarsSyncAdapter(
+	class CalendarsSyncAdapter(
         private val service: SyncAdapterService
     ): SyncAdapter(service) {
 
@@ -65,6 +65,7 @@ abstract class CalendarsSyncAdapterService: SyncAdapterService() {
                  */
                 if (!extras.containsKey(ContentResolver.SYNC_EXTRAS_MANUAL) && !checkSyncConditions(accountSettings))
                     return
+                syncWillRun(serviceEnvironments, account, extras, authority, provider, syncResult)
 
                 if (accountSettings.getEventColors())
                     AndroidCalendar.insertColors(provider, account)
@@ -75,8 +76,8 @@ abstract class CalendarsSyncAdapterService: SyncAdapterService() {
 
                 val priorityCalendars = priorityCollections(extras)
                 val calendars = AndroidCalendar
-                    .find(account, provider, LocalCalendar.Factory, "${CalendarContract.Calendars.SYNC_EVENTS}!=0", null)
-                    .sortedByDescending { priorityCalendars.contains(it.id) }
+                        .find(account, provider, LocalCalendar.Factory, "${CalendarContract.Calendars.SYNC_EVENTS}!=0", null)
+                        .sortedByDescending { priorityCalendars.contains(it.id) }
                 for (calendar in calendars) {
                     Logger.log.info("Synchronizing calendar #${calendar.id}, URL: ${calendar.name}")
                     CalendarSyncManager(
@@ -94,9 +95,12 @@ abstract class CalendarsSyncAdapterService: SyncAdapterService() {
                         it.performSync()
                     }
                 }
+
             } catch(e: Exception) {
                 Logger.log.log(Level.SEVERE, "Couldn't sync calendars", e)
             }
+
+            syncDidRun(serviceEnvironments, account, extras, authority, provider, syncResult)
             Logger.log.info("Calendar sync complete")
         }
 

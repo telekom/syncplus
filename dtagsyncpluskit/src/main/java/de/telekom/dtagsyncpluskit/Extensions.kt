@@ -25,6 +25,9 @@ import android.os.Build
 import android.text.Html
 import android.text.Spanned
 import androidx.fragment.app.Fragment
+import de.telekom.dtagsyncpluskit.utils.Err
+import de.telekom.dtagsyncpluskit.utils.Ok
+import de.telekom.dtagsyncpluskit.utils.ResultExt
 import kotlinx.coroutines.*
 import retrofit2.Call
 import retrofit2.Callback
@@ -69,22 +72,23 @@ inline fun <reified T : Any> Fragment.extraNotNull(key: String, default: T? = nu
     requireNotNull(if (value is T) value else default) { key }
 }
 
-suspend fun <T> Call<T>.awaitResponseOrNull() = withContext<Response<T>?>(Dispatchers.IO) {
-    suspendCancellableCoroutine { continuation ->
-        continuation.invokeOnCancellation {
-            cancel()
-        }
-        enqueue(object : Callback<T> {
-            override fun onResponse(call: Call<T>, response: Response<T>) {
-                continuation.resume(response)
+suspend fun <T> Call<T>.awaitResponse() =
+    withContext<ResultExt<Response<T>, Throwable>>(Dispatchers.IO) {
+        suspendCancellableCoroutine { continuation ->
+            continuation.invokeOnCancellation {
+                cancel()
             }
+            enqueue(object : Callback<T> {
+                override fun onResponse(call: Call<T>, response: Response<T>) {
+                    continuation.resume(Ok(response))
+                }
 
-            override fun onFailure(call: Call<T>, t: Throwable) {
-                continuation.resume(null)
-            }
-        })
+                override fun onFailure(call: Call<T>, t: Throwable) {
+                    continuation.resume(Err(t))
+                }
+            })
+        }
     }
-}
 
 fun String.fromHTML(): Spanned {
     return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {

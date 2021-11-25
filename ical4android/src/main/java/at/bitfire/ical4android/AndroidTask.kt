@@ -8,30 +8,28 @@
 
 package at.bitfire.ical4android
 
+import android.content.ContentProviderOperation
+import android.content.ContentProviderOperation.Builder
 import android.content.ContentUris
 import android.content.ContentValues
 import android.net.Uri
 import android.os.RemoteException
-import androidx.annotation.CallSuper
-import at.bitfire.ical4android.BatchOperation.CpoBuilder
 import at.bitfire.ical4android.MiscUtils.CursorHelper.toValues
-import at.bitfire.ical4android.util.AndroidTimeUtils
 import net.fortuna.ical4j.model.*
 import net.fortuna.ical4j.model.Date
-import net.fortuna.ical4j.model.TimeZone
+import net.fortuna.ical4j.model.Property
 import net.fortuna.ical4j.model.component.VAlarm
-import net.fortuna.ical4j.model.parameter.Email
 import net.fortuna.ical4j.model.parameter.RelType
 import net.fortuna.ical4j.model.parameter.Related
 import net.fortuna.ical4j.model.property.*
-import net.fortuna.ical4j.util.TimeZones
+import org.dmfs.tasks.contract.TaskContract.*
 import org.dmfs.tasks.contract.TaskContract.Properties
 import org.dmfs.tasks.contract.TaskContract.Property.*
-import org.dmfs.tasks.contract.TaskContract.Tasks
 import java.io.FileNotFoundException
+import java.net.URI
 import java.net.URISyntaxException
-import java.time.ZoneId
 import java.util.*
+import java.util.TimeZone
 import java.util.logging.Level
 
 /**
@@ -50,8 +48,6 @@ abstract class AndroidTask(
 
     companion object {
         const val UNKNOWN_PROPERTY_DATA = Properties.DATA0
-
-        val utcTimeZone by lazy { DateUtils.ical4jTimeZone(TimeZones.UTC_ID) }
     }
 
     var id: Long? = null
@@ -79,62 +75,49 @@ abstract class AndroidTask(
                 return field
             val id = requireNotNull(id)
 
-            try {
-                val client = taskList.provider.client
-                client.query(taskSyncURI(true), null, null, null, null)?.use { cursor ->
-                    if (cursor.moveToFirst()) {
-                        // create new Task which will be populated
-                        val newTask = Task()
-                        field = newTask
+            task = Task()
+            val client = taskList.provider.client
+            client.query(taskSyncURI(true), null, null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val values = cursor.toValues(true)
+                    Constants.log.log(Level.FINER, "Found task", values)
+                    populateTask(values)
 
-                        val values = cursor.toValues(true)
-                        Ical4Android.log.log(Level.FINER, "Found task", values)
-                        populateTask(values)
+                    if (values.containsKey(Properties.PROPERTY_ID)) {
+                        // process the first property, which is combined with the task row
+                        populateProperty(values)
 
-                        if (values.containsKey(Properties.PROPERTY_ID)) {
-                            // process the first property, which is combined with the task row
-                            populateProperty(values)
-
-                            while (cursor.moveToNext()) {
-                                // process the other properties
-                                populateProperty(cursor.toValues(true))
-                            }
+                        while (cursor.moveToNext()) {
+                            // process the other properties
+                            populateProperty(cursor.toValues(true))
                         }
+                    }
 
-                        // Special case: parent_id set, but no matching parent Relation row (like given by aCalendar+)
-                        val relatedToList = newTask.relatedTo
-                        values.getAsLong(Tasks.PARENT_ID)?.let { parentId ->
-                            val hasParentRelation = relatedToList.any { relatedTo ->
-                                val relatedType = relatedTo.getParameter<RelType>(Parameter.RELTYPE)
-                                relatedType == RelType.PARENT || relatedType == null /* RelType.PARENT is the default value */
-                            }
-                            if (!hasParentRelation) {
-                                // get UID of parent task
-                                val parentContentUri = ContentUris.withAppendedId(taskList.tasksSyncUri(), parentId)
-                                client.query(parentContentUri, arrayOf(Tasks._UID), null, null, null)?.use { cursor ->
-                                    if (cursor.moveToNext()) {
-                                        // add RelatedTo for parent task
-                                        relatedToList += RelatedTo(cursor.getString(0))
-                                    }
+                    // Special case: parent_id set, but no matching parent Relation row (like given by aCalendar+)
+                    val relatedToList = task!!.relatedTo
+                    values.getAsLong(Tasks.PARENT_ID)?.let { parentId ->
+                        val hasParentRelation = relatedToList.any { relatedTo ->
+                            val relatedType = relatedTo.getParameter(Parameter.RELTYPE)
+                            relatedType == RelType.PARENT || relatedType == null /* RelType.PARENT is the default value */
+                        }
+                        if (!hasParentRelation) {
+                            // get UID of parent task
+                            val parentContentUri = ContentUris.withAppendedId(taskList.tasksSyncUri(), parentId)
+                            client.query(parentContentUri, arrayOf(Tasks._UID), null, null, null)?.use { cursor ->
+                                if (cursor.moveToNext()) {
+                                    // add RelatedTo for parent task
+                                    relatedToList += RelatedTo(cursor.getString(0))
                                 }
                             }
                         }
-
-                        field = newTask
-                        return newTask
                     }
+
+                    return task
                 }
-            } catch (e: Exception) {
-                /* Populating event has been interrupted by an exception, so we reset the event to
-                avoid an inconsistent state. This also ensures that the exception will be thrown
-                again on the next get() call. */
-                field = null
-                throw e
             }
             throw FileNotFoundException("Couldn't find task #$id")
         }
 
-    @CallSuper
     protected open fun populateTask(values: ContentValues) {
         val task = requireNotNull(task)
 
@@ -143,14 +126,7 @@ abstract class AndroidTask(
         task.summary = values.getAsString(Tasks.TITLE)
         task.location = values.getAsString(Tasks.LOCATION)
 
-        values.getAsString(Tasks.GEO)?.let { geo ->
-            val (lng, lat) = geo.split(',')
-            try {
-                task.geoPosition = Geo(lat.toBigDecimal(), lng.toBigDecimal())
-            } catch (e: NumberFormatException) {
-                Ical4Android.log.warning("Invalid GEO value: $geo")
-            }
-        }
+        values.getAsString(Tasks.GEO)?.let { task.geoPosition = Geo(it) }
 
         task.description = values.getAsString(Tasks.DESCRIPTION)
         task.color = values.getAsInteger(Tasks.TASK_COLOR)
@@ -160,7 +136,7 @@ abstract class AndroidTask(
             try {
                 task.organizer = Organizer("mailto:$it")
             } catch(e: URISyntaxException) {
-                Ical4Android.log.log(Level.WARNING, "Invalid ORGANIZER email", e)
+                Constants.log.log(Level.WARNING, "Invalid ORGANIZER email", e)
             }
         }
 
@@ -183,63 +159,49 @@ abstract class AndroidTask(
             else ->                    Status.VTODO_NEEDS_ACTION
         }
 
-        val allDay = values.getAsInteger(Tasks.IS_ALLDAY) ?: 0 != 0
+        var allDay = false
+        values.getAsInteger(Tasks.IS_ALLDAY)?.let { allDay = it != 0 }
 
         val tzID = values.getAsString(Tasks.TZ)
-        val tz = tzID?.let { DateUtils.ical4jTimeZone(it) }
+        val tz = if (tzID != null) DateUtils.tzRegistry.getTimeZone(tzID) else null
 
         values.getAsLong(Tasks.CREATED)?.let { task.createdAt = it }
         values.getAsLong(Tasks.LAST_MODIFIED)?.let { task.lastModified = it }
 
         values.getAsLong(Tasks.DTSTART)?.let { dtStart ->
-            task.dtStart =
-                    if (allDay)
-                        DtStart(Date(dtStart))
-                    else {
-                        val dt = DateTime(dtStart)
-                        if (tz == null)
-                            DtStart(dt, true)
-                        else
-                            DtStart(dt.apply {
-                                timeZone = tz
-                            })
-                    }
+            val dt: Date
+            if (allDay)
+                dt = Date(dtStart)
+            else {
+                dt = DateTime(dtStart)
+                if (tz != null)
+                    dt.timeZone = tz
+            }
+            task.dtStart = DtStart(dt)
         }
 
         values.getAsLong(Tasks.DUE)?.let { due ->
-            task.due =
-                    if (allDay)
-                        Due(Date(due))
-                    else {
-                        val dt = DateTime(due)
-                        if (tz == null)
-                            Due(dt).apply {
-                                isUtc = true
-                            }
-                        else
-                            Due(dt.apply {
-                                timeZone = tz
-                            })
-                    }
+            val dt: Date
+            if (allDay)
+                dt = Date(due)
+            else {
+                dt = DateTime(due)
+                if (tz != null)
+                    dt.timeZone = tz
+            }
+            task.due = Due(dt)
         }
 
-        values.getAsString(Tasks.DURATION)?.let { duration ->
-            val fixedDuration = AndroidTimeUtils.parseDuration(duration)
-            task.duration = Duration(fixedDuration)
-        }
+        values.getAsString(Tasks.DURATION)?.let { task.duration = Duration(Dur(it)) }
 
-        values.getAsString(Tasks.RDATE)?.let {
-            task.rDates += AndroidTimeUtils.androidStringToRecurrenceSet(it, allDay) { dates -> RDate(dates) }
-        }
-        values.getAsString(Tasks.EXDATE)?.let {
-            task.exDates += AndroidTimeUtils.androidStringToRecurrenceSet(it, allDay) { dates -> ExDate(dates) }
-        }
+        values.getAsString(Tasks.RDATE)?.let { task.rDates += DateUtils.androidStringToRecurrenceSet(it, RDate::class.java, allDay) }
+        values.getAsString(Tasks.EXDATE)?.let { task.exDates += DateUtils.androidStringToRecurrenceSet(it, ExDate::class.java, allDay) }
 
         values.getAsString(Tasks.RRULE)?.let { task.rRule = RRule(it) }
     }
 
     protected open fun populateProperty(row: ContentValues) {
-        Ical4Android.log.log(Level.FINER, "Found property", row)
+        Constants.log.log(Level.FINER, "Found property", row)
 
         val task = requireNotNull(task)
         when (val type = row.getAsString(Properties.MIMETYPE)) {
@@ -252,7 +214,7 @@ abstract class AndroidTask(
             UnknownProperty.CONTENT_ITEM_TYPE ->
                 task.unknownProperties += UnknownProperty.fromJsonString(row.getAsString(UNKNOWN_PROPERTY_DATA))
             else ->
-                Ical4Android.log.warning("Found unknown property of type $type")
+                Constants.log.warning("Found unknown property of type $type")
         }
     }
 
@@ -260,7 +222,7 @@ abstract class AndroidTask(
         val task = requireNotNull(task)
         val props = PropertyList<Property>()
 
-        val trigger = Trigger(java.time.Duration.ofMinutes(-row.getAsLong(Alarm.MINUTES_BEFORE)))
+        val trigger = Trigger(Dur(0, 0, -row.getAsInteger(Alarm.MINUTES_BEFORE), 0))
         when (row.getAsInteger(Alarm.REFERENCE)) {
             Alarm.ALARM_REFERENCE_START_DATE ->
                 trigger.parameters.add(Related.START)
@@ -287,7 +249,7 @@ abstract class AndroidTask(
     protected open fun populateRelatedTo(row: ContentValues) {
         val uid = row.getAsString(Relation.RELATED_UID)
         if (uid == null) {
-            Ical4Android.log.warning("Task relation doesn't refer to same task list; can't be synchronized")
+            Constants.log.warning("Task relation doesn't refer to same task list; can't be synchronized")
             return
         }
 
@@ -309,53 +271,47 @@ abstract class AndroidTask(
 
     fun add(): Uri {
         val batch = BatchOperation(taskList.provider.client)
-
-        val builder = CpoBuilder.newInsert(taskList.tasksSyncUri())
+        val builder = ContentProviderOperation.newInsert(taskList.tasksSyncUri())
         buildTask(builder, false)
-        val idxTask = batch.nextBackrefIdx()
-        batch.enqueue(builder)
-
-        insertProperties(batch, idxTask)
-
+        batch.enqueue(BatchOperation.Operation(builder))
         batch.commit()
 
-        val resultUri = batch.getResult(0)?.uri ?: throw CalendarStorageException("Empty result from provider when adding a task")
-        id = ContentUris.parseId(resultUri)
-        return resultUri
+        // TODO use backref mechanism so that only one commit is required for the whole task
+        val result = batch.getResult(0) ?: throw CalendarStorageException("Empty result from provider when adding a task")
+        id = ContentUris.parseId(result.uri)
+
+        insertProperties(batch)
+        batch.commit()
+
+        return result.uri
     }
 
     fun update(task: Task): Uri {
         this.task = task
-        val existingId = requireNotNull(id)
 
         val batch = BatchOperation(taskList.provider.client)
-
-        // remove associated rows which are added later again
-        batch.enqueue(CpoBuilder
-                .newDelete(taskList.tasksPropertiesSyncUri())
-                .withSelection("${Properties.TASK_ID}=?", arrayOf(existingId.toString())))
-
-        // update task
         val uri = taskSyncURI()
-        val builder = CpoBuilder.newUpdate(uri)
+        val builder = ContentProviderOperation.newUpdate(uri)
         buildTask(builder, true)
-        batch.enqueue(builder)
+        batch.enqueue(BatchOperation.Operation(builder))
 
-        // insert task properties again
-        insertProperties(batch, null)
+        val deleteProperties = ContentProviderOperation.newDelete(taskList.tasksPropertiesSyncUri())
+                .withSelection("${Properties.TASK_ID}=?", arrayOf(id.toString()))
+        batch.enqueue(BatchOperation.Operation(deleteProperties))
+        insertProperties(batch)
 
         batch.commit()
-        return ContentUris.withAppendedId(taskList.provider.tasksUri(), existingId)
+        return uri
     }
 
-    protected open fun insertProperties(batch: BatchOperation, idxTask: Int?) {
-        insertAlarms(batch, idxTask)
-        insertCategories(batch, idxTask)
-        insertRelatedTo(batch, idxTask)
-        insertUnknownProperties(batch, idxTask)
+    protected open fun insertProperties(batch: BatchOperation) {
+        insertAlarms(batch)
+        insertCategories(batch)
+        insertRelatedTo(batch)
+        insertUnknownProperties(batch)
     }
 
-    protected open fun insertAlarms(batch: BatchOperation, idxTask: Int?) {
+    protected open fun insertAlarms(batch: BatchOperation) {
         val task = requireNotNull(task)
         for (alarm in task.alarms) {
             val (alarmRef, minutes) = ICalendar.vAlarmToMin(alarm, task, true) ?: continue
@@ -366,7 +322,7 @@ abstract class AndroidTask(
                     Alarm.ALARM_REFERENCE_START_DATE
             }
 
-            val alarmType = when (alarm.action?.value?.toUpperCase(Locale.ROOT)) {
+            val alarmType = when (alarm.action?.value?.toUpperCase(Locale.US)) {
                 Action.AUDIO.value ->
                     Alarm.ALARM_TYPE_SOUND
                 Action.DISPLAY.value ->
@@ -377,32 +333,31 @@ abstract class AndroidTask(
                     Alarm.ALARM_TYPE_NOTHING
             }
 
-            val builder = CpoBuilder
-                    .newInsert(taskList.tasksPropertiesSyncUri())
-                    .withTaskId(Alarm.TASK_ID, idxTask)
+            val builder = ContentProviderOperation.newInsert(taskList.tasksPropertiesSyncUri())
+                    .withValue(Alarm.TASK_ID, id)
                     .withValue(Alarm.MIMETYPE, Alarm.CONTENT_ITEM_TYPE)
                     .withValue(Alarm.MINUTES_BEFORE, minutes)
                     .withValue(Alarm.REFERENCE, ref)
                     .withValue(Alarm.MESSAGE, alarm.description?.value ?: alarm.summary)
                     .withValue(Alarm.ALARM_TYPE, alarmType)
 
-            Ical4Android.log.log(Level.FINE, "Inserting alarm", builder.build())
-            batch.enqueue(builder)
+            Constants.log.log(Level.FINE, "Inserting alarm", builder.build())
+            batch.enqueue(BatchOperation.Operation(builder))
         }
     }
 
-    protected open fun insertCategories(batch: BatchOperation, idxTask: Int?) {
+    protected open fun insertCategories(batch: BatchOperation) {
         for (category in requireNotNull(task).categories) {
-            val builder = CpoBuilder.newInsert(taskList.tasksPropertiesSyncUri())
-                    .withTaskId(Category.TASK_ID, idxTask)
+            val builder = ContentProviderOperation.newInsert(taskList.tasksPropertiesSyncUri())
+                    .withValue(Category.TASK_ID, id)
                     .withValue(Category.MIMETYPE, Category.CONTENT_ITEM_TYPE)
                     .withValue(Category.CATEGORY_NAME, category)
-            Ical4Android.log.log(Level.FINE, "Inserting category", builder.build())
-            batch.enqueue(builder)
+            Constants.log.log(Level.FINE, "Inserting category", builder.build())
+            batch.enqueue(BatchOperation.Operation(builder))
         }
     }
 
-    protected open fun insertRelatedTo(batch: BatchOperation, idxTask: Int?) {
+    protected open fun insertRelatedTo(batch: BatchOperation) {
         for (relatedTo in requireNotNull(task).relatedTo) {
             val relType = when ((relatedTo.getParameter(Parameter.RELTYPE) as RelType?)) {
                 RelType.CHILD ->
@@ -412,29 +367,29 @@ abstract class AndroidTask(
                 else /* RelType.PARENT, default value */ ->
                     Relation.RELTYPE_PARENT
             }
-            val builder = CpoBuilder.newInsert(taskList.tasksPropertiesSyncUri())
-                    .withTaskId(Relation.TASK_ID, idxTask)
+            val builder = ContentProviderOperation.newInsert(taskList.tasksPropertiesSyncUri())
+                    .withValue(Relation.TASK_ID, id)
                     .withValue(Relation.MIMETYPE, Relation.CONTENT_ITEM_TYPE)
                     .withValue(Relation.RELATED_UID, relatedTo.value)
                     .withValue(Relation.RELATED_TYPE, relType)
-            Ical4Android.log.log(Level.FINE, "Inserting relation", builder.build())
-            batch.enqueue(builder)
+            Constants.log.log(Level.FINE, "Inserting relation", builder.build())
+            batch.enqueue(BatchOperation.Operation(builder))
         }
     }
 
-    protected open fun insertUnknownProperties(batch: BatchOperation, idxTask: Int?) {
+    protected open fun insertUnknownProperties(batch: BatchOperation) {
         for (property in requireNotNull(task).unknownProperties) {
             if (property.value.length > UnknownProperty.MAX_UNKNOWN_PROPERTY_SIZE) {
-                Ical4Android.log.warning("Ignoring unknown property with ${property.value.length} octets (too long)")
+                Constants.log.warning("Ignoring unknown property with ${property.value.length} octets (too long)")
                 return
             }
 
-            val builder = CpoBuilder.newInsert(taskList.tasksPropertiesSyncUri())
-                    .withTaskId(Properties.TASK_ID, idxTask)
+            val builder = ContentProviderOperation.newInsert(taskList.tasksPropertiesSyncUri())
+                    .withValue(Properties.TASK_ID, id)
                     .withValue(Properties.MIMETYPE, UnknownProperty.CONTENT_ITEM_TYPE)
                     .withValue(UNKNOWN_PROPERTY_DATA, UnknownProperty.toJsonString(property))
-            Ical4Android.log.log(Level.FINE, "Inserting unknown property", builder.build())
-            batch.enqueue(builder)
+            Constants.log.log(Level.FINE, "Inserting unknown property", builder.build())
+            batch.enqueue(BatchOperation.Operation(builder))
         }
     }
 
@@ -446,8 +401,7 @@ abstract class AndroidTask(
         }
     }
 
-    @CallSuper
-    protected open fun buildTask(builder: BatchOperation.CpoBuilder, update: Boolean) {
+    protected open fun buildTask(builder: Builder, update: Boolean) {
         if (!update)
             builder .withValue(Tasks.LIST_ID, taskList.id)
 
@@ -457,7 +411,9 @@ abstract class AndroidTask(
                 .withValue(Tasks.SYNC_VERSION, task.sequence)
                 .withValue(Tasks.TITLE, task.summary)
                 .withValue(Tasks.LOCATION, task.location)
-                .withValue(Tasks.GEO, task.geoPosition?.let { "${it.longitude},${it.latitude}" })
+
+                .withValue(Tasks.GEO, task.geoPosition?.value)
+
                 .withValue(Tasks.DESCRIPTION, task.description)
                 .withValue(Tasks.TASK_COLOR, task.color)
                 .withValue(Tasks.URL, task.url)
@@ -465,17 +421,19 @@ abstract class AndroidTask(
                 // parent_id will be re-calculated when the relation row is inserted (if there is any)
                 .withValue(Tasks.PARENT_ID, null)
 
-        task.organizer?.let { organizer ->
-            val uri = organizer.calAddress
-            val email = if (uri.scheme.equals("mailto", true))
-                uri.schemeSpecificPart
-            else
-                organizer.getParameter<Email>(Parameter.EMAIL)?.value
-            if (email != null)
-                builder.withValue(Tasks.ORGANIZER, email)
-            else
-                Ical4Android.log.warning("Ignoring ORGANIZER without email address (not supported by Android)")
+        var organizer: String? = null
+        task.organizer?.let {
+            try {
+                val uri = URI(it.value)
+                if (uri.scheme.equals("mailto", true))
+                    organizer = uri.schemeSpecificPart
+                else
+                    Constants.log.log(Level.WARNING, "Found non-mailto ORGANIZER URI, ignoring", uri)
+            } catch (e: URISyntaxException) {
+                Constants.log.log(Level.WARNING, "Invalid ORGANIZER URI, ignoring", e)
+            }
         }
+        builder .withValue(Tasks.ORGANIZER, organizer)
 
         builder .withValue(Tasks.PRIORITY, task.priority)
                 .withValue(Tasks.CLASSIFICATION, when (task.classification) {
@@ -490,21 +448,20 @@ abstract class AndroidTask(
                 .withValue(Tasks.COMPLETED_IS_ALLDAY, 0)
                 .withValue(Tasks.PERCENT_COMPLETE, task.percentComplete)
 
-        val status = when (task.status) {
+        builder .withValue(Tasks.STATUS, when (task.status) {
             Status.VTODO_IN_PROCESS -> Tasks.STATUS_IN_PROCESS
             Status.VTODO_COMPLETED  -> Tasks.STATUS_COMPLETED
             Status.VTODO_CANCELLED  -> Tasks.STATUS_CANCELLED
             else                    -> Tasks.STATUS_DEFAULT    // == Tasks.STATUS_NEEDS_ACTION
-        }
-        builder.withValue(Tasks.STATUS, status)
+        })
 
         val allDay = task.isAllDay()
-        if (allDay) {
+        if (allDay)
             builder .withValue(Tasks.IS_ALLDAY, 1)
                     .withValue(Tasks.TZ, null)
-        } else {
-            AndroidTimeUtils.androidifyTimeZone(task.dtStart)
-            AndroidTimeUtils.androidifyTimeZone(task.due)
+        else {
+            MiscUtils.androidifyTimeZone(task.dtStart)
+            MiscUtils.androidifyTimeZone(task.due)
             builder .withValue(Tasks.IS_ALLDAY, 0)
                     .withValue(Tasks.TZ, getTimeZone().id)
         }
@@ -516,53 +473,30 @@ abstract class AndroidTask(
                 .withValue(Tasks.DUE, task.due?.date?.time)
                 .withValue(Tasks.DURATION, task.duration?.value)
 
-                .withValue(Tasks.RDATE,
-                        if (task.rDates.isEmpty())
-                            null
-                        else
-                            AndroidTimeUtils.recurrenceSetsToOpenTasksString(task.rDates, if (allDay) null else getTimeZone()))
+                .withValue(Tasks.RDATE, if (task.rDates.isEmpty()) null else DateUtils.recurrenceSetsToAndroidString(task.rDates, allDay))
                 .withValue(Tasks.RRULE, task.rRule?.value)
 
-                .withValue(Tasks.EXDATE,
-                        if (task.exDates.isEmpty())
-                            null
-                        else
-                            AndroidTimeUtils.recurrenceSetsToOpenTasksString(task.exDates, if (allDay) null else getTimeZone()))
-        Ical4Android.log.log(Level.FINE, "Built task object", builder.build())
+                .withValue(Tasks.EXDATE, if (task.exDates.isEmpty()) null else DateUtils.recurrenceSetsToAndroidString(task.exDates, allDay))
+        Constants.log.log(Level.FINE, "Built task object", builder.build())
     }
 
 
     fun getTimeZone(): TimeZone {
         val task = requireNotNull(task)
-        return  task.dtStart?.let { dtStart ->
-                    if (dtStart.isUtc)
-                        utcTimeZone
-                    else
-                        dtStart.timeZone
-                } ?:
-                task.due?.let { due ->
-                    if (due.isUtc)
-                        utcTimeZone
-                    else
-                        due.timeZone
-                } ?:
-                DateUtils.ical4jTimeZone(ZoneId.systemDefault().id)!!
+
+        var tz: TimeZone? = null
+        task.dtStart?.timeZone?.let { tz = it }
+
+        tz = tz ?: task.due?.timeZone
+
+        return tz ?: TimeZone.getDefault()
     }
-
-
-    protected fun CpoBuilder.withTaskId(column: String, idxTask: Int?): BatchOperation.CpoBuilder {
-        if (idxTask != null)
-            withValueBackReference(column, idxTask)
-        else
-            withValue(column, requireNotNull(id))
-        return this
-    }
-
 
     protected fun taskSyncURI(loadProperties: Boolean = false): Uri {
         val id = requireNotNull(id)
         return ContentUris.withAppendedId(taskList.tasksSyncUri(loadProperties), id)
     }
+
 
     override fun toString() = MiscUtils.reflectionToString(this)
 

@@ -19,9 +19,9 @@
 
 package de.telekom.dtagsyncpluskit.davx5.log
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.SharedPreferences
-import android.preference.PreferenceManager
 import android.util.Log
 import java.io.File
 import java.io.IOException
@@ -29,6 +29,7 @@ import java.util.logging.FileHandler
 import java.util.logging.Level
 import java.util.logging.Logger
 
+@SuppressLint("StaticFieldLeak")
 object Logger : SharedPreferences.OnSharedPreferenceChangeListener {
     val log: Logger = Logger.getLogger("SyncPlus")
 

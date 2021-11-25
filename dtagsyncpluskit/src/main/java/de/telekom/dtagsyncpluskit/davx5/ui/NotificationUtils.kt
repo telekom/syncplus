@@ -20,10 +20,13 @@
 package de.telekom.dtagsyncpluskit.davx5.ui
 
 import android.accounts.Account
+import android.app.Notification
+import android.app.PendingIntent
 import android.content.Context
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import de.telekom.dtagsyncpluskit.R
+import de.telekom.dtagsyncpluskit.davx5.log.Logger
 
 object NotificationUtils {
     // notification IDs

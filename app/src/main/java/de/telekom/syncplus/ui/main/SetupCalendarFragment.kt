@@ -69,6 +69,7 @@ class CalendarCollectionsViewModel(private val app: Application) : AndroidViewMo
 
             val serviceId =
                 mDB.serviceDao().getIdByAccountAndType(account.name, serviceType)
+                    ?: return@launch
 
             val newFetcher = CollectionFetcher(
                 app,
@@ -179,6 +180,7 @@ class SetupCalendarFragment : BaseFragment() {
         if (authHolder.emailEnabled) {
             push(R.id.container, SetupEmailFragment.newInstance())
         } else {
+            accountSettings.setSetupCompleted(true)
             startActivity(AccountsActivity.newIntent(requireActivity(), true))
         }
     }

@@ -19,14 +19,18 @@
 
 package de.telekom.syncplus
 
+import android.accounts.AccountManagerFuture
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
+import de.telekom.dtagsyncpluskit.davx5.log.Logger
 import de.telekom.dtagsyncpluskit.extraNotNull
 import de.telekom.dtagsyncpluskit.ui.BaseActivity
 import de.telekom.dtagsyncpluskit.utils.IDMAccountManager
 import de.telekom.syncplus.dav.DavNotificationUtils
 import de.telekom.syncplus.ui.main.WelcomeFragment
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 
 class WelcomeActivity : BaseActivity() {
     companion object {
@@ -52,16 +56,42 @@ class WelcomeActivity : BaseActivity() {
 
         val accountManager =
             IDMAccountManager(this, DavNotificationUtils.reloginCallback(this, "authority"))
-        if (!mNoRedirect && accountManager.getAccounts().count() > 0) {
-            startActivity(AccountsActivity.newIntent(this, false))
-        } else {
-            setContentView(R.layout.activity_container)
-            if (savedInstanceState == null) {
-                supportFragmentManager
-                    .beginTransaction()
-                    .replace(R.id.container, WelcomeFragment.newInstance())
-                    .commitNow()
+
+        // Verify that all accounts have been setup completely.
+        val futures = ArrayList<AccountManagerFuture<Bundle>>()
+        for (account in accountManager.getAccounts()) {
+            if (!accountManager.isSetupCompleted(account)) {
+                Logger.log.info("Account deleted: $account")
+                futures.add(accountManager.removeAccountAsync(account, this))
             }
+        }
+
+        val accountsDeleted = futures.size > 0
+        val next = {
+            Logger.log.info("Accounts: ${accountManager.getAccounts().map { it.name }}")
+            if (!mNoRedirect && accountManager.getAccounts().count() > 0) {
+                startActivity(
+                    AccountsActivity.newIntent(
+                        this,
+                        newAccountCreated = false,
+                        energySaving = false,
+                        accountDeleted = accountsDeleted
+                    )
+                )
+            } else {
+                setContentView(R.layout.activity_container)
+                if (savedInstanceState == null) {
+                    supportFragmentManager
+                        .beginTransaction()
+                        .replace(R.id.container, WelcomeFragment.newInstance(accountsDeleted))
+                        .commitNow()
+                }
+            }
+        }
+
+        GlobalScope.launch {
+            futures.forEach { it.result }
+            runOnUiThread(next)
         }
     }
 }

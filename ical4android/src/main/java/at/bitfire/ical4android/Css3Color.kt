@@ -179,7 +179,7 @@ enum class Css3Color(val argb: Int) {
                 try {
                     valueOf(name)
                 } catch (e: IllegalArgumentException) {
-                    Ical4Android.log.warning("Unknown color: $name")
+                    Constants.log.warning("Unknown color: $name")
                     null
                 }
 

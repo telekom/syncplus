@@ -12,6 +12,7 @@ import android.accounts.Account
 import android.content.ContentUris
 import android.content.ContentValues
 import android.database.DatabaseUtils
+import androidx.test.platform.app.InstrumentationRegistry.getInstrumentation
 import at.bitfire.ical4android.impl.TestTask
 import at.bitfire.ical4android.impl.TestTaskList
 import net.fortuna.ical4j.model.property.RelatedTo
@@ -19,14 +20,32 @@ import org.dmfs.tasks.contract.TaskContract
 import org.dmfs.tasks.contract.TaskContract.Properties
 import org.dmfs.tasks.contract.TaskContract.Property.Relation
 import org.dmfs.tasks.contract.TaskContract.Tasks
+import org.junit.After
 import org.junit.Assert.*
+import org.junit.Assume.assumeNotNull
+import org.junit.Before
 import org.junit.Test
 
-class AndroidTaskListTest(providerName: TaskProvider.ProviderName):
-        AbstractTasksTest(providerName) {
+class AndroidTaskListTest {
 
+    private var provider: TaskProvider? = null
     private val testAccount = Account("AndroidTaskListTest", TaskContract.LOCAL_ACCOUNT_TYPE)
 
+    init {
+        TestUtils.requestTaskPermissions()
+    }
+
+    @Before
+    fun prepare() {
+        val providerOrNull = AndroidTaskList.acquireTaskProvider(getInstrumentation().targetContext)
+        assumeNotNull(providerOrNull)
+        provider = providerOrNull!!
+    }
+
+    @After
+    fun shutdown() {
+        provider?.close()
+    }
 
     private fun createTaskList(): TestTaskList {
         val info = ContentValues()
@@ -36,10 +55,10 @@ class AndroidTaskListTest(providerName: TaskProvider.ProviderName):
         info.put(TaskContract.TaskLists.SYNC_ENABLED, 1)
         info.put(TaskContract.TaskLists.VISIBLE, 1)
 
-        val uri = AndroidTaskList.create(testAccount, provider, info)
+        val uri = AndroidTaskList.create(testAccount, provider!!, info)
         assertNotNull(uri)
 
-        return AndroidTaskList.findByID(testAccount, provider, TestTaskList.Factory, ContentUris.parseId(uri))
+        return AndroidTaskList.findByID(testAccount, provider!!, TestTaskList.Factory, ContentUris.parseId(uri))
     }
 
 

@@ -9,8 +9,10 @@
 package at.bitfire.ical4android
 
 import android.accounts.Account
+import android.content.ContentProviderOperation
 import android.content.ContentUris
 import android.content.ContentValues
+import android.content.Context
 import android.net.Uri
 import at.bitfire.ical4android.MiscUtils.CursorHelper.toValues
 import org.dmfs.tasks.contract.TaskContract
@@ -35,12 +37,32 @@ abstract class AndroidTaskList<out T: AndroidTask>(
 
 	companion object {
 
+        /**
+         * Acquires a [android.content.ContentProviderClient] for a supported task provider. If multiple providers are
+         * available, a pre-defined priority list is taken into account.
+         *
+         * @return A [TaskProvider], or null if task storage is not available/accessible.
+         * Caller is responsible for calling [TaskProvider.close]!
+         */
+        fun acquireTaskProvider(context: Context): TaskProvider? {
+            val byPriority = arrayOf(
+                TaskProvider.ProviderName.OpenTasks
+            )
+            for (name in byPriority)
+                try {
+                    TaskProvider.acquire(context, name)?.let { return it }
+                } catch (e: Exception) {
+                    // couldn't acquire task provider
+                }
+            return null
+        }
+
         fun create(account: Account, provider: TaskProvider, info: ContentValues): Uri {
             info.put(TaskContract.ACCOUNT_NAME, account.name)
             info.put(TaskContract.ACCOUNT_TYPE, account.type)
             info.put(TaskLists.ACCESS_LEVEL, 0)
 
-            Ical4Android.log.info("Creating local task list: $info")
+            Constants.log.info("Creating local task list: $info")
             return provider.client.insert(TaskProvider.syncAdapterUri(provider.taskListsUri(), account), info) ?:
                     throw CalendarStorageException("Couldn't create task list (empty result from provider)")
         }
@@ -110,7 +132,7 @@ abstract class AndroidTaskList<out T: AndroidTask>(
      * @return number of touched [Relation] rows
     */
     fun touchRelations(): Int {
-        Ical4Android.log.fine("Touching relations to set parent_id")
+        Constants.log.fine("Touching relations to set parent_id")
         val batchOperation = BatchOperation(provider.client)
         provider.client.query(tasksSyncUri(true), null,
                 "${Tasks.LIST_ID}=? AND ${Tasks.PARENT_ID} IS NULL AND ${Relation.MIMETYPE}=? AND ${Relation.RELATED_ID} IS NOT NULL",
@@ -120,10 +142,10 @@ abstract class AndroidTaskList<out T: AndroidTask>(
                 val values = cursor.toValues()
                 val id = values.getAsLong(Relation.PROPERTY_ID)
                 val propertyContentUri = ContentUris.withAppendedId(tasksPropertiesSyncUri(), id)
-                batchOperation.enqueue(BatchOperation.CpoBuilder
-                        .newUpdate(propertyContentUri)
-                        .withValue(Relation.RELATED_ID, values.getAsLong(Relation.RELATED_ID))
-                )
+                batchOperation.enqueue(BatchOperation.Operation(
+                        ContentProviderOperation.newUpdate(propertyContentUri)
+                                .withValue(Relation.RELATED_ID, values.getAsLong(Relation.RELATED_ID))
+                ))
             }
         }
         return batchOperation.commit()

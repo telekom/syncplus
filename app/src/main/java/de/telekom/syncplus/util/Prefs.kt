@@ -20,12 +20,20 @@
 package de.telekom.syncplus.util
 
 import android.content.Context
+import kotlinx.serialization.*
+import kotlinx.serialization.json.*
 
 class Prefs(context: Context?) {
     companion object {
         private const val PREFS = "de.telekom.syncplus.PREFERENCES"
         private const val PREFS_STARTS = "PREFS_STARTS"
         private const val PREFS_LOG_TO_FILE = "log_to_file"
+        private const val PREFS_ENERGY_SAVING_DIALOG_SHOWN = "energy_saving_dialog_shown"
+        private const val PREFS_CURRENT_VERSION = "prefs_current_version"
+        private const val PREFS_LAST_SYNCS = "prefs_last_syncs"
+
+        @Serializable
+        data class LastSyncs(val lastSyncs: HashMap<String, Long>)
     }
 
     private val prefs = context?.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -37,4 +45,25 @@ class Prefs(context: Context?) {
     var loggingEnabled: Boolean
         get() = prefs?.getBoolean(PREFS_LOG_TO_FILE, false) ?: false
         set(value) = prefs?.edit()?.putBoolean(PREFS_LOG_TO_FILE, value)?.apply() ?: Unit
+
+    var energySavingDialogShown: Boolean
+        get() = prefs?.getBoolean(PREFS_ENERGY_SAVING_DIALOG_SHOWN, false) ?: false
+        set(value) = prefs?.edit()?.putBoolean(PREFS_ENERGY_SAVING_DIALOG_SHOWN, value)?.apply()
+            ?: Unit
+
+    var currentVersionCode: Int
+        get() = prefs?.getInt(PREFS_CURRENT_VERSION, 0) ?: 0
+        set(value) = prefs?.edit()?.putInt(PREFS_CURRENT_VERSION, value)?.apply() ?: Unit
+
+    var lastSyncs: LastSyncs
+        get() {
+            val default = LastSyncs(lastSyncs = HashMap())
+            val defaultEncoded = Json.encodeToString(default)
+            val encoded = prefs?.getString(PREFS_LAST_SYNCS, defaultEncoded) ?: defaultEncoded
+            return Json.decodeFromString(encoded)
+        }
+        set(value) {
+            val encoded = Json.encodeToString(value)
+            prefs?.edit()?.putString(PREFS_LAST_SYNCS, encoded)?.apply() ?: Unit
+        }
 }

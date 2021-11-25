@@ -1,7 +1,6 @@
 package at.bitfire.ical4android
 
 import androidx.test.filters.SmallTest
-import net.fortuna.ical4j.model.Parameter
 import net.fortuna.ical4j.model.parameter.Rsvp
 import net.fortuna.ical4j.model.parameter.XParameter
 import net.fortuna.ical4j.model.property.Attendee
@@ -30,8 +29,8 @@ class UnknownPropertyTest {
         assertEquals("ATTENDEE", prop.name)
         assertEquals("PropValue", prop.value)
         assertEquals(2, prop.parameters.size())
-        assertEquals("value1", prop.parameters.getParameter<Parameter>("x-param1").value)
-        assertEquals("value2", prop.parameters.getParameter<Parameter>("x-param2").value)
+        assertEquals("value1", prop.parameters.getParameter("x-param1").value)
+        assertEquals("value2", prop.parameters.getParameter("x-param2").value)
     }
 
     @Test(expected = JSONException::class)

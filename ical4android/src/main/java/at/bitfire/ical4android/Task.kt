@@ -10,7 +10,6 @@
 
 package at.bitfire.ical4android
 
-import androidx.annotation.IntRange
 import net.fortuna.ical4j.data.CalendarOutputter
 import net.fortuna.ical4j.data.ParserException
 import net.fortuna.ical4j.model.*
@@ -34,15 +33,12 @@ class Task: ICalendar() {
 
     var summary: String? = null
     var location: String? = null
-    var geoPosition: Geo? = null
     var description: String? = null
     var color: Int? = null
     var url: String? = null
     var organizer: Organizer? = null
-
-    @IntRange(from = 0, to = 9)
+    var geoPosition: Geo? = null
     var priority: Int = Priority.UNDEFINED.level
-
     var classification: Clazz? = null
     var status: Status? = null
 
@@ -50,8 +46,6 @@ class Task: ICalendar() {
     var due: Due? = null
     var duration: Duration? = null
     var completedAt: Completed? = null
-
-    @IntRange(from = 0, to = 100)
     var percentComplete: Int? = null
 
     var rRule: RRule? = null
@@ -78,7 +72,6 @@ class Task: ICalendar() {
          * @throws IllegalArgumentException when the iCalendar resource contains an invalid value
          * @throws IOException on I/O errors
          */
-        @UsesThreadContextClassLoader
         fun tasksFromReader(reader: Reader): List<Task> {
             val ical = fromReader(reader)
             val vToDos = ical.getComponents<VToDo>(Component.VTODO)
@@ -91,7 +84,7 @@ class Task: ICalendar() {
             if (todo.uid != null)
                 t.uid = todo.uid.value
             else {
-                Ical4Android.log.warning("Received VTODO without UID, generating new one")
+                Constants.log.warning("Received VTODO without UID, generating new one")
                 t.generateUID()
             }
 
@@ -131,29 +124,13 @@ class Task: ICalendar() {
 
             t.alarms.addAll(todo.alarms)
 
-            // There seem to be many invalid tasks out there because of some defect clients, do some validation.
+            // there seem to be many invalid tasks out there because of some defect clients,
+            // do some validation
             val dtStart = t.dtStart
             val due = t.due
-
-            if (dtStart != null && due != null) {
-                if (DateUtils.isDate(dtStart) && DateUtils.isDateTime(due)) {
-                    Ical4Android.log.warning("DTSTART is DATE but DUE is DATE-TIME, rewriting DTSTART to DATE-TIME")
-                    t.dtStart = DtStart(DateTime(dtStart.value, due.timeZone))
-                } else if (DateUtils.isDateTime(dtStart) && DateUtils.isDate(due)) {
-                    Ical4Android.log.warning("DTSTART is DATE-TIME but DUE is DATE, rewriting DUE to DATE-TIME")
-                    t.due = Due(DateTime(due.value, dtStart.timeZone))
-                }
-
-
-                if (due.date <= dtStart.date) {
-                    Ical4Android.log.warning("Found invalid DUE <= DTSTART; dropping DTSTART")
-                    t.dtStart = null
-                }
-            }
-
-            if (t.duration != null && t.dtStart == null) {
-                Ical4Android.log.warning("Found DURATION without DTSTART; ignoring")
-                t.duration = null
+            if (dtStart != null && due != null && !due.date.after(dtStart.date)) {
+                Constants.log.warning("Invalid DTSTART >= DUE; ignoring DTSTART")
+                t.dtStart = null
             }
 
             return t
@@ -162,10 +139,7 @@ class Task: ICalendar() {
     }
 
 
-    @UsesThreadContextClassLoader
     fun write(os: OutputStream) {
-        Ical4Android.checkThreadContextClassLoader()
-
         val ical = Calendar()
         ical.properties += Version.VERSION_2_0
         ical.properties += prodId
@@ -192,7 +166,7 @@ class Task: ICalendar() {
             try {
                 props += Url(URI(it))
             } catch (e: URISyntaxException) {
-                Ical4Android.log.log(Level.WARNING, "Ignoring invalid task URL: $url", e)
+                Constants.log.log(Level.WARNING, "Ignoring invalid task URL: $url", e)
             }
         }
         organizer?.let { props += it }
@@ -231,15 +205,7 @@ class Task: ICalendar() {
         if (alarms.isNotEmpty())
             vTodo.alarms.addAll(alarms)
 
-        // determine earliest referenced date
-        val earliest = arrayOf(
-                dtStart?.date,
-                due?.date,
-                completedAt?.date
-        ).filterNotNull().min()
-        // add VTIMEZONE components
-        for (tz in usedTimeZones)
-            ical.components += minifyVTimeZone(tz.vTimeZone, earliest)
+        ical.components.addAll(usedTimeZones.map { it.vTimeZone })
 
         softValidate(ical)
         CalendarOutputter(false).output(ical, os)
@@ -247,9 +213,10 @@ class Task: ICalendar() {
 
 
     fun isAllDay(): Boolean {
-        return  dtStart?.let { DateUtils.isDate(it) } ?:
-                due?.let { DateUtils.isDate(it) } ?:
-                true
+        val dtStart = dtStart
+        val due = due
+        return (dtStart != null && dtStart.date !is DateTime) ||
+               (due != null && due.date !is DateTime)
     }
 
 }

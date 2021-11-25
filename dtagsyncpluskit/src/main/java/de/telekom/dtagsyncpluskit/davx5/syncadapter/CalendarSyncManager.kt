@@ -32,11 +32,11 @@ import android.app.Application
 import android.content.SyncResult
 import android.os.Bundle
 import at.bitfire.dav4jvm.DavCalendar
+import at.bitfire.dav4jvm.DavResource
 import at.bitfire.dav4jvm.DavResponseCallback
 import at.bitfire.dav4jvm.Response
 import at.bitfire.dav4jvm.exception.DavException
 import at.bitfire.dav4jvm.property.*
-import at.bitfire.ical4android.DateUtils
 import at.bitfire.ical4android.Event
 import at.bitfire.ical4android.InvalidCalendarException
 import de.telekom.dtagsyncpluskit.R
@@ -48,15 +48,14 @@ import de.telekom.dtagsyncpluskit.davx5.resource.LocalCalendar
 import de.telekom.dtagsyncpluskit.davx5.resource.LocalEvent
 import de.telekom.dtagsyncpluskit.davx5.resource.LocalResource
 import de.telekom.dtagsyncpluskit.davx5.settings.AccountSettings
+import net.fortuna.ical4j.model.Dur
 import net.fortuna.ical4j.model.component.VAlarm
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.RequestBody
-import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.ByteArrayOutputStream
 import java.io.Reader
 import java.io.StringReader
-import java.time.Duration
 import java.util.*
 import java.util.logging.Level
 
@@ -88,34 +87,38 @@ class CalendarSyncManager(
     }
 
     override fun queryCapabilities(): SyncState? =
-        remoteExceptionContext { it ->
-            var syncState: SyncState? = null
-            it.propfind(0, SupportedReportSet.NAME, GetCTag.NAME, SyncToken.NAME) { response, relation ->
-                if (relation == Response.HrefRelation.SELF) {
-                    response[SupportedReportSet::class.java]?.let { supported ->
-                        hasCollectionSync = supported.reports.contains(SupportedReportSet.SYNC_COLLECTION)
-                    }
-                    syncState = syncState(response)
-                }
-            }
+            useRemoteCollection {
+                var syncState: SyncState? = null
+                it.propfind(0, SupportedReportSet.NAME, GetCTag.NAME, SyncToken.NAME) { response, relation ->
+                    if (relation == Response.HrefRelation.SELF) {
+                        response[SupportedReportSet::class.java]?.let { supported ->
+                            hasCollectionSync = supported.reports.contains(SupportedReportSet.SYNC_COLLECTION)
+                        }
 
-            Logger.log.info("Server supports Collection Sync: $hasCollectionSync")
-            syncState
-        }
+                        syncState = syncState(response)
+                    }
+                }
+
+                Logger.log.info("Server supports Collection Sync: $hasCollectionSync")
+                syncState
+            }
 
     override fun syncAlgorithm() = if (accountSettings.getTimeRangePastDays() != null || !hasCollectionSync)
         SyncAlgorithm.PROPFIND_REPORT
-    else
+            else
         SyncAlgorithm.COLLECTION_SYNC
 
-    override fun generateUpload(resource: LocalEvent): RequestBody = localExceptionContext(resource) {
+    override fun prepareUpload(resource: LocalEvent): RequestBody = useLocal(resource) {
         val event = requireNotNull(resource.event)
         Logger.log.log(Level.FINE, "Preparing upload of event ${resource.fileName}", event)
 
         val os = ByteArrayOutputStream()
         event.write(os)
 
-        os.toByteArray().toRequestBody(DavCalendar.MIME_ICALENDAR_UTF8)
+        RequestBody.create(
+                DavCalendar.MIME_ICALENDAR_UTF8,
+                os.toByteArray()
+        )
     }
 
     override fun listAllRemote(callback: DavResponseCallback) {
@@ -127,7 +130,7 @@ class CalendarSyncManager(
             limitStart = calendar.time
         }
 
-        return remoteExceptionContext { remote ->
+        return useRemoteCollection { remote ->
             Logger.log.info("Querying events since $limitStart")
             remote.calendarQuery("VEVENT", limitStart, null, callback)
         }
@@ -135,26 +138,41 @@ class CalendarSyncManager(
 
     override fun downloadRemote(bunch: List<HttpUrl>) {
         Logger.log.info("Downloading ${bunch.size} iCalendars: $bunch")
-        remoteExceptionContext {
-            it.multiget(bunch) { response, _ ->
-                responseExceptionContext(response) {
-                    if (!response.isSuccess()) {
-                        Logger.log.warning("Received non-successful multiget response for ${response.href}")
-                        return@responseExceptionContext
+        if (bunch.size == 1) {
+            val remote = bunch.first()
+            // only one contact, use GET
+            useRemote(DavResource(httpClient.okHttpClient, remote)) { resource ->
+                resource.get(DavCalendar.MIME_ICALENDAR.toString()) { response ->
+                    // CalDAV servers MUST return ETag on GET [https://tools.ietf.org/html/rfc4791#section-5.3.4]
+                    val eTag = response.header("ETag")?.let { GetETag(it).eTag }
+                            ?: throw DavException("Received CalDAV GET response without ETag")
+
+                    response.body!!.use {
+                        processVEvent(resource.fileName(), eTag, it.charStream())
                     }
-
-                    val eTag = response[GetETag::class.java]?.eTag
-                        ?: throw DavException("Received multi-get response without ETag")
-                    val scheduleTag = response[ScheduleTag::class.java]?.scheduleTag
-
-                    val calendarData = response[CalendarData::class.java]
-                    val iCal = calendarData?.iCalendar
-                        ?: throw DavException("Received multi-get response without address data")
-
-                    processVEvent(DavUtils.lastSegmentOfUrl(response.href), eTag, scheduleTag, StringReader(iCal))
                 }
             }
-        }
+        } else
+            // multiple iCalendars, use calendar-multi-get
+            useRemoteCollection {
+                it.multiget(bunch) { response, _ ->
+                    useRemote(response) {
+                        if (!response.isSuccess()) {
+                            Logger.log.warning("Received non-successful multiget response for ${response.href}")
+                            return@useRemote
+                        }
+
+                        val eTag = response[GetETag::class.java]?.eTag
+                                ?: throw DavException("Received multi-get response without ETag")
+
+                        val calendarData = response[CalendarData::class.java]
+                        val iCal = calendarData?.iCalendar
+                                ?: throw DavException("Received multi-get response without address data")
+
+                        processVEvent(DavUtils.lastSegmentOfUrl(response.href), eTag, StringReader(iCal))
+                    }
+                }
+            }
     }
 
     override fun postProcess() {
@@ -163,7 +181,7 @@ class CalendarSyncManager(
 
     // helpers
 
-    private fun processVEvent(fileName: String, eTag: String, scheduleTag: String?, reader: Reader) {
+    private fun processVEvent(fileName: String, eTag: String, reader: Reader) {
         val events: List<Event>
         try {
             events = Event.eventsFromReader(reader)
@@ -178,23 +196,22 @@ class CalendarSyncManager(
 
             // set default reminder for non-full-day events, if requested
             val defaultAlarmMinBefore = accountSettings.getDefaultAlarm()
-            if (defaultAlarmMinBefore != null && DateUtils.isDateTime(event.dtStart) && event.alarms.isEmpty()) {
-                val alarm = VAlarm(Duration.ofMinutes(-defaultAlarmMinBefore.toLong()))
+            if (defaultAlarmMinBefore != null && !event.isAllDay() && event.alarms.isEmpty()) {
+                val alarm = VAlarm(Dur(0, 0, -defaultAlarmMinBefore, 0))
                 Logger.log.log(Level.FINE, "${event.uid}: Adding default alarm", alarm)
                 event.alarms += alarm
             }
 
             // update local event, if it exists
-            localExceptionContext(localCollection.findByName(fileName)) { local ->
+            useLocal(localCollection.findByName(fileName)) { local ->
                 if (local != null) {
                     Logger.log.log(Level.INFO, "Updating $fileName in local calendar", event)
                     local.eTag = eTag
-                    local.scheduleTag = scheduleTag
                     local.update(event)
                     syncResult.stats.numUpdates++
                 } else {
                     Logger.log.log(Level.INFO, "Adding $fileName to local calendar", event)
-                    localExceptionContext(LocalEvent(localCollection, event, fileName, eTag, scheduleTag, LocalResource.FLAG_REMOTELY_PRESENT)) {
+                    useLocal(LocalEvent(localCollection, event, fileName, eTag, LocalResource.FLAG_REMOTELY_PRESENT)) {
                         it.add()
                     }
                     syncResult.stats.numInserts++
@@ -205,7 +222,7 @@ class CalendarSyncManager(
     }
 
     override fun notifyInvalidResourceTitle(): String =
-        context.getString(R.string.sync_invalid_event)
+            context.getString(R.string.sync_invalid_event)
 
     override fun onUnauthorized(account: Account) {
         mUnauthorizedCallback(account)

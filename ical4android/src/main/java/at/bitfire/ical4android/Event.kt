@@ -25,9 +25,6 @@ import java.util.*
 
 class Event: ICalendar() {
 
-    /** list of CUAs which have edited the event since last sync */
-    var userAgents = LinkedList<String>()
-
     // uid and sequence are inherited from iCalendar
     var recurrenceId: RecurrenceId? = null
 
@@ -40,8 +37,8 @@ class Event: ICalendar() {
     var dtEnd: DtEnd? = null
 
     var duration: Duration? = null
-    val rRules = LinkedList<RRule>()
-    val exRules = LinkedList<ExRule>()
+    var rRule: RRule? = null
+    var exRule: ExRule? = null
     val rDates = LinkedList<RDate>()
     val exDates = LinkedList<ExDate>()
 
@@ -77,7 +74,6 @@ class Event: ICalendar() {
          * @throws IOException on I/O errors
          * @throws InvalidCalendarException on parsing exceptions
          */
-        @UsesThreadContextClassLoader
         fun eventsFromReader(reader: Reader, properties: MutableMap<String, String>? = null): List<Event> {
             val ical = fromReader(reader, properties)
 
@@ -88,11 +84,11 @@ class Event: ICalendar() {
             for (vEvent in vEvents)
                 if (vEvent.uid == null) {
                     val uid = Uid(UUID.randomUUID().toString())
-                    Ical4Android.log.warning("Found VEVENT without UID, using a random one: ${uid.value}")
+                    Constants.log.warning("Found VEVENT without UID, using a random one: ${uid.value}")
                     vEvent.properties += uid
                 }
 
-            Ical4Android.log.fine("Assigning exceptions to main events")
+            Constants.log.fine("Assigning exceptions to main events")
             val mainEvents = mutableMapOf<String /* UID */,VEvent>()
             val exceptions = mutableMapOf<String /* UID */,MutableMap<String /* RECURRENCE-ID */,VEvent>>()
 
@@ -163,9 +159,9 @@ class Event: ICalendar() {
                     is DtStart -> e.dtStart = prop
                     is DtEnd -> e.dtEnd = prop
                     is Duration -> e.duration = prop
-                    is RRule -> e.rRules += prop
+                    is RRule -> e.rRule = prop
                     is RDate -> e.rDates += prop
-                    is ExRule -> e.exRules += prop
+                    is ExRule -> e.exRule = prop
                     is ExDate -> e.exDates += prop
                     is Clazz -> e.classification = prop
                     is Status -> e.status = prop
@@ -177,32 +173,25 @@ class Event: ICalendar() {
                     else -> e.unknownProperties += prop
                 }
 
+            // calculate DtEnd from Duration
+            if (e.dtEnd == null && e.duration != null)
+                e.dtEnd = event.getEndDate(true)
+
             e.alarms.addAll(event.alarms)
 
             // validation
             if (e.dtStart == null)
                 throw InvalidCalendarException("Event without start time")
-            else if (e.dtEnd != null && e.dtStart!!.date > e.dtEnd!!.date) {
-                Ical4Android.log.warning("DTSTART after DTEND; removing DTEND")
-                e.dtEnd = null
-            }
 
             return e
         }
     }
 
 
-    @UsesThreadContextClassLoader
     fun write(os: OutputStream) {
-        Ical4Android.checkThreadContextClassLoader()
-
         val ical = Calendar()
         ical.properties += Version.VERSION_2_0
-        ical.properties +=
-                if (userAgents.isEmpty())
-                    prodId
-                else
-                    ProdId(prodId.value + " (" + userAgents.joinToString(",") + ")")
+        ical.properties += prodId
 
         val dtStart = dtStart ?: throw InvalidCalendarException("Won't generate event without start time")
 
@@ -223,7 +212,7 @@ class Event: ICalendar() {
 
             val recurrenceId = exception.recurrenceId
             if (recurrenceId == null) {
-                Ical4Android.log.warning("Ignoring exception without recurrenceId")
+                Constants.log.warning("Ignoring exception without recurrenceId")
                 continue
             }
 
@@ -232,13 +221,13 @@ class Event: ICalendar() {
                strict in what we send (and servers may reject such a case).
              */
             if (isDateTime(recurrenceId) != isDateTime(dtStart)) {
-                Ical4Android.log.warning("Ignoring exception $recurrenceId with other date type than dtStart: $dtStart")
+                Constants.log.warning("Ignoring exception $recurrenceId with other date type than dtStart: $dtStart")
                 continue
             }
 
             // for simplicity and compatibility, rewrite date-time exceptions to the same time zone as DTSTART
             if (isDateTime(recurrenceId) && recurrenceId.timeZone != dtStart.timeZone) {
-                Ical4Android.log.fine("Changing timezone of $recurrenceId to same time zone as dtStart: $dtStart")
+                Constants.log.fine("Changing timezone of $recurrenceId to same time zone as dtStart: $dtStart")
                 recurrenceId.timeZone = dtStart.timeZone
             }
 
@@ -251,13 +240,12 @@ class Event: ICalendar() {
             exception.dtEnd?.timeZone?.let(usedTimeZones::add)
         }
 
-        // determine first dtStart (there may be exceptions with an earlier DTSTART that the main event)
-        val dtStarts = mutableListOf(dtStart.date)
-        dtStarts.addAll(exceptions.mapNotNull { it.dtStart?.date })
-        val earliest = dtStarts.minOrNull()
         // add VTIMEZONE components
-        for (tz in usedTimeZones)
-            ical.components += minifyVTimeZone(tz.vTimeZone, earliest)
+        usedTimeZones.forEach {
+            val tz = it.vTimeZone
+            // TODO dtStart?.let { minifyVTimeZone(tz, it.date) }
+            ical.components += tz
+        }
 
         softValidate(ical)
         CalendarOutputter(false).output(ical, os)
@@ -288,9 +276,9 @@ class Event: ICalendar() {
         dtEnd?.let { props += it }
         duration?.let { props += it }
 
-        props.addAll(rRules)
+        rRule?.let { props += it }
         props.addAll(rDates)
-        props.addAll(exRules)
+        exRule?.let { props += it }
         props.addAll(exDates)
 
         classification?.let { props += it }
@@ -311,5 +299,15 @@ class Event: ICalendar() {
 
         return event
     }
+
+
+    // helpers
+
+    /**
+     * Determines whether this Event is an all-day event.
+     *
+     * @return *true* if [dtStart] is a DATE value; *false* otherwise ([dtStart] is a DATETIME value or *null*)
+     */
+    fun isAllDay() = dtStart != null && !isDateTime(dtStart)
 
 }
