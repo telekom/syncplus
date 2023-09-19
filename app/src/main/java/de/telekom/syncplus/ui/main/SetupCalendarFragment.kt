@@ -40,21 +40,52 @@ import de.telekom.dtagsyncpluskit.davx5.model.Service
 import de.telekom.dtagsyncpluskit.davx5.settings.AccountSettings
 import de.telekom.dtagsyncpluskit.ui.BaseFragment
 import de.telekom.dtagsyncpluskit.ui.BaseListAdapter
+import de.telekom.dtagsyncpluskit.utils.IDMAccountManager
 import de.telekom.dtagsyncpluskit.xdav.CollectionFetcher
 import de.telekom.syncplus.*
-import de.telekom.syncplus.R
 import de.telekom.syncplus.dav.DavNotificationUtils
 import kotlinx.android.synthetic.main.fragment_setup_calendar.view.*
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 
 class CalendarCollectionsViewModel(private val app: Application) : AndroidViewModel(app) {
     private val mDB = AppDatabase.getInstance(app)
-
+    private val accountManager by lazy {
+        IDMAccountManager(app, DavNotificationUtils.reloginCallback(app, "authority"))
+    }
     private val _fetcher = MutableLiveData<CollectionFetcher?>(null)
+    private val _showError = MutableSharedFlow<Unit>()
     val fetcher: LiveData<CollectionFetcher?> = _fetcher
+    val showError: SharedFlow<Unit> = _showError.asSharedFlow()
 
-    fun fetch(account: Account, serviceEnvironments: ServiceEnvironments, collectionType: String) {
+    fun discoverServices(
+        account: Account,
+        serviceEnvironments: ServiceEnvironments,
+        collectionType: String,
+        calendarSyncEnabled: Boolean,
+        contactSyncEnabled: Boolean
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            accountManager.discoverServicesConfiguration(
+                account,
+                serviceEnvironments,
+                calendarSyncEnabled,
+                contactSyncEnabled
+            )?.let {
+                fetch(account, serviceEnvironments, collectionType, calendarSyncEnabled)
+            } ?: _showError.emit(Unit)
+        }
+    }
+
+    fun fetch(
+        account: Account,
+        serviceEnvironments: ServiceEnvironments,
+        collectionType: String,
+        isSyncEnabled: Boolean
+    ) {
         viewModelScope.launch(Dispatchers.IO) {
             val serviceType = when (collectionType) {
                 Collection.TYPE_CALENDAR -> Service.TYPE_CALDAV
@@ -67,8 +98,12 @@ class CalendarCollectionsViewModel(private val app: Application) : AndroidViewMo
                 else -> null
             } ?: return@launch
 
-            val serviceId =
-                mDB.serviceDao().getIdByAccountAndType(account.name, serviceType)
+            val serviceId = mDB.serviceDao().getIdByAccountAndType(account.name, serviceType)
+
+            if (serviceId == null) {
+                _showError.emit(Unit)
+                return@launch
+            }
 
             val newFetcher = CollectionFetcher(
                 app,
@@ -78,7 +113,7 @@ class CalendarCollectionsViewModel(private val app: Application) : AndroidViewMo
             ) {
                 DavNotificationUtils.showReloginNotification(app, authority, it)
             }
-            newFetcher.refresh(serviceEnvironments)
+            newFetcher.refresh(serviceEnvironments, isSyncEnabled)
             _fetcher.postValue(newFetcher)
         }
     }
@@ -105,6 +140,7 @@ class CalendarCollectionsViewModel(private val app: Application) : AndroidViewMo
 
 class SetupCalendarFragment : BaseFragment() {
     override val TAG = "SETUP_CALENDAR_FRAGMENT"
+    private val viewModel by activityViewModels<CalendarCollectionsViewModel>()
 
     companion object {
         fun newInstance() = SetupCalendarFragment()
@@ -120,32 +156,45 @@ class SetupCalendarFragment : BaseFragment() {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-        val account = Account(authHolder.accountName, getString(R.string.account_type))
-        val model by activityViewModels<CalendarCollectionsViewModel>()
         val v = inflater.inflate(R.layout.fragment_setup_calendar, container, false)
         v.nextButton.isEnabled = false
         v.nextButton.setOnClickListener {
             goNext()
         }
-        v.list.adapter =
-            CalendarAdapter(requireContext(), ArrayList(), model) { adapter ->
-                val selection = adapter.dataSource.filter { it.sync }
-                v.nextButton.isEnabled = selection.count() > 0
-            }
+        v.list.adapter = CalendarAdapter(requireContext(), ArrayList(), viewModel) { adapter ->
+            val selection = adapter.dataSource.filter { it.sync }
+            v.nextButton.isEnabled = selection.isNotEmpty()
+        }
 
+        return v
+    }
 
-        model.fetch(account, App.serviceEnvironments(requireContext()), Collection.TYPE_CALENDAR)
-        model.fetcher.observe(viewLifecycleOwner, Observer { fetcher ->
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
+        viewModel.fetcher.observe(viewLifecycleOwner, Observer { fetcher ->
             fetcher?.collections?.removeObservers(viewLifecycleOwner)
             fetcher?.collections?.observe(viewLifecycleOwner, Observer { collections ->
-                val adapter = v.list.adapter as? CalendarAdapter
+                val adapter = view.list.adapter as? CalendarAdapter
                 adapter?.dataSource =
                     AccountSettingsFragment.sortCalendarCollections(collections.toList())
                 adapter?.notifyDataSetChanged()
             })
         })
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                launch {
+                    viewModel.showError.collect { showErrorDialog() }
+                }
+            }
+        }
 
-        return v
+        childFragmentManager.setFragmentResultListener(
+            ServiceDiscoveryErrorDialog.ACTION_RETRY_SERVICE_DISCOVERY,
+            viewLifecycleOwner
+        ) { _, _ -> discoverServices() }
+
+        fetchCollections()
     }
 
     override fun onStart() {
@@ -164,23 +213,55 @@ class SetupCalendarFragment : BaseFragment() {
         }
     }
 
+    private fun discoverServices() {
+        val account = Account(authHolder.accountName, getString(R.string.account_type))
+        viewModel.discoverServices(
+            account,
+            App.serviceEnvironments(requireContext()),
+            Collection.TYPE_CALENDAR,
+            authHolder.calEnabled,
+            authHolder.addressBookEnabled
+        )
+    }
+
+    private fun fetchCollections() {
+        viewModel.fetch(
+            Account(authHolder.accountName, getString(R.string.account_type)),
+            App.serviceEnvironments(requireContext()),
+            Collection.TYPE_CALENDAR,
+            isSyncEnabled = true // this will make a fetched collections sync flag set to true by default
+        )
+    }
+
+    private fun showErrorDialog() {
+        ServiceDiscoveryErrorDialog.instantiate()
+            .show(childFragmentManager, "ServiceDiscoveryErrorDialog")
+    }
+
     private fun goNext() {
         // Sync calendars.
         val account = Account(authHolder.accountName, getString(R.string.account_type))
-        val accountSettings =
-            AccountSettings(
-                requireContext(),
-                App.serviceEnvironments(requireContext()),
-                account,
-                DavNotificationUtils.reloginCallback(requireContext(), CalendarContract.AUTHORITY)
-            )
+        val accountSettings = AccountSettings(
+            requireContext(),
+            App.serviceEnvironments(requireContext()),
+            account,
+            DavNotificationUtils.reloginCallback(requireContext(), CalendarContract.AUTHORITY)
+        )
         accountSettings.resyncCalendars(true)
+        // Assume the account setup is completed right away because the
+        // email configuration may change outside of the application.
+        accountSettings.setSetupCompleted(true)
 
         if (authHolder.emailEnabled) {
             push(R.id.container, SetupEmailFragment.newInstance())
         } else {
-            accountSettings.setSetupCompleted(true)
-            startActivity(AccountsActivity.newIntent(requireActivity(), true))
+            startActivity(
+                AccountsActivity.newIntent(
+                    requireActivity(),
+                    newAccountCreated = true,
+                    allTypesSynced = authHolder.allTypesSynced(),
+                )
+            )
         }
     }
 

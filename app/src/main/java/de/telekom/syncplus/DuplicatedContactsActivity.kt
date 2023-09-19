@@ -19,23 +19,23 @@
 
 package de.telekom.syncplus
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
-import de.telekom.dtagsyncpluskit.extraNotNull
-import de.telekom.dtagsyncpluskit.model.spica.Duplicate
 import de.telekom.dtagsyncpluskit.ui.BaseActivity
 import de.telekom.syncplus.ui.main.DuplicatesListFragment
 import kotlinx.android.synthetic.main.layout_small_topbar.*
 
 class DuplicatedContactsActivity : BaseActivity() {
     companion object {
-        const val EXTRA_DUPLICATES = "EXTRA_DUPLICATES"
+        //const val EXTRA_DUPLICATES = "EXTRA_DUPLICATES"
         fun newIntent(packageContext: Context): Intent {
             return Intent(packageContext, DuplicatedContactsActivity::class.java)
         }
     }
 
+    @SuppressLint("CommitTransaction")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.duplicated_contacts_activity)

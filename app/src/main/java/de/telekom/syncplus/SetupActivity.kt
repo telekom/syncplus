@@ -19,14 +19,16 @@
 
 package de.telekom.syncplus
 
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
-import android.util.Log
 import de.telekom.dtagsyncpluskit.extraNotNull
 import de.telekom.dtagsyncpluskit.model.AuthHolder
+import de.telekom.syncplus.ui.main.DataPrivacyDialogActivity
 import de.telekom.syncplus.ui.main.SetupFragment
 import de.telekom.syncplus.ui.main.TopBarActivity
+import de.telekom.syncplus.util.Prefs
 
 class SetupActivity : TopBarActivity() {
     companion object {
@@ -41,6 +43,7 @@ class SetupActivity : TopBarActivity() {
 
     val authHolder by extraNotNull<AuthHolder>(EXTRA_AUTH_HOLDER)
 
+    @SuppressLint("CommitTransaction")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -49,6 +52,11 @@ class SetupActivity : TopBarActivity() {
                 .beginTransaction()
                 .replace(R.id.container, SetupFragment.newInstance())
                 .commitNow()
+
+            val prefs = Prefs(this)
+            if (!prefs.consentDialogShown) {
+                startActivity(DataPrivacyDialogActivity.newIntent(this))
+            }
         }
     }
 

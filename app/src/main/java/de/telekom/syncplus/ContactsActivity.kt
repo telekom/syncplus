@@ -19,6 +19,7 @@
 
 package de.telekom.syncplus
 
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
@@ -27,7 +28,7 @@ import de.telekom.dtagsyncpluskit.extra
 import de.telekom.dtagsyncpluskit.model.Group
 import de.telekom.dtagsyncpluskit.ui.BaseActivity
 import de.telekom.dtagsyncpluskit.ui.BaseFragment
-import de.telekom.syncplus.ui.main.AddressBookFragment
+import de.telekom.syncplus.ui.main.contacts.AddressBookFragment
 import kotlinx.android.synthetic.main.layout_small_topbar.*
 
 class ContactsActivity : BaseActivity() {
@@ -46,6 +47,7 @@ class ContactsActivity : BaseActivity() {
 
     private val selectedGroups by extra<List<Group>>(ARG_SELECTED_GROUPS)
 
+    @SuppressLint("CommitTransaction")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.contacts_activity)

@@ -24,98 +24,118 @@
     android:layout_height="match_parent"
     android:paddingTop="@dimen/marginTop">
 
-    <TextView
-        android:id="@+id/emailSetupText"
-        style="@style/RegularTextStyle"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="24dp"
-        android:lineHeight="26sp"
-        android:paddingStart="@dimen/marginStart"
-        android:paddingEnd="@dimen/marginEnd"
-        android:text="@string/setup_email_description"
-        android:textSize="21sp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        tools:ignore="UnusedAttribute" />
-
     <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/downloadMailAppLayout"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="@dimen/marginTopEmail"
-        android:layout_marginBottom="@dimen/marginBottom"
-        android:background="?android:attr/selectableItemBackground"
-        android:clickable="true"
-        android:focusable="true"
-        android:paddingStart="@dimen/marginStart"
-        android:paddingTop="10dp"
-        android:paddingEnd="@dimen/marginEnd"
-        android:paddingBottom="10dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/emailSetupText">
+        android:layout_height="0dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/preinstalledMailAppLayout">
 
-        <ImageView
-            android:id="@+id/mail_icon"
-            android:layout_width="@dimen/email_icon_playstore"
-            android:layout_height="@dimen/email_icon_playstore"
-            android:src="@drawable/ic_telekom_mail_primary"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            tools:ignore="ContentDescription" />
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
 
-        <LinearLayout
-            android:id="@+id/texts_wrapper"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:paddingLeft="8sp"
-            android:paddingRight="8sp"
-            app:layout_constraintEnd_toStartOf="@id/arrow"
-            app:layout_constraintStart_toEndOf="@id/mail_icon"
-            app:layout_constraintTop_toTopOf="parent">
-
-            <TextView
+            <androidx.constraintlayout.widget.ConstraintLayout
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:fontFamily="@font/telegrotesknext_bold"
-                android:text="@string/setup_email_download_mailapp"
-                android:textSize="@dimen/fontSizeEmailBig" />
+                android:layout_height="wrap_content">
+                <TextView
+                    android:id="@+id/emailSetupText"
+                    style="@style/RegularTextStyle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="24dp"
+                    android:lineHeight="26sp"
+                    android:paddingStart="@dimen/marginStart"
+                    android:paddingEnd="@dimen/marginEnd"
+                    android:text="@string/setup_email_description"
+                    android:textSize="21sp"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    tools:ignore="UnusedAttribute" />
 
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:fontFamily="@font/telegrotesknext_regular"
-                android:text="@string/setup_email_redirect_playstore"
-                android:textSize="@dimen/fontSizeEmailBig" />
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    android:id="@+id/downloadMailAppLayout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/marginTopEmail"
+                    android:layout_marginBottom="@dimen/marginBottom"
+                    android:background="?android:attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:paddingStart="@dimen/marginStart"
+                    android:paddingTop="10dp"
+                    android:paddingEnd="@dimen/marginEnd"
+                    android:paddingBottom="10dp"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/emailSetupText"
+                    app:layout_constraintVertical_bias="0">
 
-        </LinearLayout>
+                    <ImageView
+                        android:id="@+id/mail_icon"
+                        android:layout_width="@dimen/email_icon_playstore"
+                        android:layout_height="@dimen/email_icon_playstore"
+                        android:src="@drawable/ic_telekom_mail_primary"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent"
+                        tools:ignore="ContentDescription" />
 
-        <ImageView
-            android:id="@+id/arrow"
-            android:layout_width="20dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="10dp"
-            android:layout_marginTop="2dp"
-            android:rotation="-90"
-            android:src="@drawable/ic_arrow_down"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            tools:ignore="ContentDescription" />
+                    <LinearLayout
+                        android:id="@+id/texts_wrapper"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:paddingLeft="8sp"
+                        android:paddingRight="8sp"
+                        app:layout_constraintEnd_toStartOf="@id/arrow"
+                        app:layout_constraintStart_toEndOf="@id/mail_icon"
+                        app:layout_constraintTop_toTopOf="parent">
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="@font/telegrotesknext_bold"
+                            android:text="@string/setup_email_download_mailapp"
+                            android:textSize="@dimen/fontSizeEmailBig" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="@font/telegrotesknext_regular"
+                            android:text="@string/setup_email_redirect_playstore"
+                            android:textSize="@dimen/fontSizeEmailBig" />
+
+                    </LinearLayout>
+
+                    <ImageView
+                        android:id="@+id/arrow"
+                        android:layout_width="20dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:layout_marginTop="2dp"
+                        android:rotation="-90"
+                        android:src="@drawable/ic_arrow_down"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintTop_toTopOf="parent"
+                        tools:ignore="ContentDescription" />
+                </androidx.constraintlayout.widget.ConstraintLayout>
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+        </ScrollView>
+
     </androidx.constraintlayout.widget.ConstraintLayout>
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/preinstalledMailAppLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_gravity="bottom"
         android:background="?android:attr/selectableItemBackground"
         android:clickable="true"
         android:focusable="true"
         android:paddingStart="@dimen/marginStart"
         android:paddingTop="10dp"
+        android:layout_marginTop="@dimen/marginTop"
         android:paddingEnd="@dimen/marginEnd"
         android:paddingBottom="@dimen/marginBottom"
         android:layout_marginBottom="@dimen/marginBottomEmail"

@@ -20,11 +20,9 @@
 package de.telekom.dtagsyncpluskit.model
 
 import android.app.Application
-import android.content.Context
 import android.os.Parcelable
 import de.telekom.dtagsyncpluskit.api.ServiceEnvironments
 import de.telekom.dtagsyncpluskit.api.TokenStore
-import de.telekom.dtagsyncpluskit.calendars.CalendarFetcher
 import de.telekom.dtagsyncpluskit.davx5.model.Credentials
 import de.telekom.dtagsyncpluskit.utils.IDMAccountManager
 import kotlinx.android.parcel.Parcelize
@@ -62,5 +60,9 @@ data class AuthHolder(
             calEnabled = calEnabled,
             cardEnabled = addressBookEnabled
         )
+    }
+
+    fun allTypesSynced(): Boolean {
+        return calEnabled && emailEnabled && addressBookEnabled
     }
 }

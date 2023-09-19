@@ -25,7 +25,6 @@ import android.content.ClipboardManager
 import android.content.Context.CLIPBOARD_SERVICE
 import android.os.Bundle
 import android.widget.Toast
-import de.telekom.syncplus.BuildConfig
 import de.telekom.syncplus.R
 
 class CustomErrorAlert(

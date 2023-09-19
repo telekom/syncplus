@@ -27,7 +27,7 @@
 
 package de.telekom.dtagsyncpluskit.davx5
 
-import android.app.Application
+import android.content.Context
 import android.os.Build
 import android.security.KeyChain
 import at.bitfire.cert4android.CustomCertManager
@@ -35,6 +35,7 @@ import de.telekom.dtagsyncpluskit.BuildConfig
 import de.telekom.dtagsyncpluskit.api.BearerAuthInterceptor
 import de.telekom.dtagsyncpluskit.davx5.log.Logger
 import de.telekom.dtagsyncpluskit.davx5.settings.AccountSettings
+import de.telekom.dtagsyncpluskit.utils.CountlyWrapper
 import okhttp3.*
 import okhttp3.internal.tls.OkHostnameVerifier
 import okhttp3.logging.HttpLoggingInterceptor
@@ -62,7 +63,8 @@ class HttpClient private constructor(
             .cipherSuites(
                 CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
                 CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
-                CipherSuite.TLS_DHE_RSA_WITH_AES_128_GCM_SHA256)
+                CipherSuite.TLS_DHE_RSA_WITH_AES_128_GCM_SHA256
+            )
             .build()
 
         /** [OkHttpClient] singleton to build all clients from */
@@ -89,11 +91,11 @@ class HttpClient private constructor(
     }
 
     class Builder(
-        app: Application,
+        context: Context,
         accountSettings: AccountSettings? = null,
         val logger: java.util.logging.Logger = Logger.log
     ) {
-        private val context = app.applicationContext
+        private val context = context.applicationContext
         private var certManager: CustomCertManager? = null
         private var certificateAlias: String? = null
         private var cache: Cache? = null
@@ -144,7 +146,7 @@ class HttpClient private constructor(
 
             // use account settings for authentication
             accountSettings?.let {
-                addAuthentication(BearerAuthInterceptor(app, it.getCredentials()))
+                addAuthentication(BearerAuthInterceptor(context, it.getCredentials()))
             }
         }
 
@@ -162,12 +164,7 @@ class HttpClient private constructor(
             if (loggingInterceptor != null)
                 return
 
-            loggingInterceptor =
-                HttpLoggingInterceptor(object : HttpLoggingInterceptor.Logger {
-                    override fun log(message: String) {
-                        logger.finest(message)
-                    }
-                })
+            loggingInterceptor = HttpLoggingInterceptor { message -> logger.finest(message) }
             loggingInterceptor!!.level = HttpLoggingInterceptor.Level.BODY
             orig.addInterceptor(loggingInterceptor!!)
 
@@ -273,6 +270,7 @@ class HttpClient private constructor(
                     // see https://tools.ietf.org/html/draft-ietf-httpbis-http2-secondary-certs-04
                     orig.protocols(listOf(Protocol.HTTP_1_1))
                 } catch (e: Exception) {
+                    CountlyWrapper.recordHandledException(e)
                     logger.log(
                         Level.SEVERE,
                         "Couldn't set up provider certificate authentication",

@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingTop="16dp"
+    android:paddingBottom="16dp"
+    android:layout_marginBottom="16dp">
+
+    <Button
+        android:id="@+id/button_accept"
+        style="@style/RoundedButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:minWidth="150dp"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:text="@string/disclaimer_button_accept"
+        android:textAllCaps="false"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <Button
+        android:id="@+id/button_more"
+        style="@style/OutlineButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:minWidth="150dp"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:text="@string/data_privacy_button_secondary"
+        android:textAllCaps="false"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/button_accept" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/button_data_privacy"
+        style="@style/Widget.MaterialComponents.Button.TextButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/marginTop"
+        android:layout_marginBottom="@dimen/marginBottom"
+        android:layout_weight="0.5"
+        android:fontFamily="@font/telegrotesknext_regular"
+        android:letterSpacing="-0.02"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:shadowColor="@android:color/transparent"
+        android:shadowDx="0"
+        android:shadowDy="0"
+        android:singleLine="true"
+        android:text="@string/disclaimer_button_privacy"
+        android:textAlignment="textStart"
+        android:textAllCaps="false"
+        android:textColor="@color/colorAccent"
+        android:textSize="@dimen/fontSizeVerySmall"
+        app:cornerRadius="4dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/button_more"
+        app:layout_constraintBottom_toBottomOf="parent"/>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

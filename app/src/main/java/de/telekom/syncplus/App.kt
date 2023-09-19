@@ -19,35 +19,39 @@
 
 package de.telekom.syncplus
 
+import android.accounts.Account
+import android.annotation.SuppressLint
+import android.app.Application
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.drawable.BitmapDrawable
 import android.net.Uri
-import android.os.Build
-import androidx.appcompat.app.AppCompatDelegate
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.FileProvider
 import androidx.multidex.MultiDexApplication
+import com.usabilla.sdk.ubform.Usabilla
+import com.usabilla.sdk.ubform.UsabillaReadyCallback
 import de.telekom.dtagsyncpluskit.api.APIFactory
 import de.telekom.dtagsyncpluskit.api.IDMEnv
 import de.telekom.dtagsyncpluskit.api.ServiceEnvironments
 import de.telekom.dtagsyncpluskit.awaitResponse
 import de.telekom.dtagsyncpluskit.davx5.log.Logger
+import de.telekom.dtagsyncpluskit.davx5.log.PlainTextFormatter
 import de.telekom.dtagsyncpluskit.davx5.ui.NotificationUtils
 import de.telekom.dtagsyncpluskit.model.idm.WellKnownInfo
 import de.telekom.dtagsyncpluskit.model.spica.Contact
 import de.telekom.dtagsyncpluskit.model.spica.Duplicate
-import de.telekom.dtagsyncpluskit.utils.Err
-import de.telekom.dtagsyncpluskit.utils.Ok
+import de.telekom.dtagsyncpluskit.utils.*
 import de.telekom.syncplus.dav.DavNotificationUtils
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
+import de.telekom.syncplus.util.Prefs
 import java.io.File
+import java.util.logging.Handler
 import java.util.logging.Level
+import java.util.logging.LogRecord
 
 @Suppress("unused")
 class App : MultiDexApplication() {
@@ -65,6 +69,24 @@ class App : MultiDexApplication() {
             else
                 null
         }
+
+        fun getAccounts(ctx: Context): Array<Account> {
+            val onUnauthorized = DavNotificationUtils.reloginCallback(ctx, "authority")
+            val accountManager = IDMAccountManager(ctx, onUnauthorized)
+            return accountManager.getAccounts()
+        }
+
+        fun enableCountly(app: Application, enabled: Boolean) {
+            val deviceId = getAccounts(app).firstOrNull()?.name?.sha256()
+            val config = CountlyWrapper.Config(
+                isDebug = BuildConfig.DEBUG,
+                versionName = BuildConfig.VERSION_NAME,
+                versionCode = BuildConfig.VERSION_CODE,
+                deviceId = deviceId,
+                isEnabled = enabled
+            )
+            CountlyWrapper.setCountlyEnabled(app, config)
+        }
     }
 
     private var _wellKnownInfo: WellKnownInfo? = null
@@ -76,8 +98,8 @@ class App : MultiDexApplication() {
         val env = IDMEnv.fromBuildConfig(BuildConfig.ENVIRON[BuildConfig.FLAVOR]!!)
         val idm = APIFactory.idmAPI(env)
         when (val wellKnownResults = idm.wellKnown().awaitResponse()) {
-            is Ok -> _wellKnownInfo = wellKnownResults.value.body();
-            is Err -> Logger.log.severe("Error: WellKnownResults: ${wellKnownResults.error}");
+            is Ok -> _wellKnownInfo = wellKnownResults.value.body()
+            is Err -> Logger.log.severe("Error: WellKnownResults: ${wellKnownResults.error}")
         }
         return _wellKnownInfo!!
     }
@@ -112,18 +134,58 @@ class App : MultiDexApplication() {
             }
         }
 
+    private var _usabillaInitialized = false
+    val usabillaInitialized: Boolean
+        get() = _usabillaInitialized
 
     override fun onCreate() {
         super.onCreate()
+        // Initialize countly as early as possible.
+        val deviceId = getAccounts(this).firstOrNull()?.name?.sha256()
+        val config = CountlyWrapper.Config(
+            isDebug = BuildConfig.DEBUG,
+            versionName = BuildConfig.VERSION_NAME,
+            versionCode = BuildConfig.VERSION_CODE,
+            deviceId = deviceId,
+            isEnabled = Prefs(this).analyticalToolsEnabled
+        )
+        CountlyWrapper.setCountlyEnabled(this, config)
+
         // Always log finest.
         Logger.initialize(this) { logDir, logFile, cancel ->
             loggerNotificationHandler(logDir, logFile, cancel)
         }
-        Logger.log.level = Level.FINEST
-        GlobalScope.launch { /* Spin this up to warm up the ovens. */ }
 
-        if (Build.VERSION.SDK_INT <= 21)
-            AppCompatDelegate.setCompatVectorFromResourcesEnabled(true)
+        // Add the countly logger.
+        Logger.log.addHandler(object : Handler() {
+            init {
+                formatter = PlainTextFormatter.LOGCAT
+            }
+
+            override fun publish(record: LogRecord?) {
+                val text = formatter.format(record)
+                CountlyWrapper.addCrashBreadcrumb(text)
+            }
+
+            override fun flush() {}
+            override fun close() {}
+        })
+        val environ = BuildConfig.ENVIRON[BuildConfig.FLAVOR]!!
+        val appid = environ[10]
+
+        Logger.log.level = Level.FINEST
+        Usabilla.debugEnabled = true
+        Usabilla.initialize(
+            this,
+            appid,
+            null,
+            object : UsabillaReadyCallback {
+                override fun onUsabillaInitialized() {
+                    Logger.log.info("Usabilla | Initialized = true")
+                    _usabillaInitialized = true
+                    Usabilla.preloadFeedbackForms(listOf("61f00d93a4af1614f06adc25"))
+                }
+            })
 
         DavNotificationUtils.createChannels(this)
 
@@ -171,6 +233,7 @@ class App : MultiDexApplication() {
         }*/
     }
 
+    @SuppressLint("MissingPermission")
     private fun loggerNotificationHandler(logDir_: File?, logFile_: File?, cancel: Boolean) {
         val nm = NotificationManagerCompat.from(this)
         if (cancel) {
@@ -191,7 +254,7 @@ class App : MultiDexApplication() {
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setContentText(getString(R.string.logging_notification_text))
                 .setContentIntent(
-                    PendingIntent.getActivity(
+                    getPendingIntentActivity(
                         this,
                         0,
                         prefIntent,
@@ -218,7 +281,7 @@ class App : MultiDexApplication() {
             val shareAction = NotificationCompat.Action.Builder(
                 R.drawable.ic_share_notify,
                 getString(R.string.logging_notification_send_log),
-                PendingIntent.getActivity(
+                getPendingIntentActivity(
                     this,
                     0,
                     chooserIntent,
@@ -226,7 +289,6 @@ class App : MultiDexApplication() {
                 )
             )
             builder.addAction(shareAction.build())
-
             nm.notify(NotificationUtils.NOTIFY_EXTERNAL_FILE_LOGGING, builder.build())
         }
     }

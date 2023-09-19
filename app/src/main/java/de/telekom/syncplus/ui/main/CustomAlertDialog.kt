@@ -86,7 +86,7 @@ open class CustomAlertDialog : DialogFragment() {
             mCancelButton?.visibility = View.INVISIBLE
         }
 
-    var hasSuccessButton: Boolean = true
+    private var hasSuccessButton: Boolean = true
         set(value) {
             field = value
             mSuccessButton?.visibility = View.INVISIBLE

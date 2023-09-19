@@ -21,6 +21,7 @@ package de.telekom.syncplus
 
 import android.animation.ArgbEvaluator
 import android.animation.ValueAnimator
+import android.content.Context
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
@@ -60,7 +61,7 @@ class IntroActivity : BaseActivity() {
         mBottomPadding = bottomLayout.measuredHeight
 
         // The pager adapter, which provides the pages to the view pager widget.
-        val pagerAdapter = IntroPagerAdapter(supportFragmentManager)
+        val pagerAdapter = IntroPagerAdapter(this, supportFragmentManager)
         viewPager.adapter = pagerAdapter
 
         viewPager.addOnPageChangeListener(object : ViewPager.OnPageChangeListener {
@@ -152,14 +153,14 @@ class IntroActivity : BaseActivity() {
      * A simple pager adapter that represents 5 ScreenSlidePageFragment objects, in
      * sequence.
      */
-    private inner class IntroPagerAdapter(fm: FragmentManager) :
+    private inner class IntroPagerAdapter(val context: Context, fm: FragmentManager) :
         FragmentStatePagerAdapter(fm, BEHAVIOR_RESUME_ONLY_CURRENT_FRAGMENT) {
         override fun getCount(): Int = NUM_PAGES
 
         override fun getItem(position: Int): Fragment {
             val l = object : OnCancelListener() {
                 override fun onCancel() {
-                    finish()
+                    startActivity(LoginActivity.newIntent(context))
                 }
             }
 

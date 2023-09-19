@@ -202,7 +202,7 @@ class LocalAddressBook(
         if (includeGroups) {
             values.clear()
             values.put(LocalGroup.COLUMN_FLAGS, flags)
-            number += provider.update(groupsSyncUri(), values, "NOT ${Groups.DIRTY}", null)
+            number += provider!!.update(groupsSyncUri(), values, "NOT ${Groups.DIRTY}", null)
         }
 
         return number
@@ -213,7 +213,7 @@ class LocalAddressBook(
             "NOT ${RawContacts.DIRTY} AND ${LocalContact.COLUMN_FLAGS}=?", arrayOf(flags.toString()))
 
         if (includeGroups)
-            number += provider.delete(groupsSyncUri(),
+            number += provider!!.delete(groupsSyncUri(),
                 "NOT ${Groups.DIRTY} AND ${LocalGroup.COLUMN_FLAGS}=?", arrayOf(flags.toString()))
 
         return number
@@ -244,7 +244,7 @@ class LocalAddressBook(
             // update data rows
             val dataValues = ContentValues(1)
             dataValues.put(ContactsContract.Data.IS_READ_ONLY, if (nowReadOnly) 1 else 0)
-            provider.update(syncAdapterURI(ContactsContract.Data.CONTENT_URI), dataValues, null, null)
+            provider!!.update(syncAdapterURI(ContactsContract.Data.CONTENT_URI), dataValues, null, null)
         }
 
         // make sure it will still be synchronized when contacts are updated
@@ -355,7 +355,7 @@ class LocalAddressBook(
                 ids += cursor.getLong(0)
         }
 
-        return ids.map { findContactByID(it) }
+        return ids.map { findContactById(it) }
     }
 
 
@@ -377,7 +377,7 @@ class LocalAddressBook(
 
         val values = ContentValues(1)
         values.put(Groups.TITLE, title)
-        val uri = provider.insert(syncAdapterURI(Groups.CONTENT_URI), values) ?: throw RemoteException("Couldn't create contact group")
+        val uri = provider!!.insert(syncAdapterURI(Groups.CONTENT_URI), values) ?: throw RemoteException("Couldn't create contact group")
         return ContentUris.parseId(uri)
     }
 

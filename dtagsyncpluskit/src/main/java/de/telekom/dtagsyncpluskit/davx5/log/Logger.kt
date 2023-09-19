@@ -23,6 +23,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
+import de.telekom.dtagsyncpluskit.utils.CountlyWrapper
 import java.io.File
 import java.io.IOException
 import java.util.logging.FileHandler
@@ -83,6 +84,7 @@ object Logger : SharedPreferences.OnSharedPreferenceChangeListener {
                 rootLogger.addHandler(fileHandler)
 
             } catch (e: IOException) {
+                CountlyWrapper.recordHandledException(e)
                 log.log(Level.SEVERE, "Couldn't create log file", e)
             }
 

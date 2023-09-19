@@ -74,7 +74,7 @@
         <TextView
             android:id="@+id/stepTextView"
             android:layout_width="match_parent"
-            android:layout_height="24dp"
+            android:layout_height="wrap_content"
             android:layout_marginTop="3dp"
             android:fontFamily="@font/telegrotesknext_medium"
             android:gravity="center"
@@ -120,7 +120,7 @@
         <TextView
             android:id="@+id/descriptionText"
             android:layout_width="match_parent"
-            android:layout_height="24dp"
+            android:layout_height="wrap_content"
             android:layout_marginTop="11dp"
             android:fontFamily="@font/telegrotesknext_medium"
             android:gravity="center"

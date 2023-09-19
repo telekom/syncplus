@@ -27,7 +27,10 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import androidx.core.os.bundleOf
 import de.telekom.syncplus.AccountsActivity
+import de.telekom.syncplus.util.EmailAccountFlagController
+import de.telekom.syncplus.util.Prefs
 
 class NullAuthService : Service() {
 
@@ -40,7 +43,6 @@ class NullAuthService : Service() {
     override fun onBind(intent: Intent?) =
         accountAuthenticator.iBinder.takeIf { intent?.action == AccountManager.ACTION_AUTHENTICATOR_INTENT }
 
-
     private class AccountAuthenticator(
         val context: Context
     ) : AbstractAccountAuthenticator(context) {
@@ -52,11 +54,16 @@ class NullAuthService : Service() {
             requiredFeatures: Array<String>?,
             options: Bundle?
         ): Bundle {
-            val intent = Intent(context, AccountsActivity::class.java)
-            intent.putExtra(AccountManager.KEY_ACCOUNT_AUTHENTICATOR_RESPONSE, response)
-            val bundle = Bundle()
-            bundle.putParcelable(AccountManager.KEY_INTENT, intent)
-            return bundle
+            return if (EmailAccountFlagController.isAddAccountStarted) {
+                EmailAccountFlagController.isAddAccountStarted = false
+                EmailAccountFlagController.isInternalAccountSelected = true
+
+                bundleOf()
+            } else {
+                val intent = Intent(context, AccountsActivity::class.java)
+                    .putExtra(AccountManager.KEY_ACCOUNT_AUTHENTICATOR_RESPONSE, response)
+                bundleOf(AccountManager.KEY_INTENT to intent)
+            }
         }
 
         override fun editProperties(response: AccountAuthenticatorResponse?, accountType: String?) =

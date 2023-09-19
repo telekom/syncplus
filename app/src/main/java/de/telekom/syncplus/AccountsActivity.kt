@@ -22,13 +22,13 @@ package de.telekom.syncplus
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
-import android.util.Log
-import de.telekom.dtagsyncpluskit.davx5.log.Logger
+import de.telekom.dtagsyncpluskit.extra
 import de.telekom.dtagsyncpluskit.extraNotNull
 import de.telekom.dtagsyncpluskit.ui.BaseActivity
 import de.telekom.syncplus.ui.main.AccountDeletedDialog
 import de.telekom.syncplus.ui.main.AccountsFragment
-import de.telekom.syncplus.ui.main.EnergySaverDialog
+import de.telekom.syncplus.ui.main.DataPrivacyDialogActivity
+import de.telekom.syncplus.util.Prefs
 import kotlinx.android.synthetic.main.activity_accounts.*
 
 class AccountsActivity : BaseActivity() {
@@ -36,9 +36,11 @@ class AccountsActivity : BaseActivity() {
         private const val ARG_NEW = "ARG_NEW"
         private const val ARG_ENERGY_SAVING = "ARG_ENERGY_SAVING"
         private const val ARG_ACCOUNT_DELETED = "ARG_ACCOUNT_DELETED"
+        private const val ALL_TYPES_SYNCED = "ALL_TYPES_SYNCED"
         fun newIntent(
             context: Context,
             newAccountCreated: Boolean,
+            allTypesSynced: Boolean? = null,
             energySaving: Boolean = false,
             accountDeleted: Boolean = false
         ): Intent {
@@ -46,6 +48,7 @@ class AccountsActivity : BaseActivity() {
             intent.putExtra(ARG_NEW, newAccountCreated)
             intent.putExtra(ARG_ENERGY_SAVING, energySaving)
             intent.putExtra(ARG_ACCOUNT_DELETED, accountDeleted)
+            allTypesSynced?.let { intent.putExtra(ALL_TYPES_SYNCED, allTypesSynced) }
             intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_NEW_TASK
             return intent
         }
@@ -53,6 +56,7 @@ class AccountsActivity : BaseActivity() {
 
     private val mNewAccountCreated by extraNotNull(ARG_NEW, false)
     private val mAccountDeleted by extraNotNull(ARG_ACCOUNT_DELETED, false)
+    private val allTypesSynced by extra(ALL_TYPES_SYNCED, null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -80,8 +84,19 @@ class AccountsActivity : BaseActivity() {
         }
 
         if (mAccountDeleted) {
-            val dialog = AccountDeletedDialog(this)
-            dialog.show(supportFragmentManager, "AccountDeleted")
+            AccountDeletedDialog.instantiate().show(
+                supportFragmentManager,
+                "AccountDeleted"
+            )
+        }
+
+        val prefs = Prefs(this)
+        if (!prefs.consentDialogShown) {
+            startActivity(DataPrivacyDialogActivity.newIntent(this))
+        }
+        allTypesSynced?.let {
+            it as Boolean
+            prefs.allTypesPrevSynced = it
         }
     }
 }

@@ -32,13 +32,13 @@ import android.app.Application
 import android.content.SyncResult
 import android.os.Bundle
 import at.bitfire.dav4jvm.DavCalendar
-import at.bitfire.dav4jvm.DavResponseCallback
+import at.bitfire.dav4jvm.MultiResponseCallback
 import at.bitfire.dav4jvm.Response
 import at.bitfire.dav4jvm.exception.DavException
 import at.bitfire.dav4jvm.property.*
-import at.bitfire.ical4android.DateUtils
 import at.bitfire.ical4android.Event
 import at.bitfire.ical4android.InvalidCalendarException
+import at.bitfire.ical4android.util.DateUtils
 import de.telekom.dtagsyncpluskit.R
 import de.telekom.dtagsyncpluskit.api.ServiceEnvironments
 import de.telekom.dtagsyncpluskit.davx5.DavUtils
@@ -48,6 +48,7 @@ import de.telekom.dtagsyncpluskit.davx5.resource.LocalCalendar
 import de.telekom.dtagsyncpluskit.davx5.resource.LocalEvent
 import de.telekom.dtagsyncpluskit.davx5.resource.LocalResource
 import de.telekom.dtagsyncpluskit.davx5.settings.AccountSettings
+import de.telekom.dtagsyncpluskit.utils.CountlyWrapper
 import net.fortuna.ical4j.model.component.VAlarm
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
@@ -118,7 +119,7 @@ class CalendarSyncManager(
         os.toByteArray().toRequestBody(DavCalendar.MIME_ICALENDAR_UTF8)
     }
 
-    override fun listAllRemote(callback: DavResponseCallback) {
+    override fun listAllRemote(callback: MultiResponseCallback) {
         // calculate time range limits
         var limitStart: Date? = null
         accountSettings.getTimeRangePastDays()?.let { pastDays ->
@@ -168,6 +169,7 @@ class CalendarSyncManager(
         try {
             events = Event.eventsFromReader(reader)
         } catch (e: InvalidCalendarException) {
+            CountlyWrapper.recordHandledException(e)
             Logger.log.log(Level.SEVERE, "Received invalid iCalendar, ignoring", e)
             notifyInvalidResource(e, fileName)
             return

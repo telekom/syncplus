@@ -21,40 +21,55 @@ package de.telekom.syncplus.ui.main
 
 import android.accounts.Account
 import android.app.Activity
+import android.app.Application
 import android.net.Uri
 import android.os.Bundle
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.lifecycle.lifecycleScope
+import androidx.core.os.bundleOf
+import androidx.fragment.app.activityViewModels
+import androidx.fragment.app.setFragmentResult
+import androidx.fragment.app.setFragmentResultListener
+import androidx.lifecycle.*
 import de.telekom.dtagsyncpluskit.api.APIFactory
 import de.telekom.dtagsyncpluskit.api.ServiceEnvironments
-import de.telekom.dtagsyncpluskit.awaitResponse
+import de.telekom.dtagsyncpluskit.api.SpicaAPI
+import de.telekom.dtagsyncpluskit.api.error.ApiError
+import de.telekom.dtagsyncpluskit.await
 import de.telekom.dtagsyncpluskit.davx5.log.Logger
 import de.telekom.dtagsyncpluskit.davx5.model.Credentials
+import de.telekom.dtagsyncpluskit.model.AuthHolder
 import de.telekom.dtagsyncpluskit.model.spica.Contact
 import de.telekom.dtagsyncpluskit.model.spica.ContactIdentifiersResponse
 import de.telekom.dtagsyncpluskit.model.spica.ContactList
 import de.telekom.dtagsyncpluskit.ui.BaseFragment
 import de.telekom.dtagsyncpluskit.utils.Err
+import de.telekom.dtagsyncpluskit.utils.Ok
 import de.telekom.dtagsyncpluskit.utils.ResultExt
-import de.telekom.dtagsyncpluskit.utils.isOk
 import de.telekom.syncplus.App
 import de.telekom.syncplus.BuildConfig
 import de.telekom.syncplus.ContactsCopyActivity
 import de.telekom.syncplus.R
+import de.telekom.syncplus.ui.main.DuplicateProgressViewModel.Action
+import de.telekom.syncplus.ui.main.dialog.SingleActionDialog
 import kotlinx.android.synthetic.main.fragment_copy_progress.view.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
-import retrofit2.Response
-import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
+import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.atomic.AtomicReference
+import kotlin.properties.Delegates
 
 class DuplicateProgressFragment : BaseFragment() {
     override val TAG: String
         get() = "DUPLICATE_PROGRESS_FRAGMENT"
 
     companion object {
+        private const val RETRY_DUPLICATE_ACTION = "retry_duplicate_action"
+
         fun newInstance(): DuplicateProgressFragment {
             val args = Bundle()
             val fragment = DuplicateProgressFragment()
@@ -63,8 +78,11 @@ class DuplicateProgressFragment : BaseFragment() {
         }
     }
 
-    private val mOriginals: List<Contact>
-        get() = (requireActivity().application as App).originals ?: emptyList()
+    private val viewModel by activityViewModels<DuplicateProgressViewModel>()
+    private val authHolder by lazy {
+        (activity as? ContactsCopyActivity)?.authHolder
+            ?: throw IllegalStateException("Missing AuthHolder")
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -77,37 +95,28 @@ class DuplicateProgressFragment : BaseFragment() {
                 finishWithResult(Activity.RESULT_CANCELED, null)
             }
         }
+        return v
+    }
 
-        lifecycleScope.launch {
-            val authHolder = (activity as? ContactsCopyActivity)?.authHolder
-                ?: throw IllegalStateException("Missing AuthHolder")
-            val redirectUri = Uri.parse(getString(R.string.REDIRECT_URI))
-            val environ = BuildConfig.ENVIRON[BuildConfig.FLAVOR]!!
-            val serviceEnvironments = ServiceEnvironments.fromBuildConfig(redirectUri, environ)
-            val account = Account(authHolder.accountName, getString(R.string.account_type))
-            val credentials = Credentials(requireContext(), account, serviceEnvironments)
-            val spicaAPI = APIFactory.spicaAPI(requireActivity().application, credentials)
-
-            val contactList = ContactList(mOriginals)
-            var retry = true
-            var response: ResultExt<Response<ContactIdentifiersResponse>, Throwable> =
-                Err(Throwable())
-            while (retry) {
-                response = spicaAPI.importAndMergeContacts(contactList).awaitResponse()
-                if (response.isOk())
-                    break
-
-                Logger.log.severe("Error: Merging Contacts: $response")
-                retry = showRetryDialog()
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                launch { viewModel.action.collect(::handleAction) }
             }
-
-            if (response.isOk())
-                push(R.id.container, CopySuccessFragment.newInstance())
-            else
-                finishWithResult(Activity.RESULT_CANCELED, null)
         }
 
-        return v
+        setFragmentResultListener(SingleActionDialog.ACTION_EVENT) { _, _ -> viewModel.skipUpload() }
+        setFragmentResultListener(RETRY_DUPLICATE_ACTION) { _, extras ->
+            val retry = extras.getBoolean(RETRY_DUPLICATE_ACTION)
+            if (retry) {
+                viewModel.retryUpload()
+            } else {
+                viewModel.cancelUpload()
+            }
+        }
+
+        viewModel.uploadContacts(authHolder)
     }
 
     override fun onStart() {
@@ -128,13 +137,140 @@ class DuplicateProgressFragment : BaseFragment() {
         topBar.extraSectionButtonTitle = null
     }
 
-    private suspend fun showRetryDialog(errorDescription: String? = null): Boolean =
-        suspendCoroutine { cont ->
-            val dialog = CustomErrorAlert(
-                getString(R.string.dialog_sync_error_title),
-                getString(R.string.dialog_sync_error_text),
-                errorDescription
-            ) { retry -> cont.resume(retry) }
-            dialog.show(parentFragmentManager, "DIALOG")
+    private fun handleAction(action: Action) {
+        when (action) {
+            Action.ShowRetry -> showRetryDialog()
+            Action.UploadCancelled -> finishWithResult(Activity.RESULT_CANCELED, null)
+            Action.UploadFinished -> push(R.id.container, CopySuccessFragment.newInstance())
+            Action.ShowContactsLimitError -> showContactLimitError()
         }
+    }
+
+    private fun showRetryDialog(errorDescription: String? = null) {
+        val dialog = CustomErrorAlert(
+            getString(R.string.dialog_sync_error_title),
+            getString(R.string.dialog_sync_error_text),
+            errorDescription
+        ) { retry ->
+            setFragmentResult(RETRY_DUPLICATE_ACTION, bundleOf(RETRY_DUPLICATE_ACTION to retry))
+        }
+
+        dialog.show(parentFragmentManager, "DIALOG")
+    }
+
+    private fun showContactLimitError() {
+        SingleActionDialog.instantiate(
+            titleText = getString(R.string.dialog_max_contact_count_error_title),
+            messageText = getString(R.string.dialog_max_contact_count_error_message),
+            actionText = getString(R.string.dialog_max_contact_count_error_action)
+        ).show(parentFragmentManager, "ContactLimitError")
+    }
+}
+
+class DuplicateProgressViewModel(private val app: Application) : AndroidViewModel(app) {
+
+    private val actionFlow = MutableSharedFlow<Action>()
+    private var authHolder: AuthHolder by Delegates.notNull()
+    private val contactsToUpload = ConcurrentLinkedQueue<Contact>()
+
+    val action: SharedFlow<Action> = actionFlow.asSharedFlow()
+
+    private val lastError = AtomicReference<ApiError>()
+
+    fun uploadContacts(authHolder: AuthHolder) {
+        this.authHolder = authHolder
+        val originals = (app as App).originals
+
+        viewModelScope.launch(Dispatchers.IO) {
+            if (originals == null) {
+                // Nothing to upload
+                actionFlow.emit(Action.UploadFinished)
+                return@launch
+            }
+
+            contactsToUpload.clear()
+            contactsToUpload.addAll(originals)
+
+            uploadContacts(authHolder.accountName)
+        }
+    }
+
+    fun retryUpload() {
+        viewModelScope.launch(Dispatchers.IO) {
+            uploadContacts(authHolder.accountName)
+        }
+    }
+
+    fun skipUpload(){
+        viewModelScope.launch {
+            actionFlow.emit(Action.UploadFinished)
+        }
+    }
+
+    fun cancelUpload() {
+        viewModelScope.launch {
+            actionFlow.emit(Action.UploadCancelled)
+        }
+    }
+
+    private suspend fun uploadContacts(accountName: String) {
+        val chunks = contactsToUpload.chunked(DEFAULT_CHUNK_SIZE)
+
+        run loop@{
+            chunks.forEach { chunk ->
+                when (val response = uploadContactsChunk(accountName, chunk)) {
+                    is Ok -> {
+                        // Remove uploaded chunk
+                        contactsToUpload.removeAll(chunk.toSet())
+                    }
+                    is Err -> {
+                        Logger.log.severe("Error: Merging Contacts: ${response.error}")
+                        lastError.set(response.error)
+                        // Break a loop in case of failure
+                        return@loop
+                    }
+                }
+            }
+        }
+
+        // If there no chunk to upload - all ok
+        if (contactsToUpload.isEmpty()) {
+            actionFlow.emit(Action.UploadFinished)
+            return
+        }
+        // show retry otherwise
+        when (lastError.get()) {
+            ApiError.ContactError.TooManyContacts -> actionFlow.emit(Action.ShowContactsLimitError)
+            else -> actionFlow.emit(Action.ShowRetry)
+        }
+    }
+
+    private suspend fun uploadContactsChunk(
+        accountName: String,
+        contacts: List<Contact>
+    ): ResultExt<ContactIdentifiersResponse, ApiError> {
+        return buildSpicaApi(accountName)
+            .importAndMergeContacts(contacts = ContactList(contacts))
+            .await()
+    }
+
+    private fun buildSpicaApi(accountName: String): SpicaAPI {
+        val redirectUri = Uri.parse(app.getString(R.string.REDIRECT_URI))
+        val environ = BuildConfig.ENVIRON[BuildConfig.FLAVOR]!!
+        val serviceEnvironments = ServiceEnvironments.fromBuildConfig(redirectUri, environ)
+        val account = Account(accountName, app.getString(R.string.account_type))
+        val credentials = Credentials(app, account, serviceEnvironments)
+        return APIFactory.spicaAPI(app, credentials)
+    }
+
+    sealed interface Action {
+        object UploadFinished : Action
+        object UploadCancelled : Action
+        object ShowContactsLimitError : Action
+        object ShowRetry : Action
+    }
+
+    private companion object {
+        private const val DEFAULT_CHUNK_SIZE = 9999
+    }
 }

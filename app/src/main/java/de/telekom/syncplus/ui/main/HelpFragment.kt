@@ -19,24 +19,22 @@
 
 package de.telekom.syncplus.ui.main
 
-import android.app.Application
+import android.annotation.SuppressLint
 import android.content.Context
-import android.content.SharedPreferences
 import android.net.Uri
 import android.os.Bundle
 import android.os.Parcelable
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.appcompat.content.res.AppCompatResources
 import androidx.fragment.app.FragmentManager
 import de.telekom.dtagsyncpluskit.davx5.log.Logger
 import de.telekom.dtagsyncpluskit.ui.BaseFragment
 import de.telekom.dtagsyncpluskit.ui.BaseListAdapter
 import de.telekom.syncplus.R
-import de.telekom.syncplus.util.Prefs
 import kotlinx.android.parcel.Parcelize
 import kotlinx.android.synthetic.main.fragment_listview.view.*
 
@@ -57,11 +55,28 @@ class HelpFragment : BaseFragment() {
     override val TAG: String
         get() = "HELP_FRAGMENT"
 
+    var currentWebView: WebViewFragment? = null
+
     companion object {
         fun newInstance() = HelpFragment()
+
+        @SuppressLint("StaticFieldLeak")
+        var instance: HelpFragment? = null
     }
 
     private var mTitleView: TextView? = null
+
+    @SuppressLint("SetTextI18n")
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        instance = this
+        mTitleView?.text = "No title"
+    }
+
+    override fun onDestroy() {
+        instance = null
+        super.onDestroy()
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -71,19 +86,25 @@ class HelpFragment : BaseFragment() {
         mTitleView = activity?.findViewById(R.id.topbarTitle)
         val v = inflater.inflate(R.layout.fragment_listview, container, false)
         v.list.dividerHeight = 0
-        v.list.divider = requireContext().getDrawable(android.R.color.transparent)
+        v.list.divider = AppCompatResources.getDrawable(
+            requireContext(),
+            android.R.color.transparent
+        )
 
         fun helpSection(text: String) = HelpModel(HelpModel.SECTION, null, text)
         fun helpItem(icon: Int, text: String) = HelpModel(HelpModel.ITEM, icon, text)
         fun info() = HelpModel(HelpModel.INFO, null, null)
 
+
         val model = listOf(
             helpSection(getString(R.string.help_and_answers)),
             helpItem(R.drawable.ic_help_accent, getString(R.string.help_for_syncplus)),
             helpItem(R.drawable.ic_chat_outline, getString(R.string.reach_us)),
+            helpItem(R.drawable.ic_feedback, getString(R.string.feedback)),
 
             helpSection(getString(R.string.disclaimer)),
             helpItem(R.drawable.ic_data_privacy_outline, getString(R.string.datasecurity)),
+            helpItem(R.drawable.ic_privacy_settings, getString(R.string.datasecurity_settings)),
             helpItem(R.drawable.ic_external_link_outline, getString(R.string.imprint)),
             helpItem(R.drawable.ic_contract_outline, getString(R.string.legal)),
             helpItem(R.drawable.ic_information_icon, getString(R.string.licenses)),
@@ -100,39 +121,57 @@ class HelpFragment : BaseFragment() {
                         val url =
                             Uri.parse("https://kommunikationsdienste.t-online.de/redirect/syncplus/help")
                         mTitleView?.text = getString(R.string.help_for_syncplus)
-                        push(R.id.container, WebViewFragment.newInstance(url))
+
+                        push(R.id.container, WebViewFragment.newInstance(url, this))
                     }
                     2 -> {
                         /* So erreichen Sie uns */
                         mTitleView?.text = getString(R.string.contact)
+                        //mTitleView?.text = getString(R.string.contact)
                         push(R.id.container, ContactUsFragment.newInstance())
                     }
-                    4 -> {
-                        /* Datenschutz */
-                        val url =
-                            Uri.parse("https://kommunikationsdienste.t-online.de/redirect/syncplus/dataprivacy")
-                        mTitleView?.text = getString(R.string.datasecurity)
-                        push(R.id.container, WebViewFragment.newInstance(url))
+                    3 -> {
+                        /* Feedback */
+                        // mTitleView?.text = getString(R.string.feedback)
+                        mTitleView?.text = getString(R.string.feedback)
+                        push(R.id.container, FeedbackFragment.newInstance())
                     }
                     5 -> {
+                        /* Datenschutz */
+                        val url =
+                            Uri.parse("https://kommunikationsdienste.t-online.de/redirect/syncplus-aos/dataprivacy")
+                        mTitleView?.text = getString(R.string.datasecurity)
+                        push(R.id.container, WebViewFragment.newInstance(url, this))
+                    }
+                    6 -> {
+                        /* Datenschutz-Einstellungen */
+                        startActivity(
+                            DataPrivacyDialogActivity.newIntent(requireActivity())
+                                .putExtra("comeFromDeepLink", true)
+                        )
+
+                    }
+                    7 -> {
                         /* Impressum */
                         val url =
                             Uri.parse("https://kommunikationsdienste.t-online.de/redirect/syncplus/imprint")
+
                         mTitleView?.text = getString(R.string.imprint)
-                        push(R.id.container, WebViewFragment.newInstance(url))
+
+                        push(R.id.container, WebViewFragment.newInstance(url, this))
                     }
-                    6 -> {
+                    8 -> {
                         /* Rechtliches */
                         val url =
                             Uri.parse("https://kommunikationsdienste.t-online.de/redirect/syncplus/legal")
                         mTitleView?.text = getString(R.string.legal)
-                        push(R.id.container, WebViewFragment.newInstance(url))
+                        push(R.id.container, WebViewFragment.newInstance(url, this))
                     }
-                    7 -> {
+                    9 -> {
                         /* Lizenzen */
                         val url = Uri.parse("file:///android_asset/osdf-git.html")
                         mTitleView?.text = getString(R.string.licenses)
-                        push(R.id.container, WebViewFragment.newInstance(url))
+                        push(R.id.container, WebViewFragment.newInstance(url, this))
                     }
                 }
             }

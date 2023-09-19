@@ -15,16 +15,16 @@ apply from: '../utils.gradle'
 
 def getGithubSourceCodeZipURL = { ->
     def gitRef = System.getenv("CI_COMMIT_REF_NAME")
-    if(!gitRef) {
+    if (!gitRef) {
         gitRef = gitBranch()
     }
-    def githubUrl = "https://github.com/telekom/syncplus/archive/" + gitRef + ".zip"
+    def githubUrl = "https://github.com/telekom/syncplus/archive/refs/tags/" + gitRef + ".zip"
 
     copy {
         from("src/main/assets")
         into("src/main/assets")
         include("osdf.html")
-        filter{ it.replaceAll("@@GITHUB_SOURCECODE_ZIP_URL@@", githubUrl)}
+        filter { it.replaceAll("@@GITHUB_SOURCECODE_ZIP_URL@@", githubUrl) }
         rename { String fileName ->
             fileName.replace("osdf", "osdf-git")
         }
@@ -44,8 +44,7 @@ static def gitBranch() {
 
 
 android {
-    compileSdkVersion 30
-    buildToolsVersion "30.0.2"
+    compileSdkVersion 33
 
     signingConfigs {
         // signing configuration for a local debug.keystore file
@@ -60,16 +59,19 @@ android {
     defaultConfig {
         applicationId "de.telekom.sync.plus"
         minSdkVersion 26    // Android 8
-        targetSdkVersion 30 // Android 11
-        versionCode 46
-        versionName "1.5.3"
+        targetSdkVersion 33 // Android 13
+        versionCode 71
+        versionName "1.6.4"
         multiDexEnabled true
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
         buildConfigField "java.util.Map<String, String[]>", "ENVIRON", getEnvHashMapAsString(env)
+        buildConfigField "long", "VERSION_CODE", "${defaultConfig.versionCode}"
+        buildConfigField "String", "VERSION_NAME", "\"${defaultConfig.versionName}\""
         resValue "string", "REDIRECT_SCHEME", redirectScheme
         resValue "string", "REDIRECT_URI", redirectUri
+
 
         /*builConfigField "String", "{GITHUB_SOURCECODE_ZIP_URL}", getGithubSourceCodeZipURL()*/
         print getGithubSourceCodeZipURL()
@@ -96,7 +98,6 @@ android {
     }
 
     buildTypes {
-
         debug {
             debuggable true
             minifyEnabled false
@@ -121,6 +122,16 @@ android {
     lintOptions {
         disable 'GoogleAppIndexingWarning'
     }
+
+    buildFeatures {
+        viewBinding true
+    }
+
+    packagingOptions {
+        resources.excludes.add("META-INF/*")
+        resources.excludes.add("META-INF/groovy/*")
+    }
+
 }
 
 dependencies {
@@ -129,29 +140,33 @@ dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
 
     //implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
-    implementation 'androidx.navigation:navigation-fragment-ktx:2.3.5'
-    implementation 'androidx.navigation:navigation-ui-ktx:2.3.5'
-    implementation 'androidx.appcompat:appcompat:1.3.0'
-    implementation 'androidx.fragment:fragment-ktx:1.3.4'
-    implementation 'androidx.core:core-ktx:1.3.2'
-    implementation 'androidx.constraintlayout:constraintlayout:1.1.3'
-    implementation 'androidx.lifecycle:lifecycle-extensions:2.2.0'
-    implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.3.1'
-    implementation "androidx.lifecycle:lifecycle-runtime-ktx:2.3.1"
-    implementation 'androidx.multidex:multidex:2.0.1'
-    implementation "org.jetbrains.kotlinx:kotlinx-serialization-json:1.2.2"
+    implementation libs.navigation.fragment.ktx
+    implementation libs.navigation.ui.ktx
+    implementation libs.appcompat
+    implementation libs.fragment.ktx
+    implementation libs.core.ktx
+    implementation libs.constraintlayout
+    implementation libs.lifecycle.extensions
+    implementation libs.lifecycle.viewmodel.ktx
+    implementation libs.lifecycle.runtime.ktx
+    implementation libs.multidex
+    implementation libs.usabilla.form
+    implementation libs.kotlin.serialization.converter.json
 
-    implementation 'com.google.android.material:material:1.1.0'
-    implementation 'com.github.AppIntro:AppIntro:5.1.0'
-    implementation 'com.jaredrummler:material-spinner:1.3.1'
-    implementation 'com.github.rahatarmanahmed:circularprogressview:2.5.0'
+    implementation libs.material
+    implementation libs.app.intro
+    implementation libs.material.spinner
+    implementation libs.circularprogressview
 
-    def room_version = '2.2.6'
-    implementation "androidx.room:room-runtime:$room_version"
-    implementation "androidx.room:room-ktx:$room_version"
-    kapt "androidx.room:room-compiler:$room_version"
+    implementation libs.room.runtime
+    implementation libs.room.ktx
+    kapt libs.room.compiler
 
-    testImplementation 'junit:junit:4.13.1'
-    androidTestImplementation 'androidx.test.ext:junit:1.1.2'
-    androidTestImplementation 'androidx.test.espresso:espresso-core:3.3.0'
+    testImplementation libs.junit
+    androidTestImplementation libs.junit.android
+    androidTestImplementation libs.espresso.core
+
+    implementation 'com.github.bitfireAT:cert4android:75d64c2'
+    implementation 'com.github.bitfireAT:ical4android:43ef146'
+    implementation 'com.github.bitfireAT:vcard4android:a6e9dc4'
 }

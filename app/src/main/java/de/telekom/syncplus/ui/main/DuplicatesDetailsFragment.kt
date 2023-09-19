@@ -116,10 +116,10 @@ class DuplicatesDetailsFragment : BaseFragment() {
     ): List<ContactDetail>? {
         val models = ArrayList<ContactDetail>()
         val companyString = getString(R.string.company)
-        val positionString = getString(R.string.position)
+        //val positionString = getString(R.string.position)
 
         val companies = similarContacts?.mapNotNull { it.contact?.company }
-        if (contact?.company != null && (companies != null && companies.count() > 0)) {
+        if (contact?.company != null && (companies != null && companies.isNotEmpty())) {
             models.add(ContactDetail(row = ContactRow(companyString, contact.company, false)))
             for (company in companies) {
                 models.add(ContactDetail(row = ContactRow(companyString, company, true)))
@@ -147,9 +147,13 @@ class DuplicatesDetailsFragment : BaseFragment() {
         val models = ArrayList<ContactDetail>()
 
         val remoteNumbers =
-            similarContacts?.mapNotNull { it.contact?.telephoneNumbers }?.filter { it.count() > 0 }
+            similarContacts?.mapNotNull { it.contact?.telephoneNumbers }?.filter { it.isNotEmpty() }
         val phoneNumbers = contact?.telephoneNumbers
-        if (phoneNumbers != null && phoneNumbers.count() > 0 && remoteNumbers != null && remoteNumbers.count() > 0) {
+        if (phoneNumbers != null
+            && phoneNumbers.isNotEmpty()
+            && remoteNumbers != null
+            && remoteNumbers.isNotEmpty()
+        ) {
             for (number in phoneNumbers) {
                 models.add(
                     ContactDetail(
@@ -186,9 +190,13 @@ class DuplicatesDetailsFragment : BaseFragment() {
         val models = ArrayList<ContactDetail>()
 
         val remoteEmails =
-            similarContacts?.mapNotNull { it.contact?.emails }?.filter { it.count() > 0 }
+            similarContacts?.mapNotNull { it.contact?.emails }?.filter { it.isNotEmpty() }
         val emails = contact?.emails
-        if (emails != null && emails.count() > 0 && remoteEmails != null && remoteEmails.count() > 0) {
+        if (emails != null
+            && emails.isNotEmpty()
+            && remoteEmails != null
+            && remoteEmails.isNotEmpty()
+        ) {
             for (email in emails) {
                 models.add(
                     ContactDetail(

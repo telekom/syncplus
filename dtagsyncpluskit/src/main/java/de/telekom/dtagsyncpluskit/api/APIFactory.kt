@@ -20,7 +20,6 @@
 package de.telekom.dtagsyncpluskit.api
 
 import android.app.Application
-import android.util.Log
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import de.telekom.dtagsyncpluskit.BuildConfig
@@ -36,6 +35,7 @@ import retrofit2.converter.moshi.MoshiConverterFactory
 import retrofit2.converter.scalars.ScalarsConverterFactory
 import java.util.*
 import java.util.concurrent.TimeUnit
+import kotlin.math.min
 
 object APIFactory {
     private fun httpClientBuilder(): OkHttpClient.Builder {
@@ -44,22 +44,21 @@ object APIFactory {
             .cipherSuites(
                 CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
                 CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
-                CipherSuite.TLS_DHE_RSA_WITH_AES_128_GCM_SHA256)
+                CipherSuite.TLS_DHE_RSA_WITH_AES_128_GCM_SHA256
+            )
             .build()
         val builder = OkHttpClient().newBuilder()
         builder
-            .connectTimeout(15, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(60, TimeUnit.SECONDS)
+            .writeTimeout(60, TimeUnit.SECONDS)
             .connectionSpecs(Collections.singletonList(connectionSpec))
 
         /* Add custom UserAgent */
         val userAgent = "${BuildConfig.userAgent}/${BuildConfig.VERSION_NAME} AOS REST"
         builder.addNetworkInterceptor { chain ->
             val req = chain.request().newBuilder()
-                .header(
-                    "User-Agent",
-                    userAgent
-                )
+                .header("User-Agent", userAgent)
                 .build()
             chain.proceed(req)
         }
@@ -67,12 +66,22 @@ object APIFactory {
         /* Add the logging interceptor last. */
         if (BuildConfig.DEBUG) {
             val logger: java.util.logging.Logger = Logger.log
-            val loggingInterceptor = HttpLoggingInterceptor(
-                object : HttpLoggingInterceptor.Logger {
-                    override fun log(message: String) {
-                        logger.finest(message)
-                    }
-                })
+            val loggingInterceptor = HttpLoggingInterceptor { message ->
+                // Split by line, then ensure each line can fit into Log's maximum length.
+                var i = 0
+                val length = message.length
+                while (i < length) {
+                    var newline = message.indexOf('\n', i)
+                    newline = if (newline != -1) newline else length
+                    do {
+                        val end = min(newline, i + 3000)
+                        val part = message.substring(i, end)
+                        logger.finest(part)
+                        i = end
+                    } while (i < newline)
+                    i++
+                }
+            }
             // Temporary, log all headers.
             //loggingInterceptor.redactHeader("Authorization")
             //loggingInterceptor.redactHeader("Cookie")

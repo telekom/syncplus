@@ -19,7 +19,6 @@
 
 package de.telekom.dtagsyncpluskit.davx5.model
 
-import androidx.lifecycle.LiveData
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
@@ -32,7 +31,7 @@ interface ServiceDao {
     fun getByAccountAndType(accountName: String, type: String): Service?
 
     @Query("SELECT id FROM service WHERE accountName=:accountName AND type=:type")
-    fun getIdByAccountAndType(accountName: String, type: String): Long
+    fun getIdByAccountAndType(accountName: String, type: String): Long?
 
     @Query("SELECT * FROM service WHERE id=:id")
     fun get(id: Long): Service?

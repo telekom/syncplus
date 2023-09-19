@@ -23,7 +23,6 @@ import android.accounts.Account
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -38,6 +37,7 @@ import de.telekom.syncplus.dav.DavNotificationUtils
 import kotlinx.android.synthetic.main.fragment_setup_contacts.view.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import parcelableArrayList
 
 class SetupContactsFragment : BaseFragment() {
     override val TAG = "SETUP_CONTACTS_FRAGMENT"
@@ -129,7 +129,7 @@ class SetupContactsFragment : BaseFragment() {
 
     private fun updateSelection(view: View?, selectedGroups: List<Group>?) {
         if (selectedGroups != null)
-            view?.copyButton?.isEnabled = selectedGroups.count() > 0
+            view?.copyButton?.isEnabled = selectedGroups.isNotEmpty()
         if (selectedGroups != null && selectedGroups.find { it.groupId == -1L } == null) {
             val string = selectedGroups.joinToString(
                 " - ",
@@ -148,17 +148,20 @@ class SetupContactsFragment : BaseFragment() {
             ContactsActivity.SELECTED_ADDRESS_BOOKS -> {
                 if (resultCode == Activity.RESULT_OK) {
                     val results =
-                        data?.getParcelableArrayListExtra<Group>(ContactsActivity.EXTRA_RESULT)
+                        data?.parcelableArrayList<Group>(ContactsActivity.EXTRA_RESULT)
                     Logger.log.finest("Results: $results")
                     authHolder.selectedGroups = results
                     updateSelection(view, results)
                 }
             }
             ContactsCopyActivity.RESULTS -> {
-                if (resultCode == Activity.RESULT_OK) {
-                    goNext()
-                } else if (resultCode == Activity.RESULT_CANCELED) {
-                    // Stay here.
+                when (resultCode) {
+                    Activity.RESULT_OK -> {
+                        goNext()
+                    }
+                    Activity.RESULT_CANCELED -> {
+                        // Stay here.
+                    }
                 }
             }
         }
@@ -167,13 +170,12 @@ class SetupContactsFragment : BaseFragment() {
     private fun goNext() {
         // Sync contacts.
         val account = Account(authHolder.accountName, getString(R.string.account_type))
-        val accountSettings =
-            AccountSettings(
-                requireContext(),
-                App.serviceEnvironments(requireContext()),
-                account,
-                DavNotificationUtils.reloginCallback(requireContext(), "authority")
-            )
+        val accountSettings = AccountSettings(
+            requireContext(),
+            App.serviceEnvironments(requireContext()),
+            account,
+            DavNotificationUtils.reloginCallback(requireContext(), "authority")
+        )
         accountSettings.resyncContacts(true)
 
         when {
@@ -181,11 +183,20 @@ class SetupContactsFragment : BaseFragment() {
                 push(R.id.container, SetupCalendarFragment.newInstance())
             }
             authHolder.emailEnabled -> {
+                // Assume the account setup is completed right away because the
+                // email configuration may change outside of the application
+                accountSettings.setSetupCompleted(true)
                 push(R.id.container, SetupEmailFragment.newInstance())
             }
             else -> {
                 accountSettings.setSetupCompleted(true)
-                startActivity(AccountsActivity.newIntent(requireActivity(), true))
+                startActivity(
+                    AccountsActivity.newIntent(
+                        requireActivity(),
+                        newAccountCreated = true,
+                        allTypesSynced = authHolder.allTypesSynced(),
+                    )
+                )
             }
         }
     }

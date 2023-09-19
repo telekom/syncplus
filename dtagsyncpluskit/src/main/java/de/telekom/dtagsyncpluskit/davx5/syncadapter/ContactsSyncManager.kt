@@ -29,12 +29,15 @@ package de.telekom.dtagsyncpluskit.davx5.syncadapter
 
 import android.accounts.Account
 import android.app.Application
-import android.content.*
+import android.content.ContentProviderClient
+import android.content.ContentResolver
+import android.content.ContentUris
+import android.content.SyncResult
 import android.os.Build
 import android.os.Bundle
 import android.provider.ContactsContract.Groups
 import at.bitfire.dav4jvm.DavAddressBook
-import at.bitfire.dav4jvm.DavResponseCallback
+import at.bitfire.dav4jvm.MultiResponseCallback
 import at.bitfire.dav4jvm.Response
 import at.bitfire.dav4jvm.exception.DavException
 import at.bitfire.dav4jvm.property.*
@@ -49,6 +52,7 @@ import de.telekom.dtagsyncpluskit.davx5.log.Logger
 import de.telekom.dtagsyncpluskit.davx5.model.SyncState
 import de.telekom.dtagsyncpluskit.davx5.resource.*
 import de.telekom.dtagsyncpluskit.davx5.settings.AccountSettings
+import de.telekom.dtagsyncpluskit.utils.CountlyWrapper
 import ezvcard.VCardVersion
 import ezvcard.io.CannotParseException
 import okhttp3.HttpUrl
@@ -252,7 +256,7 @@ class ContactsSyncManager(
     override fun generateUpload(resource: LocalAddress): RequestBody = localExceptionContext(resource) {
         val contact: Contact
         if (resource is LocalContact) {
-            contact = resource.contact!!
+            contact = resource.getContact()
 
             if (groupMethod == GroupMethod.CATEGORIES) {
                 // add groups as CATEGORIES
@@ -270,21 +274,22 @@ class ContactsSyncManager(
                 }
             }
         } else if (resource is LocalGroup)
-            contact = resource.contact!!
+            contact = resource.getContact()
         else
             throw IllegalArgumentException("resource must be LocalContact or LocalGroup")
 
         Logger.log.log(Level.FINE, "Preparing upload of VCard ${resource.fileName}", contact)
 
         val os = ByteArrayOutputStream()
-        contact.write(if (hasVCard4) VCardVersion.V4_0 else VCardVersion.V3_0, groupMethod, os)
+        // contact.write(if (hasVCard4) VCardVersion.V4_0 else VCardVersion.V3_0, groupMethod, os)
+        contact.writeVCard(if (hasVCard4) VCardVersion.V4_0 else VCardVersion.V3_0, os)
 
         os.toByteArray().toRequestBody(
             if (hasVCard4) DavAddressBook.MIME_VCARD4 else DavAddressBook.MIME_VCARD3_UTF8
         )
     }
 
-    override fun listAllRemote(callback: DavResponseCallback) =
+    override fun listAllRemote(callback: MultiResponseCallback) =
         remoteExceptionContext {
             it.propfind(1, ResourceType.NAME, GetETag.NAME, callback = callback)
         }
@@ -292,7 +297,8 @@ class ContactsSyncManager(
     override fun downloadRemote(bunch: List<HttpUrl>) {
         Logger.log.info("Downloading ${bunch.size} vCard(s): $bunch")
         remoteExceptionContext {
-            it.multiget(bunch, hasVCard4) { response, _ ->
+            val (contentType, version) = if (hasVCard4) "text/vcard" to "4.0" else null to null
+            it.multiget(bunch, contentType, version) { response, _ ->
                 responseExceptionContext(response) {
                     if (!response.isSuccess()) {
                         Logger.log.warning("Received non-successful multiget response for ${response.href}")
@@ -303,7 +309,7 @@ class ContactsSyncManager(
                         ?: throw DavException("Received multi-get response without ETag")
 
                     val addressData = response[AddressData::class.java]
-                    val vCard = addressData?.vCard
+                    val vCard = addressData?.card
                         ?: throw DavException("Received multi-get response without address data")
 
                     processVCard(DavUtils.lastSegmentOfUrl(response.href), eTag, StringReader(vCard), resourceDownloader)
@@ -330,12 +336,17 @@ class ContactsSyncManager(
 
     // helpers
 
-    private fun processVCard(fileName: String, eTag: String, reader: Reader, downloader: Contact.Downloader) {
+    private fun processVCard(
+        fileName: String, eTag: String,
+        reader: Reader,
+        downloader: Contact.Downloader
+    ) {
         Logger.log.info("Processing CardDAV resource $fileName")
 
         val contacts = try {
-            Contact.fromReader(reader, downloader)
+            Contact.fromReader(reader, false, downloader)
         } catch (e: CannotParseException) {
+            CountlyWrapper.recordHandledException(e)
             Logger.log.log(Level.SEVERE, "Received invalid vCard, ignoring", e)
             notifyInvalidResource(e, fileName)
             return
@@ -405,9 +416,12 @@ class ContactsSyncManager(
                     Logger.log.log(Level.FINE, "Removing contact group memberships")
                     localContact.removeGroupMemberships(batch)
 
-                    for (category in localContact.contact!!.categories) {
+                    for (category in localContact.getContact().categories) {
                         val groupID = localCollection.findOrCreateGroup(category)
-                        Logger.log.log(Level.FINE, "Adding membership in group $category ($groupID)")
+                        Logger.log.log(
+                            Level.FINE,
+                            "Adding membership in group $category ($groupID)"
+                        )
                         localContact.addToGroup(batch, groupID)
                     }
 

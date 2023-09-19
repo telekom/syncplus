@@ -29,6 +29,7 @@ import de.telekom.dtagsyncpluskit.BuildConfig
 import de.telekom.dtagsyncpluskit.api.IDMEnv
 import de.telekom.dtagsyncpluskit.api.TokenStore
 import de.telekom.dtagsyncpluskit.davx5.log.Logger
+import de.telekom.dtagsyncpluskit.utils.CountlyWrapper
 import net.openid.appauth.*
 import okhttp3.internal.notifyAll
 import okhttp3.internal.wait
@@ -163,13 +164,16 @@ class IDMAuth(private val context: Context) {
                 ex != null -> {
                     Logger.log.severe("Error: Authorization: $ex")
                     Log.e("SyncPlus", "Error: Authorization", ex)
+                    CountlyWrapper.recordUnhandledException(ex)
                     mErrorHandler?.onError(ex)
                 }
                 resp != null -> {
                     updateRefreshToken(resp)
                 }
                 else -> {
-                    throw IllegalStateException("Should not happen")
+                    val e = IllegalStateException("Should not happen")
+                    CountlyWrapper.recordUnhandledException(e)
+                    throw e
                 }
             }
         }
@@ -193,6 +197,7 @@ class IDMAuth(private val context: Context) {
                 ex != null -> {
                     Logger.log.severe("Error: Refreshing Token: $ex")
                     Log.e("SyncPlus", "Error: Refreshing Token", ex)
+                    CountlyWrapper.recordUnhandledException(ex)
                     mErrorHandler?.onError(ex)
                 }
                 resp != null -> {
@@ -204,7 +209,9 @@ class IDMAuth(private val context: Context) {
                     mSuccessHandler?.onSuccess(store)
                 }
                 else -> {
-                    throw IllegalStateException("Should not happen")
+                    val e = IllegalStateException("Should not happen")
+                    CountlyWrapper.recordUnhandledException(e)
+                    throw e
                 }
             }
         }
@@ -218,6 +225,8 @@ class IDMAuth(private val context: Context) {
         AuthorizationServiceConfiguration.fetchFromUrl(configurationUri) { config, exc ->
             if (exc != null || config == null) {
                 synchronized(lock) {
+                    Logger.log.severe("AuthorizationServiceConfiguration fetch configuration error: $exc")
+                    CountlyWrapper.recordUnhandledException(exc)
                     ready = true
                     lock.notifyAll()
                 }
@@ -233,8 +242,8 @@ class IDMAuth(private val context: Context) {
                     when {
                         ex != null -> {
                             Logger.log.severe("Error: Refreshing Token: $ex")
-                            Logger.log.severe("refreshToken: $refreshToken")
                             Log.e("SyncPlus", "Error: Refreshing Token", ex)
+                            CountlyWrapper.recordUnhandledException(ex)
                             synchronized(lock) {
                                 ready = true
                                 lock.notifyAll()
@@ -260,6 +269,7 @@ class IDMAuth(private val context: Context) {
                 try {
                     lock.wait()
                 } catch (ex: InterruptedException) {
+                    CountlyWrapper.recordUnhandledException(ex)
                     ex.printStackTrace()
                 }
             }
@@ -327,6 +337,7 @@ class IDMAuth(private val context: Context) {
         if (requestCode == RC_AUTH && data != null) {
             val response = AuthorizationResponse.fromIntent(data)
             val ex = AuthorizationException.fromIntent(data)
+
             mAuthState?.update(response, ex)
             return if (response != null) {
                 handleAuthorizationResponse(response)
@@ -334,6 +345,7 @@ class IDMAuth(private val context: Context) {
             } else {
                 Logger.log.severe("Error: Authorization: $ex")
                 Log.e("SyncPlus", "Error: Authorization", ex)
+                CountlyWrapper.recordHandledException(ex)
                 mErrorHandler?.onError(ex ?: Exception("Authorization Error"))
                 false
             }

@@ -27,18 +27,21 @@
 
 package de.telekom.dtagsyncpluskit.davx5.syncadapter
 
+import android.Manifest
 import android.accounts.Account
 import android.app.Application
 import android.app.PendingIntent
 import android.content.ContentUris
 import android.content.Intent
 import android.content.SyncResult
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
 import android.os.RemoteException
 import android.provider.CalendarContract
 import android.provider.ContactsContract
 import android.util.Log
+import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import at.bitfire.dav4jvm.*
@@ -61,6 +64,9 @@ import de.telekom.dtagsyncpluskit.davx5.model.SyncState
 import de.telekom.dtagsyncpluskit.davx5.resource.*
 import de.telekom.dtagsyncpluskit.davx5.settings.AccountSettings
 import de.telekom.dtagsyncpluskit.davx5.ui.NotificationUtils
+import de.telekom.dtagsyncpluskit.utils.CountlyWrapper
+import de.telekom.dtagsyncpluskit.utils.getPendingIntentActivity
+import de.telekom.dtagsyncpluskit.utils.getPendingIntentService
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
@@ -328,6 +334,7 @@ abstract class SyncManager<ResourceType: LocalResource<*>, out CollectionType: L
                             remote.delete(ifETag = lastETag, ifScheduleTag = lastScheduleTag) {}
                             numDeleted++
                         } catch (e: HttpException) {
+                            CountlyWrapper.recordHandledException(e)
                             Logger.log.warning("Couldn't delete $fileName from server; ignoring (may be downloaded again)")
                         }
                     }
@@ -397,6 +404,7 @@ abstract class SyncManager<ResourceType: LocalResource<*>, out CollectionType: L
                 }
             }
         } catch (e: ContextedException) {
+            CountlyWrapper.recordHandledException(e)
             when (val ex = e.cause) {
                 is ForbiddenException -> {
                     // HTTP 403 Forbidden
@@ -514,7 +522,7 @@ abstract class SyncManager<ResourceType: LocalResource<*>, out CollectionType: L
      *
      * @param listRemote function to list remote resources (for instance, all since a certain sync-token)
      */
-    protected open fun syncRemote(listRemote: (DavResponseCallback) -> Unit) {
+    protected open fun syncRemote(listRemote: (MultiResponseCallback) -> Unit) {
         // thread-safe sync stats
         val nInserted = AtomicInteger()
         val nUpdated = AtomicInteger()
@@ -605,9 +613,9 @@ abstract class SyncManager<ResourceType: LocalResource<*>, out CollectionType: L
         }
     }
 
-    protected abstract fun listAllRemote(callback: DavResponseCallback)
+    protected abstract fun listAllRemote(callback: MultiResponseCallback)
 
-    protected open fun listRemoteChanges(syncState: SyncState?, callback: DavResponseCallback): Pair<SyncToken, Boolean> {
+    protected open fun listRemoteChanges(syncState: SyncState?, callback: MultiResponseCallback): Pair<SyncToken, Boolean> {
         var furtherResults = false
 
         val report = davCollection.reportChanges(
@@ -619,7 +627,7 @@ abstract class SyncManager<ResourceType: LocalResource<*>, out CollectionType: L
                     furtherResults = response.status?.code == 507
 
                 Response.HrefRelation.MEMBER ->
-                    callback(response, relation)
+                    callback.onResponse(response, relation)
 
                 else ->
                     Logger.log.fine("Unexpected sync-collection response: $response")
@@ -702,6 +710,7 @@ abstract class SyncManager<ResourceType: LocalResource<*>, out CollectionType: L
         // Catch the unauthorized exception early. Call our custom onUnauthorized handler.
         if (e is UnauthorizedException) {
             Logger.log.log(Level.SEVERE, "SyncPlus/SyncManager: Unauthorized", e)
+            CountlyWrapper.recordHandledException(e)
             onUnauthorized(
                 if (authority == ContactsContract.AUTHORITY)
                     mainAccount
@@ -719,24 +728,30 @@ abstract class SyncManager<ResourceType: LocalResource<*>, out CollectionType: L
                 Logger.log.log(Level.WARNING, "I/O error", e)
                 message = context.getString(R.string.sync_error_io, e.localizedMessage)
                 syncResult.stats.numIoExceptions++
+                CountlyWrapper.recordHandledException(e)
             }
             is UnauthorizedException -> {
                 Logger.log.log(Level.SEVERE, "Not authorized anymore", e)
                 message = context.getString(R.string.sync_error_authentication_failed)
                 syncResult.stats.numAuthExceptions++
+                CountlyWrapper.recordHandledException(e)
             }
             is HttpException, is DavException -> {
                 Logger.log.log(Level.SEVERE, "HTTP/DAV exception", e)
                 message = context.getString(R.string.sync_error_http_dav, e.localizedMessage)
                 syncResult.stats.numParseExceptions++       // numIoExceptions would indicate a soft error
+                CountlyWrapper.recordHandledException(e)
             }
             is CalendarStorageException, is ContactsStorageException, is RemoteException -> {
                 Logger.log.log(Level.SEVERE, "Couldn't access local storage", e)
                 message = context.getString(R.string.sync_error_local_storage, e.localizedMessage)
                 syncResult.databaseError = true
+                CountlyWrapper.recordHandledException(e)
             }
             else -> {
-                Logger.log.log(Level.SEVERE, "Unclassified sync error", e)
+                Logger.log.log(Level.SEVERE,
+                    "Unclassified sync error: ${e.localizedMessage ?: e::class.java.simpleName}", e)
+                CountlyWrapper.recordHandledException(e)
                 // AG: #112: Removed due to pushing very cryptic messages.
                 return
                 //message = e.localizedMessage ?: e::class.java.simpleName
@@ -772,20 +787,26 @@ abstract class SyncManager<ResourceType: LocalResource<*>, out CollectionType: L
             priority = NotificationCompat.PRIORITY_DEFAULT
         }
 
-        val builder = NotificationUtils.newBuilder(context, channel)
-        builder .setSmallIcon(R.drawable.ic_sync_problem_notify)
-            .setContentTitle(localCollection.title)
-            .setContentText(message)
-            .setStyle(NotificationCompat.BigTextStyle(builder).bigText(message))
-            .setSubText(mainAccount.name)
-            .setOnlyAlertOnce(true)
-            //.setContentIntent(PendingIntent.getActivity(context, 0, contentIntent, PendingIntent.FLAG_UPDATE_CURRENT))
-            .setPriority(priority)
-            .setCategory(NotificationCompat.CATEGORY_ERROR)
-        viewItemAction?.let { builder.addAction(it) }
-        builder.addAction(buildRetryAction())
+      if(ActivityCompat.checkSelfPermission(
+              context,
+              Manifest.permission.POST_NOTIFICATIONS
+          ) == PackageManager.PERMISSION_GRANTED
+      ){
+          val builder = NotificationUtils.newBuilder(context, channel)
+          builder .setSmallIcon(R.drawable.ic_sync_problem_notify)
+              .setContentTitle(localCollection.title)
+              .setContentText(message)
+              .setStyle(NotificationCompat.BigTextStyle(builder).bigText(message))
+              .setSubText(mainAccount.name)
+              .setOnlyAlertOnce(true)
+              //.setContentIntent(PendingIntent.getActivity(context, 0, contentIntent, PendingIntent.FLAG_UPDATE_CURRENT))
+              .setPriority(priority)
+              .setCategory(NotificationCompat.CATEGORY_ERROR)
+          viewItemAction?.let { builder.addAction(it) }
+          builder.addAction(buildRetryAction())
 
-        notificationManager.notify(notificationTag, NotificationUtils.NOTIFY_SYNC_ERROR, builder.build())
+          notificationManager.notify(notificationTag, NotificationUtils.NOTIFY_SYNC_ERROR, builder.build())
+      }
     }
 
     /*private fun buildDebugInfoIntent(e: Throwable, local: ResourceType?, remote: HttpUrl?) =
@@ -802,9 +823,7 @@ abstract class SyncManager<ResourceType: LocalResource<*>, out CollectionType: L
         }*/
 
     private fun buildRetryAction(): NotificationCompat.Action {
-        val retryIntent = Intent(context, DavService::class.java)
-        retryIntent.action = DavService.ACTION_FORCE_SYNC
-        retryIntent.putExtra(DavService.EXTRA_SERVICE_ENVIRONMENTS, serviceEnvironments)
+        val retryIntent = DavService.forceSyncIntent(context, serviceEnvironments)
 
         val syncAuthority: String
         val syncAccount: Account
@@ -825,7 +844,7 @@ abstract class SyncManager<ResourceType: LocalResource<*>, out CollectionType: L
 
         return NotificationCompat.Action(
             android.R.drawable.ic_menu_rotate, context.getString(R.string.sync_error_retry),
-            PendingIntent.getService(context, 0, retryIntent, PendingIntent.FLAG_UPDATE_CURRENT))
+            getPendingIntentService(context, 0, retryIntent, PendingIntent.FLAG_UPDATE_CURRENT))
     }
 
     private fun buildViewItemAction(local: ResourceType): NotificationCompat.Action? {
@@ -844,7 +863,8 @@ abstract class SyncManager<ResourceType: LocalResource<*>, out CollectionType: L
         }
         return if (intent != null && context.packageManager.resolveActivity(intent, 0) != null)
             NotificationCompat.Action(android.R.drawable.ic_menu_view, context.getString(R.string.sync_error_view_item),
-                PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT))
+                getPendingIntentActivity(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT)
+            )
         else
             null
     }
@@ -869,16 +889,22 @@ abstract class SyncManager<ResourceType: LocalResource<*>, out CollectionType: L
     protected fun notifyInvalidResource(e: Throwable, fileName: String) {
         //val intent = buildDebugInfoIntent(e, null, collectionURL.resolve(fileName))
 
-        val builder = NotificationUtils.newBuilder(context, NotificationUtils.CHANNEL_SYNC_WARNINGS)
-        builder .setSmallIcon(R.drawable.ic_warning_notify)
-            .setContentTitle(notifyInvalidResourceTitle())
-            .setContentText(context.getString(R.string.sync_invalid_resources_ignoring))
-            .setSubText(mainAccount.name)
-            //.setContentIntent(PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT))
-            .setAutoCancel(true)
-            .setOnlyAlertOnce(true)
-            .priority = NotificationCompat.PRIORITY_LOW
-        notificationManager.notify(notificationTag, NotificationUtils.NOTIFY_INVALID_RESOURCE, builder.build())
+        if(ActivityCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+        ){
+            val builder = NotificationUtils.newBuilder(context, NotificationUtils.CHANNEL_SYNC_WARNINGS)
+            builder .setSmallIcon(R.drawable.ic_warning_notify)
+                .setContentTitle(notifyInvalidResourceTitle())
+                .setContentText(context.getString(R.string.sync_invalid_resources_ignoring))
+                .setSubText(mainAccount.name)
+                //.setContentIntent(PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT))
+                .setAutoCancel(true)
+                .setOnlyAlertOnce(true)
+                .priority = NotificationCompat.PRIORITY_LOW
+            notificationManager.notify(notificationTag, NotificationUtils.NOTIFY_INVALID_RESOURCE, builder.build())
+        }
     }
 
     protected abstract fun notifyInvalidResourceTitle(): String

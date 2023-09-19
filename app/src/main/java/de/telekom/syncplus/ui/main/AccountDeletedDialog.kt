@@ -2,14 +2,21 @@ package de.telekom.syncplus.ui.main
 
 import android.annotation.SuppressLint
 import android.app.Dialog
-import android.content.Context
 import android.os.Bundle
 import android.view.Window
 import androidx.fragment.app.DialogFragment
 import de.telekom.syncplus.R
 import kotlinx.android.synthetic.main.dialog_energysaver.view.*
 
-class AccountDeletedDialog(private val ctx: Context) : DialogFragment() {
+class AccountDeletedDialog : DialogFragment() {
+
+    companion object {
+        fun instantiate(): AccountDeletedDialog {
+            return AccountDeletedDialog()
+        }
+    }
+
+
     @SuppressLint("InflateParams")
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
         val view = layoutInflater.inflate(R.layout.dialog_account_deleted, null)
