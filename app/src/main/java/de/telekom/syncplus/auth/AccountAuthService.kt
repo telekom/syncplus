@@ -27,10 +27,13 @@ import android.os.Bundle
 import android.os.IBinder
 import android.util.Log
 import androidx.annotation.WorkerThread
+import androidx.core.os.bundleOf
 import de.telekom.dtagsyncpluskit.davx5.log.Logger
 import de.telekom.dtagsyncpluskit.davx5.resource.LocalAddressBook
 import de.telekom.syncplus.LoginActivity
 import de.telekom.syncplus.R
+import de.telekom.syncplus.util.EmailAccountFlagController
+import de.telekom.syncplus.util.Prefs
 import kotlin.concurrent.thread
 
 class AccountAuthService : Service() {
@@ -60,21 +63,24 @@ class AccountAuthService : Service() {
 
     private lateinit var accountAuthenticator: AccountAuthenticator
     private lateinit var accountManager: AccountManager
+    private val onAccountUpdateListener by lazy {
+        OnAccountsUpdateListener {
+            thread {
+                cleanupAccounts(applicationContext)
+            }
+        }
+    }
 
     override fun onCreate() {
         super.onCreate()
         accountAuthenticator = AccountAuthenticator(this)
         accountManager = AccountManager.get(this)
-        accountManager.addOnAccountsUpdatedListener({
-            thread {
-                cleanupAccounts(applicationContext)
-            }
-        }, null, true)
+        accountManager.addOnAccountsUpdatedListener(onAccountUpdateListener, null, true)
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        accountManager.removeOnAccountsUpdatedListener {}
+        accountManager.removeOnAccountsUpdatedListener(onAccountUpdateListener)
     }
 
     override fun onBind(intent: Intent?): IBinder? {
@@ -84,6 +90,7 @@ class AccountAuthService : Service() {
     }
 
     class AccountAuthenticator(val context: Context) : AbstractAccountAuthenticator(context) {
+
         override fun addAccount(
             response: AccountAuthenticatorResponse?,
             accountType: String?,
@@ -91,11 +98,16 @@ class AccountAuthService : Service() {
             requiredFeatures: Array<out String>?,
             options: Bundle?
         ): Bundle {
-            val intent = Intent(context, LoginActivity::class.java)
-            intent.putExtra(AccountManager.KEY_ACCOUNT_AUTHENTICATOR_RESPONSE, response)
-            val bundle = Bundle(1)
-            bundle.putParcelable(AccountManager.KEY_INTENT, intent)
-            return bundle
+            return if (EmailAccountFlagController.isAddAccountStarted) {
+                EmailAccountFlagController.isAddAccountStarted = false
+                EmailAccountFlagController.isInternalAccountSelected = true
+
+                bundleOf()
+            } else {
+                val intent = Intent(context, LoginActivity::class.java)
+                    .putExtra(AccountManager.KEY_ACCOUNT_AUTHENTICATOR_RESPONSE, response)
+                bundleOf(AccountManager.KEY_INTENT to intent)
+            }
         }
 
         override fun getAuthTokenLabel(authTokenType: String?) = null

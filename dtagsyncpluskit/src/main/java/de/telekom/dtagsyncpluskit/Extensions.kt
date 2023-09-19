@@ -25,6 +25,8 @@ import android.os.Build
 import android.text.Html
 import android.text.Spanned
 import androidx.fragment.app.Fragment
+import de.telekom.dtagsyncpluskit.api.error.ApiError
+import de.telekom.dtagsyncpluskit.davx5.log.Logger
 import de.telekom.dtagsyncpluskit.utils.Err
 import de.telekom.dtagsyncpluskit.utils.Ok
 import de.telekom.dtagsyncpluskit.utils.ResultExt
@@ -32,6 +34,8 @@ import kotlinx.coroutines.*
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 import kotlin.coroutines.resume
 
 val Int.dp: Int
@@ -72,23 +76,73 @@ inline fun <reified T : Any> Fragment.extraNotNull(key: String, default: T? = nu
     requireNotNull(if (value is T) value else default) { key }
 }
 
-suspend fun <T> Call<T>.awaitResponse() =
-    withContext<ResultExt<Response<T>, Throwable>>(Dispatchers.IO) {
+suspend fun <T> Call<T>.awaitResponse(): ResultExt<Response<T>, ApiError> =
+    withContext(Dispatchers.IO) {
         suspendCancellableCoroutine { continuation ->
             continuation.invokeOnCancellation {
-                cancel()
+                this@awaitResponse.cancel() // cancel Call enqueuing
             }
             enqueue(object : Callback<T> {
                 override fun onResponse(call: Call<T>, response: Response<T>) {
-                    continuation.resume(Ok(response))
+                    if (response.isSuccessful) {
+                        continuation.resume(Ok(response))
+                        return
+                    }
+
+                    continuation.resume(Err(exposeError(call, response)))
                 }
 
                 override fun onFailure(call: Call<T>, t: Throwable) {
-                    continuation.resume(Err(t))
+                    val error = when (t) {
+                        is SocketTimeoutException -> ApiError.TimeoutException
+                        is UnknownHostException -> ApiError.UnknownHostException
+                        else -> ApiError.NoResponse
+                    }
+                    continuation.resume(Err(error))
                 }
             })
         }
     }
+
+suspend fun <T> Call<T>.await(): ResultExt<T, ApiError> =
+    withContext(Dispatchers.IO) {
+        suspendCancellableCoroutine { continuation ->
+            continuation.invokeOnCancellation {
+                this@await.cancel() // cancel Call enqueuing
+            }
+            enqueue(object : Callback<T> {
+                override fun onResponse(call: Call<T>, response: Response<T>) {
+                    if (response.isSuccessful) {
+                        response.body()?.let {
+                            continuation.resume(Ok(it))
+                        } ?: continuation.resume(Err(ApiError.ResponseBodyNull))
+                    } else {
+                        continuation.resume(Err(exposeError(call, response)))
+                    }
+                }
+
+                override fun onFailure(call: Call<T>, t: Throwable) {
+                    val error = when (t) {
+                        is SocketTimeoutException -> ApiError.TimeoutException
+                        is UnknownHostException -> ApiError.UnknownHostException
+                        else -> ApiError.NoResponse
+                    }
+                    continuation.resume(Err(error))
+                }
+            })
+        }
+    }
+
+
+private fun <T> exposeError(call: Call<T>, response: Response<T>): ApiError {
+    val message =
+        "Request is failed. Code: ${response.code()}. Error: ${response.errorBody()?.string()}"
+    Logger.log.warning(message)
+    return when (response.code()) {
+        ApiError.ContactError.TooManyContacts.errorCode -> ApiError.ContactError.TooManyContacts
+        else -> ApiError.ResponseUnsuccessful(response)
+    }
+}
 
 fun String.fromHTML(): Spanned {
     return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {

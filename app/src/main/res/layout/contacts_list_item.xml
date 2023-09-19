@@ -19,6 +19,7 @@
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/rowContainer"
     android:layout_width="match_parent"
     android:layout_height="93dp"
@@ -46,6 +47,7 @@
             android:layout_height="28dp"
             android:layout_marginEnd="@dimen/marginEnd"
             android:layout_weight="1"
+            tools:text="@tools:sample/lorem"
             android:fontFamily="@font/telegrotesknext_regular"
             android:gravity="center_vertical"
             android:singleLine="true"

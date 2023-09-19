@@ -58,14 +58,15 @@
         android:layout_height="55dp"
         android:orientation="horizontal"
         android:paddingStart="@dimen/dialogPadding"
-        android:paddingEnd="@dimen/dialogPadding">
+        android:paddingEnd="@dimen/dialogPadding"
+        android:weightSum="10">
 
         <com.google.android.material.button.MaterialButton
             android:id="@android:id/button1"
             style="@style/Widget.MaterialComponents.Button.TextButton"
             android:layout_width="0dp"
             android:layout_height="55dp"
-            android:layout_weight="0.5"
+            android:layout_weight="3"
             android:fontFamily="@font/telegrotesknext_regular"
             android:letterSpacing="-0.02"
             android:paddingRight="4dp"
@@ -84,7 +85,7 @@
             style="@style/Widget.MaterialComponents.Button.TextButton"
             android:layout_width="0dp"
             android:layout_height="55dp"
-            android:layout_weight="0.7"
+            android:layout_weight="7"
             android:fontFamily="@font/telegrotesknext_regular"
             android:letterSpacing="-0.02"
             android:paddingLeft="4dp"
@@ -92,7 +93,7 @@
             android:shadowDx="0"
             android:shadowDy="0"
             android:singleLine="true"
-            android:text="Kopieren abbrechen"
+            android:text="@string/button_title_cancel_copy"
             android:textAlignment="textEnd"
             android:textColor="@color/colorPrimary"
             android:textSize="@dimen/fontSizeVerySmall"

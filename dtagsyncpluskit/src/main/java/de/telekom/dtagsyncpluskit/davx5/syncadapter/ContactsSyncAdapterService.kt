@@ -48,7 +48,6 @@ abstract class ContactsSyncAdapterService: SyncAdapterService() {
 
     override fun syncAdapter() = ContactsSyncAdapter(this)
 
-
     class ContactsSyncAdapter(
         private val service: SyncAdapterService
     ): SyncAdapter(service) {

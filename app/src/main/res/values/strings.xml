@@ -144,8 +144,12 @@
     <string name="dialog_contacts_not_merged">Kontakte nicht zusammengeführt</string>
     <string name="dialog_contacts_not_merged_description">Wenn Sie diesen Vorgang überspringen, werden Ihre doppelten Kontakte nicht zusammengeführt und werden einzeln in Ihrem Adressbuch erscheinen.</string>
     <string name="write_protected">(Schreibgeschützt)</string>
-    <string name="dialog_permission_required_title">Berechtigung für Kontaktimport notwendig</string>
-    <string name="dialog_permission_required_text">Um Kontakte von Ihrem Gerät in Ihr Adressbuch in der Cloud zu übertragen, wird der Zugriff auf die Kontakte benötigt.</string>
+    <string name="dialog_permission_required_title">Berechtigungen notwendig</string>
+    <string name="dialog_permission_required_text">Um Kontakte und Kalendereinträge in die Cloud zu übertragen, wird der Zugriff auf die Kontakte und den Kalender benötigt.</string>
+    <string name="dialog_contacts_permission_required_title">Berechtigung für Kontaktimport notwendig</string>
+    <string name="dialog_contacts_permission_required_text">Um Kontakte von Ihrem Gerät in Ihr Adressbuch in der Cloud zu übertragen, wird der Zugriff auf die Kontakte benötigt.</string>
+    <string name="dialog_calendar_permission_required_title">Berechtigung für Kalender notwendig</string>
+    <string name="dialog_calendar_permission_required_text">Um Kalendereinträge von Ihrem Gerät in Ihren Kalender in der Cloud zu übertragen, wird der Zugriff auf den Kalender benötigt.</string>
     <string name="button_title_ok">OK</string>
     <string name="topbar_title_sync_calendar">Kalender synchronisieren</string>
     <string name="setup_finished">Einrichtung abgeschlossen</string>
@@ -155,13 +159,15 @@
     <string name="manage_accounts">Manage accounts</string>
     <string name="calendar">Kalender</string>
     <string name="address_book">Adressbuch</string>
-    <string name="copyright">© 2021 Telekom Deutschland GmbH</string>
+    <string name="copyright">© 2023 Telekom Deutschland GmbH</string>
     <string name="information">Informationen</string>
-    <string name="help_and_answers">Hilfe und Antworten</string>
+    <string name="help_and_answers">Hilfe, Antworten, Feedback</string>
     <string name="help_for_syncplus">Hilfe zu Sync-Plus</string>
     <string name="reach_us">So erreichen Sie uns</string>
+    <string name="feedback">Feedback</string>
     <string name="disclaimer">Hinweise</string>
     <string name="datasecurity">Datenschutz</string>
+    <string name="datasecurity_settings">Datenschutz-Einstellungen</string>
     <string name="imprint">Impressum</string>
     <string name="legal">Rechtliches</string>
     <string name="licenses">Lizenzen</string>
@@ -197,7 +203,7 @@ vom Handy: 2202</string>
     <string name="fallbackName"><![CDATA[<Unbekannt>]]></string>
     <string name="please_wait">Einen Moment bitte …</string>
     <string name="contact">Kontakt</string>
-    <string name="placeholder">CHANGE ME PLEASE</string>
+    <string name="placeholder"></string>
     <string name="sync_now">Daten jetzt synchronisieren</string>
     <string name="sync_done">Synchronisation abgeschlossen</string>
     <string name="energy_saver_title">Wichtiger Hinweis zur Nutzung von Sync-Plus</string>
@@ -205,4 +211,62 @@ vom Handy: 2202</string>
     <string name="energy_saver_radio_text">Nicht mehr anzeigen</string>
     <string name="energy_saver_button_text">OK</string>
     <string name="account_deleted_text"><b>Hinweis:</b> Der Einrichtungsprozess von Sync-Plus wurde unterbrochen. Bitte richten Sie die Synchronisation erneut ein.</string>
+    <string name="data_privacy_text">Diese App verwendet Tools, z. B. in Form von SDKs (Software Developer Kit).
+        Diese können Informationen auf Ihrem Endgerät speichern und lesen.
+        Mit einem Klick auf „Alle akzeptieren“ akzeptieren Sie die Verarbeitung,
+        die Webseiten- und partnerübergreifende Erstellung von individuellen
+        Nutzungsprofilen sowie die Weitergabe Ihrer Daten an Drittanbieter,
+        die zum Teil Ihre Daten in Ländern außerhalb der europäischen Union verarbeiten (DSGVO Art. 49).
+        Details finden Sie im Abschnitt 3des <a href="#dataprivacy">Datenschutzhinweises</a>.
+        Die Daten werden für Analysen,
+        Retargeting und zur Ausspielung von personalisierten Inhalten und Werbung auf Seiten der Telekom,
+        sowie auf Drittanbieterseiten genutzt. Weitere Informationen,
+        auch zur Datenverarbeitung durch Drittanbieter und der Möglichkeit des Widerrufs,
+        finden Sie in den Einstellungen sowie in unseren Datenschutzhinweisen.\n
+        Hier geht es <a href="#next">weiter</a> nur mit den notwendigen Tools.
+    </string>
+    <string name="disclaimer_button_accept">Alle akzeptieren</string>
+    <string name="disclaimer_button_more">Einstellungen ändern</string>
+    <string name="disclaimer_button_privacy">Datenschutzhinweis</string>
+    <string name="data_privacy_settings_text">Um Ihnen ein optimales App Erlebnis zu bieten, setzen wir verschiedene Tools ein. Dazu zählen Tools für den Betrieb und die Optimierung der App, als auch für Services, wie die Nutzung des Text- oder Video Chats als auch für an Ihrem online Nutzungsverhalten orientierte Werbung. So kann z.B. erkannt werden, wenn Sie unsere App vom selben Gerät aus wiederholt nutzen. Wir möchten Ihnen die Wahl geben, welche Tools Sie zulassen:</string>
+    <string name="data_privacy_button_secondary">Auswahl bestätigen</string>
+    <string name="required">Erforderlich</string>
+    <string name="optional">Erlauben</string>
+    <string name="data_privacy_settings_title">Datenschutz-Einstellungen</string>
+    <string name="required_cookies_title">Erforderliche Tools</string>
+    <string name="required_cookies_description">Diese Tools sind notwendig, damit Sie durch die Seiten navigieren und wesentliche Funktionen nutzen können.</string>
+    <string name="analytical_cookies_title">Analytische Tools</string>
+    <string name="analytical_cookies_description">Diese Tools helfen uns, das Nutzungsverhalten besser zu verstehen.</string>
+    <string name="required_cookies_description_long">Sie ermöglichen Grundfunktionen, wie die Bestellabwicklung im Online-Shop und den Zugriff auf gesicherte Bereiche der App. Zudem dienen sie der anonymen Auswertung des Nutzerverhaltens, die von uns verwendet werden, um unsere App stetig für Sie weiterzuentwickeln.</string>
+    <string name="analytical_cookies_description_long">Analyse-Tools ermöglichen die Erhebung von Nutzungs- und Erkennungsmöglichkeiten durch Erst- oder Drittanbieter, in so genannten pseudonymen Nutzungsprofilen. Wir benutzen beispielsweise Analyse-Tools, um die Zahl der individuellen Nutzer einer App zu ermitteln oder um technische Informationen bei einem Absturz der App zu erheben, als auch das Nutzerverhalten auf Basis anonymer und pseudonymer Informationen zu analysieren, wie Nutzer mit der App interagieren. Ein unmittelbarer Rückschluss auf eine Person ist dabei nicht möglich.</string>
+    <string name="read_more">Mehr erfahren</string>
+    <string name="read_less">Weniger erfahren</string>
+    <string name="feedback_description">Ihnen gefällt die Sync-Plus App?\nWir freuen uns auf Ihre Bewertung.</string>
+    <string name="to_play_store">Zum Google Play Store</string>
+    <string name="feedback_msg_title">Sie vermissen etwas?</string>
+    <string name="feedback_msg_description">Schreiben Sie uns, damit wir die App für Sie verbessern können.</string>
+    <string name="feedback_msg_button_title">Nachricht schreiben</string>
+    <string name="disclaimer_dismiss">Zurück</string>
+    <string name="data_privacy_url">https://kommunikationsdienste.t-online.de/redirect/syncplus-aos/dataprivacy</string>
+    <string name="datasecurity_settings_title">Einwilligung in die Datenverarbeitung</string>
+    <string name="sync_disabled">Deaktiviert</string>
+    <string name="required_only_text">Nur erforderliche</string>
+    <string name="dialog_service_discovery_error_title">Fehler</string>
+    <string name="dialog_service_discovery_error_message">Es ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut.</string>
+    <string name="dialog_service_discovery_error_action">Erneut versuchen</string>
+
+    <string name="dialog_max_contact_count_error_title">Fehler</string>
+    <string name="dialog_max_contact_count_error_message">Die maximale Anzahl an Kontakten wurde erreicht. Die Kontakte von Ihrem Gerät können nicht mehr in die Cloud hochgeladen werden.</string>
+    <string name="dialog_max_contact_count_error_action">Weiter</string>
+    <string name="dialog_email_setup_error_title">Fehler</string>
+    <string name="dialog_email_setup_error_message">Bitte wählen Sie die Email App aus, mit der Sie Ihre Emails synchronisieren möchten</string>
+
+    <string name="notification_permission_dialog_setting_title">Berechtigung für Benachrichtigungen</string>
+    <string name="notification_permission_dialog_setting_message">Die Berechtigung für Benachrichtigungen ist erforderlich. Bitte erlauben Sie das Senden von Benachrichtigungen in den Einstellungen.</string>
+    <string name="notification_permission_dialog_setting_negative_action">Abbrechen</string>
+    <string name="notification_permission_dialog_setting_positive_action">Ok</string>
+
+    <string name="notification_permission_dialog_rationale_message">Zum Anzeigen von Benachrichtigungen benötigen wir Ihre Erlaubnis.</string>
+    <string name="notification_permission_dialog_rationale_negative_action">Abbrechen</string>
+    <string name="notification_permission_dialog_rationale_positive_action">Ok</string>
 </resources>

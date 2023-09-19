@@ -24,6 +24,7 @@ import android.accounts.Account
 import android.annotation.SuppressLint
 import android.app.Dialog
 import android.content.Context
+import android.content.pm.ActivityInfo
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -72,21 +73,25 @@ class AccountsFragment : BaseFragment() {
         val prefs = Prefs(requireContext())
         val currentVersionCode = BuildConfig.VERSION_CODE
         if (prefs.currentVersionCode < currentVersionCode) {
-            prefs.currentVersionCode = currentVersionCode
+            prefs.currentVersionCode = currentVersionCode.toInt()
         }
 
         if (!prefs.energySavingDialogShown && accountManager.getAccounts().isNotEmpty()) {
-            val dialog = EnergySaverDialog(requireContext())
-            dialog.show(childFragmentManager, "EnergySaver")
+            EnergySaverDialog.instantiate().show(
+                childFragmentManager,
+                "EnergySaver"
+            )
         }
     }
 
+    @SuppressLint("SourceLockedOrientationActivity")
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
         val v = inflater.inflate(R.layout.fragment_account, container, false)
+        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         v.list.adapter = AccountAdapter(requireContext(), getAccounts(), { position, adapter ->
             val account = adapter.getItem(position)
             startActivity(AccountSettingsActivity.newIntent(requireActivity(), account))
@@ -116,7 +121,7 @@ class AccountsFragment : BaseFragment() {
         val accounts = getAccounts()
         adapter?.dataSource = accounts
         adapter?.notifyDataSetChanged()
-        if (adapter?.dataSource?.count() == 0) {
+        if (adapter?.dataSource?.isEmpty() == true) {
             startActivity(
                 WelcomeActivity.newIntent(
                     requireActivity(),
@@ -136,10 +141,12 @@ class AccountsFragment : BaseFragment() {
             }
 
             // Request required permissions first.
-            requestPermissions(requiredPermissions) { granted, error ->
-                if (granted) {
-                } else {
-                    Logger.log.severe("Error: Granting Permission: $error")
+            requestPermissions(requiredPermissions) { granted, error, _ ->
+                when {
+                    granted -> {}
+                    else -> {
+                        Logger.log.severe("Error: Granting Permission: $error")
+                    }
                 }
             }
         }
@@ -170,6 +177,13 @@ class AccountsFragment : BaseFragment() {
         return accountManager.getAccounts().toMutableList()
     }
 
+    private fun deleteAppData() {
+        val prefs = Prefs(requireContext())
+        prefs.consentDialogShown = false
+        prefs.allTypesPrevSynced = false
+
+    }
+
     @SuppressLint("InflateParams")
     private fun showDeleteDialog(accountName: String, onDelete: () -> Unit) {
         val dialog = Dialog(requireContext())
@@ -181,7 +195,11 @@ class AccountsFragment : BaseFragment() {
             ViewGroup.LayoutParams.WRAP_CONTENT
         )
         v.cancelButton.setOnClickListener { dialog.dismiss() }
-        v.acceptButton.setOnClickListener { dialog.dismiss(); onDelete() }
+        v.acceptButton.setOnClickListener {
+            dialog.dismiss()
+            onDelete()
+            deleteAppData()
+        }
         dialog.setCanceledOnTouchOutside(false)
         dialog.setCancelable(false)
         dialog.setContentView(v, lp)

@@ -19,17 +19,14 @@
 
 package de.telekom.syncplus
 
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
-import android.webkit.WebResourceRequest
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import de.telekom.dtagsyncpluskit.extraNotNull
 import de.telekom.dtagsyncpluskit.ui.BaseActivity
 import de.telekom.syncplus.ui.main.WebViewFragment
-import kotlinx.android.synthetic.main.activity_webview.*
 import kotlinx.android.synthetic.main.layout_small_topbar.*
 
 class WebViewActivity : BaseActivity() {
@@ -44,6 +41,7 @@ class WebViewActivity : BaseActivity() {
 
     private val mUrl by extraNotNull<Uri>(ARG_URL)
 
+    @SuppressLint("CommitTransaction")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_webview)

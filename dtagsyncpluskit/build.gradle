@@ -13,29 +13,32 @@ apply from: '../utils.gradle'
 //}
 
 android {
-    compileSdkVersion 30
-    buildToolsVersion '30.0.2'
+    compileSdkVersion 33
 
     defaultConfig {
-        minSdkVersion 26    // Android 5
-        targetSdkVersion 30 // Android 11
-        versionCode 37
-        versionName "1.5.3"
+        minSdkVersion 26    // Android 8
+        targetSdkVersion 33 // Android 13
         multiDexEnabled true
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles 'consumer-rules.pro'
 
         buildConfigField "String", "userAgent", "\"syncplus\""
-        buildConfigField "String", "okhttpVersion", "\"4.4.0\""
+        buildConfigField "String", "okhttpVersion", "\"4.10.0\""
         buildConfigField "long", "buildTime", System.currentTimeMillis() + "L"
         buildConfigField "boolean", "customCerts", "true"
-        buildConfigField "long", "VERSION_CODE", "${defaultConfig.versionCode}"
+
+
+        buildConfigField "long", "VERSION_CODE", "${defaultConfig.versionCode ?: 0}"
         buildConfigField "String", "VERSION_NAME", "\"${defaultConfig.versionName}\""
 
         buildConfigField "java.util.Map<String, String[]>", "ENVIRON", getEnvHashMapAsString(env)
         resValue "string", "REDIRECT_SCHEME", "tbssamsyncplus"
         resValue "string", "REDIRECT_URI", "tbssamsyncplus://loginsuccess"
+    }
+
+    buildFeatures {
+        viewBinding = true
     }
 
     flavorDimensions "environment"
@@ -69,41 +72,49 @@ android {
     kotlinOptions {
         jvmTarget = '1.8'
     }
+
+    packagingOptions {
+        resources.excludes.add("META-INF/*")
+        resources.excludes.add("META-INF/groovy/*")
+    }
 }
 
 dependencies {
-    api project(':cert4android')
-    api project(':ical4android')
-    api project(':vcard4android')
+
     implementation fileTree(dir: 'libs', include: ['*.jar'])
     //implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
-    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.4.1"
-    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.4.2"
-    implementation 'androidx.appcompat:appcompat:1.2.0'
-    implementation 'androidx.core:core-ktx:1.3.2'
-    implementation 'androidx.multidex:multidex:2.0.1'
-    implementation('com.gitlab.bitfireAT:dav4jvm:2.1.2')
-    implementation "com.squareup.okhttp3:okhttp:4.9.1"
-    api "com.squareup.okhttp3:logging-interceptor:4.9.1"
-    api "com.squareup.retrofit2:retrofit:2.8.1"
-    api "com.squareup.retrofit2:converter-moshi:2.8.1"
-    api 'com.squareup.retrofit2:converter-scalars:2.8.1'
-    api 'com.squareup.moshi:moshi:1.8.0'
-    api 'com.squareup.moshi:moshi-kotlin:1.8.0'
-    api 'dnsjava:dnsjava:2.1.9'
-    api 'net.openid:appauth:0.8.1'
-    api 'com.karumi:dexter:6.0.2'
-    implementation 'com.auth0.android:jwtdecode:2.0.0'
-    api 'androidx.paging:paging-runtime-ktx:2.1.2'
-    implementation 'androidx.lifecycle:lifecycle-livedata-ktx:2.3.1'
+    implementation libs.coroutines.android
+    implementation libs.coroutines.core
+    implementation libs.appcompat
+    implementation libs.core.ktx
+    implementation libs.multidex
+    implementation libs.dav4jvm
+    implementation libs.okhttp
+    api libs.okhttp.logging.interceptor
+    api libs.retrofit
+    api libs.converter.moshi
+    api libs.converter.scalars
+    api libs.moshi
+    api libs.moshi.kotlin
+    api libs.dnsjava
+    api libs.appauth
+    api libs.dexter
+    api libs.countly
+    implementation libs.jwtdecode
+    api libs.paging.runtime.ktx
+    implementation libs.lifecycle.livedata.ktx
 
-    def room_version = '2.2.6'
-    implementation "androidx.room:room-runtime:$room_version"
-    implementation "androidx.room:room-ktx:$room_version"
-    kapt "androidx.room:room-compiler:$room_version"
+    implementation libs.room.runtime
+    implementation libs.room.ktx
+    kapt libs.room.compiler
 
     // Testing
-    testImplementation 'junit:junit:4.13.1'
-    androidTestImplementation 'androidx.test.ext:junit:1.1.2'
-    androidTestImplementation 'androidx.test.espresso:espresso-core:3.3.0'
+    testImplementation libs.junit
+    androidTestImplementation libs.junit.android
+    androidTestImplementation libs.espresso.core
+
+    // TODO Update after the migration to Kotlin 1.8+
+    implementation 'com.github.bitfireAT:cert4android:75d64c2'
+    implementation 'com.github.bitfireAT:ical4android:43ef146'
+    implementation 'com.github.bitfireAT:vcard4android:a6e9dc4'
 }

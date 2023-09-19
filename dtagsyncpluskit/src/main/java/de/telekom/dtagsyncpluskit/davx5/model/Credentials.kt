@@ -30,7 +30,6 @@ package de.telekom.dtagsyncpluskit.davx5.model
 import android.accounts.Account
 import android.accounts.AccountManager
 import android.content.Context
-import de.telekom.dtagsyncpluskit.BuildConfig
 import de.telekom.dtagsyncpluskit.api.ServiceEnvironments
 import de.telekom.dtagsyncpluskit.davx5.log.Logger
 import de.telekom.dtagsyncpluskit.utils.IDMAccountManager
@@ -49,12 +48,10 @@ class Credentials(
 
     var accessToken: String?
         get() {
-            val accessToken = accountManager.getPassword(account)
-            Logger.log.info("GetAccessToken: $accessToken")
-            return accessToken
+            return accountManager.getPassword(account)
         }
         set(value) {
-            Logger.log.info("SetAccessToken: $value")
+            Logger.log.info("Access token is stored")
             accountManager.setPassword(account, value)
         }
 
@@ -65,24 +62,11 @@ class Credentials(
         }
 
     fun getRefreshTokenSync(): String? {
-        //check(Looper.myLooper() != Looper.getMainLooper()) { "must not be run on main thread" }
-        //return accountManager.blockingGetAuthToken(account, "full_access", true)
-
-        val token = accountManager.getUserData(account, IDMAccountManager.KEY_REFRESH_TOKEN)
-        if (BuildConfig.DEBUG) {
-            Logger.log.info("getRefreshTokenSync() | refreshToken: $token")
-        } else {
-            Logger.log.info("getRefreshTokenSync()")
-        }
-        return token
+        return accountManager.getUserData(account, IDMAccountManager.KEY_REFRESH_TOKEN)
     }
 
     fun setRefreshToken(refreshToken: String?) {
-        if (BuildConfig.DEBUG) {
-            Logger.log.info("setRefreshToken() | refreshToken: $refreshToken")
-        } else {
-            Logger.log.info("setRefreshTokenSync()")
-        }
+        Logger.log.info("Refresh token is stored")
         accountManager.setUserData(account, IDMAccountManager.KEY_REFRESH_TOKEN, refreshToken)
     }
 }

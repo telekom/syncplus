@@ -25,7 +25,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
-import de.telekom.dtagsyncpluskit.extraNotNull
 import de.telekom.dtagsyncpluskit.model.spica.Duplicate
 import de.telekom.dtagsyncpluskit.ui.BaseFragment
 import de.telekom.dtagsyncpluskit.ui.BaseListAdapter

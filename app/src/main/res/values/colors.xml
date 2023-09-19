@@ -1,5 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!--
+<?xml version="1.0" encoding="utf-8"?><!--
     This file is part of SyncPlus.
 
     Copyright (C) 2020  Deutsche Telekom AG
@@ -40,5 +39,13 @@
     <color name="button_border_color">#6B6B6B</color>
     <color name="button_border_color_disabled">#806B6B6B</color>
     <color name="rippleColor">#33ACACAC</color>
+
+    <color name="transparentGrey">#6B4C4C4C</color>
+
+    <color name="switchBorderColor">#707070</color>
+    <color name="switchThumbColor">#ffffff</color>
+    <color name="switchDisableTrackColor">#a6d784</color>
+    <color name="switchActiveTrackColor">#47ad00</color>
+    <color name="switchInactiveTrackColor">#f6f6f6</color>
 
 </resources>

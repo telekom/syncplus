@@ -19,7 +19,9 @@
 
 package de.telekom.syncplus.dav
 
+import android.Manifest
 import android.accounts.Account
+import android.annotation.SuppressLint
 import android.content.ContentProviderClient
 import android.content.SyncResult
 import android.os.Bundle
@@ -29,27 +31,33 @@ import de.telekom.dtagsyncpluskit.davx5.settings.AccountSettings
 import de.telekom.dtagsyncpluskit.davx5.syncadapter.CalendarsSyncAdapterService
 import de.telekom.dtagsyncpluskit.davx5.ui.NotificationUtils
 import de.telekom.syncplus.App
+import de.telekom.syncplus.extensions.isPermissionGranted
 import de.telekom.syncplus.util.Prefs
 
+@SuppressLint("MissingPermission")
 class CalendarsSyncAdapterService : CalendarsSyncAdapterService() {
     private val notificationManager by lazy { NotificationManagerCompat.from(this) }
     private val prefs by lazy { Prefs(this.applicationContext) }
 
     override fun onSecurityException(account: Account, syncResult: SyncResult) {
         if ((this.applicationContext as? App)?.inSetup == true) return
-        notificationManager.notify(
-            NotificationUtils.notificationTag(syncResult.toDebugString(), account),
-            NotificationUtils.NOTIFY_PERMISSIONS,
-            DavNotificationUtils.buildMissingPermissionNotification(this)
-        )
+        if (isPermissionGranted(Manifest.permission.POST_NOTIFICATIONS)) {
+            notificationManager.notify(
+                NotificationUtils.notificationTag(syncResult.toDebugString(), account),
+                NotificationUtils.NOTIFY_PERMISSIONS,
+                DavNotificationUtils.buildMissingPermissionNotification(this)
+            )
+        }
     }
 
     override fun onLoginException(authority: String, account: Account) {
-        notificationManager.notify(
-            NotificationUtils.notificationTag(authority, account),
-            NotificationUtils.NOTIFY_SYNC_ERROR,
-            DavNotificationUtils.buildReloginNotification(this, account)
-        )
+        if (isPermissionGranted(Manifest.permission.POST_NOTIFICATIONS)) {
+            notificationManager.notify(
+                NotificationUtils.notificationTag(authority, account),
+                NotificationUtils.NOTIFY_SYNC_ERROR,
+                DavNotificationUtils.buildReloginNotification(this, account)
+            )
+        }
     }
 
     override fun onSyncWillRun(
@@ -79,11 +87,13 @@ class CalendarsSyncAdapterService : CalendarsSyncAdapterService() {
         val i = accountSettings.getSyncInterval(authority)
         val interval = if (i == null) Long.MAX_VALUE else i * 1000
         if (lastSync != null && (currentSync - lastSync) > (interval * 2)) {
-            notificationManager.notify(
-                NotificationUtils.notificationTag(authority, account),
-                NotificationUtils.NOTIFY_SYNC_ERROR,
-                DavNotificationUtils.energySavingNotification(this)
-            )
+            if (isPermissionGranted(Manifest.permission.POST_NOTIFICATIONS)) {
+                notificationManager.notify(
+                    NotificationUtils.notificationTag(authority, account),
+                    NotificationUtils.NOTIFY_SYNC_ERROR,
+                    DavNotificationUtils.energySavingNotification(this)
+                )
+            }
         }
         prefs.lastSyncs = lastSyncs
     }

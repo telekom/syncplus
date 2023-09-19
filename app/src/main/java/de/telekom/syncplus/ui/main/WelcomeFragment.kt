@@ -19,10 +19,10 @@
 
 package de.telekom.syncplus.ui.main
 
-import android.accounts.Account
+import android.annotation.SuppressLint
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.os.Bundle
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -30,7 +30,6 @@ import androidx.constraintlayout.widget.ConstraintLayout
 import de.telekom.dtagsyncpluskit.extraNotNull
 import de.telekom.dtagsyncpluskit.ui.BaseFragment
 import de.telekom.dtagsyncpluskit.utils.IDMAccountManager
-import de.telekom.syncplus.AccountSettingsActivity
 import de.telekom.syncplus.IntroActivity
 import de.telekom.syncplus.LoginActivity
 import de.telekom.syncplus.R
@@ -55,15 +54,17 @@ class WelcomeFragment : BaseFragment() {
 
     private val mAccountDeleted by extraNotNull(ARG_ACCOUNTS_DELETED, false)
 
+    @SuppressLint("SourceLockedOrientationActivity")
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
         val v = inflater.inflate(R.layout.fragment_welcome, container, false)
         val prefs = Prefs(requireContext())
+        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         val hasAccounts = IDMAccountManager(
             requireContext(),
             DavNotificationUtils.reloginCallback(requireContext(), "authority")
-        ).getAccounts().count() > 0
+        ).getAccounts().isNotEmpty()
         if (hasAccounts) {
             val lp = v.title.layoutParams as ConstraintLayout.LayoutParams
             lp.verticalBias = 0.3f
@@ -78,19 +79,18 @@ class WelcomeFragment : BaseFragment() {
         }
 
         v.button1.setOnClickListener {
-            if (prefs.starts == 0) {
-                val intent = Intent(context, IntroActivity::class.java)
-                startActivity(intent)
+            if (!prefs.allTypesPrevSynced) {
+                startActivity(Intent(context, IntroActivity::class.java))
             } else {
                 startSetup()
             }
-
-            prefs.starts += 1
         }
 
         if (mAccountDeleted) {
-            val dialog = AccountDeletedDialog(requireContext())
-            dialog.show(childFragmentManager, "AccountDeleted")
+            AccountDeletedDialog.instantiate().show(
+                childFragmentManager,
+                "AccountDeleted"
+            )
         }
 
         return v

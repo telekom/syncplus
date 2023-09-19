@@ -24,6 +24,7 @@ import android.accounts.Account
 import android.annotation.SuppressLint
 import android.app.Dialog
 import android.content.Context
+import android.content.pm.ActivityInfo
 import android.graphics.drawable.AnimatedVectorDrawable
 import android.os.Build
 import android.os.Bundle
@@ -41,10 +42,13 @@ import android.widget.ListView
 import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.activityViewModels
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import de.telekom.dtagsyncpluskit.davx5.log.Logger
 import de.telekom.dtagsyncpluskit.davx5.model.Collection
 import de.telekom.dtagsyncpluskit.davx5.settings.AccountSettings
+import de.telekom.dtagsyncpluskit.davx5.settings.AccountSettings.Companion.SYNC_INTERVAL_MANUALLY
 import de.telekom.dtagsyncpluskit.dp
 import de.telekom.dtagsyncpluskit.extraNotNull
 import de.telekom.dtagsyncpluskit.ui.BaseFragment
@@ -101,6 +105,7 @@ class AccountSettingsFragment : BaseFragment() {
 
     private val mAccount by extraNotNull<Account>(ARG_ACCOUNT)
     private val mHandler = Handler(Looper.getMainLooper())
+    private val viewModel by activityViewModels<CalendarCollectionsViewModel>()
 
     @SuppressLint("InflateParams")
     override fun onCreateView(
@@ -108,14 +113,9 @@ class AccountSettingsFragment : BaseFragment() {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-        val accountSettings =
-            AccountSettings(
-                requireContext(),
-                App.serviceEnvironments(requireContext()),
-                mAccount,
-                DavNotificationUtils.reloginCallback(requireContext(), "authority")
-            )
+        val accountSettings = getAccountSettings(mAccount)
         val v = inflater.inflate(R.layout.fragment_accounts_settings, null)
+        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         v.email.text = mAccount.name
         setupCalendarSubView(v, accountSettings)
         setupAddressBookSubView(v, accountSettings)
@@ -159,14 +159,8 @@ class AccountSettingsFragment : BaseFragment() {
     override fun onResume() {
         super.onResume()
         val ctx = requireContext()
-        val accountSettings =
-            AccountSettings(
-                ctx,
-                App.serviceEnvironments(ctx),
-                mAccount,
-                DavNotificationUtils.reloginCallback(ctx, "authority"))
         view?.let {
-            updateLastSyncDate(it, accountSettings)
+            updateLastSyncDate(it, getAccountSettings(mAccount))
         }
     }
 
@@ -186,7 +180,8 @@ class AccountSettingsFragment : BaseFragment() {
             view.synctext_calendar?.visibility = View.GONE
         }
 
-        val addressSyncDate = accountSettings.lastSyncDate(getString(de.telekom.dtagsyncpluskit.R.string.address_books_authority))
+        val addressSyncDate =
+            accountSettings.lastSyncDate(getString(de.telekom.dtagsyncpluskit.R.string.address_books_authority))
         if (addressSyncDate != null) {
             val (dayMonYear, hourMin) = addressSyncDate
             view.synctext?.text = getString(R.string.synctext_format, dayMonYear, hourMin)
@@ -199,15 +194,14 @@ class AccountSettingsFragment : BaseFragment() {
 
     @SuppressLint("MissingPermission")
     private fun setupCalendarSubView(v: View, accountSettings: AccountSettings) {
-        val model by activityViewModels<CalendarCollectionsViewModel>()
         val calendarEnabled = accountSettings.isCalendarSyncEnabled()
         v.calendarSwitch.isChecked = calendarEnabled
-        v.calendarList.adapter = CalendarAdapter(requireContext(), ArrayList(), model)
+        v.calendarList.adapter = CalendarAdapter(requireContext(), ArrayList(), viewModel)
         setListOpened(calendarEnabled, v.calendarListWrapper, v.calendarList)
 
         val enableCalendarSync: (isEnabled: Boolean) -> Unit = { isEnabled ->
             accountSettings.setCalendarSyncEnabled(isEnabled)
-            model.enableSync(isEnabled)
+            viewModel.enableSync(isEnabled)
 
             val adapter = v.calendarList.adapter as? CalendarAdapter
             adapter?.notifyDataSetChanged()
@@ -223,13 +217,13 @@ class AccountSettingsFragment : BaseFragment() {
                     Manifest.permission.READ_CALENDAR,
                     Manifest.permission.WRITE_CALENDAR
                 )
-                requestPermissions(*requiredPermissions) { granted, error ->
+                requestPermissions(*requiredPermissions) { granted, error, _ ->
                     if (granted) {
                         enableCalendarSync(true)
                     } else {
                         Logger.log.severe("Error: Granting Permission: $error")
                         // TODO: Direct to tutorial turning them back on.
-                        v.calendarSwitch.isChecked = !isChecked
+                        v.calendarSwitch.isChecked = false
                     }
                 }
 
@@ -237,21 +231,71 @@ class AccountSettingsFragment : BaseFragment() {
                 enableCalendarSync(false)
             }
         }
+    }
 
-        model.fetch(mAccount, App.serviceEnvironments(requireContext()), Collection.TYPE_CALENDAR)
-        model.fetcher.observe(viewLifecycleOwner, { fetcher ->
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
+        viewModel.fetcher.observe(viewLifecycleOwner) { fetcher ->
             fetcher?.collections?.removeObservers(viewLifecycleOwner)
-            fetcher?.collections?.observe(viewLifecycleOwner, { collections ->
-                val adapter = v.calendarList.adapter as? CalendarAdapter
+            fetcher?.collections?.observe(viewLifecycleOwner) { collections ->
+                val adapter = view.calendarList.adapter as? CalendarAdapter
                 adapter?.dataSource = sortCalendarCollections(collections.toList())
                 adapter?.notifyDataSetChanged()
                 setListOpened(
-                    accountSettings.isCalendarSyncEnabled(),
-                    v.calendarListWrapper,
-                    v.calendarList
+                    getAccountSettings(mAccount).isCalendarSyncEnabled(),
+                    view.calendarListWrapper,
+                    view.calendarList
                 )
-            })
-        })
+            }
+        }
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.showError.collect { showErrorDialog() }
+            }
+        }
+
+        childFragmentManager.setFragmentResultListener(
+            ServiceDiscoveryErrorDialog.ACTION_RETRY_SERVICE_DISCOVERY,
+            viewLifecycleOwner
+        ) { _, _ -> discoverServices() }
+
+        fetchCollections()
+    }
+
+    private fun discoverServices() {
+        val settings = getAccountSettings(mAccount)
+        viewModel.discoverServices(
+            mAccount,
+            App.serviceEnvironments(requireContext()),
+            Collection.TYPE_CALENDAR,
+            settings.isCalendarSyncEnabled(),
+            settings.isContactSyncEnabled()
+        )
+    }
+
+    private fun fetchCollections() {
+        viewModel.fetch(
+            mAccount,
+            App.serviceEnvironments(requireContext()),
+            Collection.TYPE_CALENDAR,
+            isSyncEnabled = false // Rely only on stored values to not change its sync state forcefully
+        )
+    }
+
+    private fun getAccountSettings(account: Account): AccountSettings {
+        return AccountSettings(
+            requireContext(),
+            App.serviceEnvironments(requireContext()),
+            account,
+            DavNotificationUtils.reloginCallback(requireContext(), CalendarContract.AUTHORITY)
+        )
+    }
+
+    private fun showErrorDialog() {
+        ServiceDiscoveryErrorDialog.instantiate()
+            .show(childFragmentManager, "ServiceDiscoveryErrorDialog")
     }
 
     private fun setupAddressBookSubView(v: View, accountSettings: AccountSettings) {
@@ -275,13 +319,13 @@ class AccountSettingsFragment : BaseFragment() {
                     Manifest.permission.READ_CONTACTS,
                     Manifest.permission.WRITE_CONTACTS
                 )
-                requestPermissions(*requiredPermissions) { granted, error ->
+                requestPermissions(*requiredPermissions) { granted, error, _ ->
                     if (granted) {
                         enableContactSync(true)
                     } else {
                         Logger.log.severe("Error: Granting Permission: $error")
                         // TODO: Direct to tutorial turning them back on.
-                        v.addressBookSwitch.isChecked = !isChecked
+                        v.addressBookSwitch.isChecked = false
                     }
                 }
 
@@ -322,9 +366,12 @@ class AccountSettingsFragment : BaseFragment() {
         }
     }
 
-    // Interval is in seconds!
     private fun formatSyncIntervalString(interval: Long): String {
         Logger.log.info("formatSyncIntervalString($interval)")
+        if (interval == 0L || interval == SYNC_INTERVAL_MANUALLY) {
+            return getString(R.string.sync_disabled)
+        }
+
         val intervalInMinutes = interval / 60
         if (intervalInMinutes <= 60) {
             return getString(R.string.every_x_minutes, intervalInMinutes)

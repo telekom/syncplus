@@ -19,28 +19,30 @@
 
 package de.telekom.dtagsyncpluskit.api
 
-import android.app.Application
+import android.content.Context
 import android.os.Handler
+import at.bitfire.dav4jvm.exception.UnauthorizedException
 import de.telekom.dtagsyncpluskit.auth.IDMAuth
 import de.telekom.dtagsyncpluskit.davx5.log.Logger
 import de.telekom.dtagsyncpluskit.davx5.model.Credentials
+import de.telekom.dtagsyncpluskit.utils.CountlyWrapper
 import okhttp3.Interceptor
 import okhttp3.Response
 
 class BearerAuthInterceptor(
-    private val app: Application,
+    private val context: Context,
     private val credentials: Credentials,
     private val noTokenRefresh: Boolean = false,
     private var unauthorizedCallback: (() -> Unit)? = null
 ) : Interceptor {
-    private val mAuth = IDMAuth(app)
+    private val mAuth = IDMAuth(context)
 
     fun setUnauthorizedCallback(callback: (() -> Unit)?) {
         unauthorizedCallback = callback
     }
 
     private fun buildUnauthorized(cb: (() -> Unit)? = null): Response {
-        Handler(app.mainLooper).post {
+        Handler(context.mainLooper).post {
             unauthorizedCallback?.invoke()
         }
         cb?.invoke()
@@ -50,10 +52,11 @@ class BearerAuthInterceptor(
     }
 
     private fun forwardUnauthorized(res: Response, cb: (() -> Unit)? = null): Response {
-        Handler(app.mainLooper).post {
+        Handler(context.mainLooper).post {
             unauthorizedCallback?.invoke()
         }
         cb?.invoke()
+        CountlyWrapper.recordHandledException(UnauthorizedException("Spica: 401 Unauthorized"))
         return res
     }
 
@@ -79,11 +82,12 @@ class BearerAuthInterceptor(
             if (res.code == 401) { /* unauthorized */
                 Logger.log.info("401 Unauthorized: Refresh AccessToken")
                 val idmEnv = credentials.idmEnv
-                val refreshToken = credentials.getRefreshTokenSync() ?: return forwardUnauthorized(res) {
-                    Logger.log.info("<--- Exit Lock (401)")
-                }
+                val refreshToken =
+                    credentials.getRefreshTokenSync() ?: return forwardUnauthorized(res) {
+                        Logger.log.info("<--- Exit Lock (401)")
+                    }
                 val (newAccessToken, newRefreshToken) =
-                    mAuth.getAccessTokenSync1(idmEnv, refreshToken, app)
+                    mAuth.getAccessTokenSync1(idmEnv, refreshToken, context)
                         ?: return forwardUnauthorized(res) {
                             // We've been getting back an error,
                             // reset accessToken and refreshToken to null.
@@ -100,11 +104,11 @@ class BearerAuthInterceptor(
                     .addHeader("Authorization", "Bearer ${credentials.accessToken}")
                     .build()
                 val newRes = chain.proceed(newReq)
-                if (newRes.code == 401)
+                if (newRes.code == 401) {
                     return forwardUnauthorized(newRes) {
                         Logger.log.info("<--- Exit Lock (401)")
                     }
-
+                }
                 Logger.log.info("<--- Exit Lock (~401)")
                 return newRes
             }

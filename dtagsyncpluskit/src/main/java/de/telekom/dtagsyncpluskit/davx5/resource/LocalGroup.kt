@@ -64,7 +64,7 @@ class LocalGroup: AndroidGroup, LocalAddress {
                 "$COLUMN_PENDING_MEMBERS IS NOT NULL", null,
                 null
             )?.use { cursor ->
-                val batch = BatchOperation(addressBook.provider)
+                val batch = BatchOperation(addressBook.provider!!)
                 while (cursor.moveToNext()) {
                     val id = cursor.getLong(0)
                     Constants.log.fine("Assigning members to group $id")
@@ -93,7 +93,7 @@ class LocalGroup: AndroidGroup, LocalAddress {
                     // insert memberships
                     for (uid in members) {
                         Constants.log.fine("Assigning member: $uid")
-                        addressBook.findContactByUID(uid)?.let { member ->
+                        addressBook.findContactByUid(uid)?.let { member ->
                             member.addToGroup(batch, id)
                             changeContactIDs += member.id!!
                         } ?: Constants.log.warning("Group member not found: $uid")
@@ -102,7 +102,7 @@ class LocalGroup: AndroidGroup, LocalAddress {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && Build.VERSION.SDK_INT < Build.VERSION_CODES.O)
                     // workaround for Android 7 which sets DIRTY flag when only meta-data is changed
                         changeContactIDs
-                            .map { addressBook.findContactByID(it) }
+                            .map { addressBook.findContactById(it) }
                             .forEach { it.updateHashCode(batch) }
 
                     // remove pending memberships
@@ -142,7 +142,7 @@ class LocalGroup: AndroidGroup, LocalAddress {
 
         val members = Parcel.obtain()
         try {
-            members.writeStringList(contact!!.members)
+            members.writeStringList(_contact!!.members.toList())
             values.put(COLUMN_PENDING_MEMBERS, members.marshall())
         } finally {
             members.recycle()
@@ -166,7 +166,7 @@ class LocalGroup: AndroidGroup, LocalAddress {
             values.put(AndroidContact.COLUMN_UID, uid)
             addressBook.provider!!.update(groupSyncUri(), values, null, null)
 
-            contact!!.uid = uid
+            _contact!!.uid = uid
         }
 
         return "$uid.vcf"

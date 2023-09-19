@@ -21,9 +21,11 @@ package de.telekom.dtagsyncpluskit.ui
 
 import android.annotation.SuppressLint
 import android.content.pm.ActivityInfo
+import android.content.res.Configuration
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import de.telekom.dtagsyncpluskit.R
+import de.telekom.dtagsyncpluskit.utils.CountlyWrapper
 
 interface FragmentCallbacks {
     fun onFragmentPopped()
@@ -37,7 +39,7 @@ open class BaseActivity : AppCompatActivity(), FragmentCallbacks {
 
     @SuppressLint("SourceLockedOrientationActivity")
     override fun onCreate(savedInstanceState: Bundle?) {
-        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+        //requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
 
         super.onCreate(savedInstanceState)
         backstackSize = supportFragmentManager.backStackEntryCount
@@ -52,6 +54,21 @@ open class BaseActivity : AppCompatActivity(), FragmentCallbacks {
             // Update backstackSize after each change.
             backstackSize = supportFragmentManager.backStackEntryCount
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        CountlyWrapper.onStart(this)
+    }
+
+    override fun onStop() {
+        super.onStop()
+        CountlyWrapper.onStop()
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        CountlyWrapper.onConfigurationChanged(newConfig)
     }
 
     override fun onBackPressed() {

@@ -37,10 +37,11 @@ import de.telekom.dtagsyncpluskit.api.ServiceEnvironments
 import de.telekom.dtagsyncpluskit.davx5.closeCompat
 import de.telekom.dtagsyncpluskit.davx5.log.Logger
 import de.telekom.dtagsyncpluskit.davx5.model.AppDatabase
+import de.telekom.dtagsyncpluskit.davx5.model.Collection
 import de.telekom.dtagsyncpluskit.davx5.model.Service
 import de.telekom.dtagsyncpluskit.davx5.resource.LocalAddressBook
 import de.telekom.dtagsyncpluskit.davx5.settings.AccountSettings
-import de.telekom.dtagsyncpluskit.davx5.model.Collection
+import de.telekom.dtagsyncpluskit.utils.CountlyWrapper
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import java.util.logging.Level
@@ -77,6 +78,7 @@ abstract class AddressBooksSyncAdapterService : SyncAdapterService() {
                         ContentResolver.requestSync(addressBookAccount, ContactsContract.AUTHORITY, syncExtras)
                     }
             } catch (e: Exception) {
+                CountlyWrapper.recordHandledException(e)
                 Logger.log.log(Level.SEVERE, "Couldn't sync address books", e)
             }
 
@@ -122,6 +124,7 @@ abstract class AddressBooksSyncAdapterService : SyncAdapterService() {
                             Logger.log.log(Level.FINE, "Updating local address book $url", info)
                             addressBook.update(info)
                         } catch (e: Exception) {
+                            CountlyWrapper.recordHandledException(e)
                             Logger.log.log(Level.WARNING, "Couldn't rename address book account", e)
                         }
                         // we already have a local address book for this remote collection, don't take into consideration anymore

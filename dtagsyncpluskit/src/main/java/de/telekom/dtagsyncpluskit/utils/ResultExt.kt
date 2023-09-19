@@ -18,6 +18,12 @@ fun <T, E> ResultExt<T, E>.isErr(): Boolean =
         is Err -> true
     }
 
+fun <T, E> ResultExt<T, E>.errorOrNull(): Err<E>? =
+    when (this) {
+        is Ok -> null
+        is Err -> this
+    }
+
 fun <U, T, E> ResultExt<T, E>.map(transform: (T) -> U): ResultExt<U, E> =
     when (this) {
         is Ok -> Ok(transform(value))

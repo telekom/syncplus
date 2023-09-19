@@ -26,21 +26,18 @@ import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.view.View
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
-import de.telekom.dtagsyncpluskit.api.IDMEnv
-import de.telekom.dtagsyncpluskit.api.TokenStore
-import de.telekom.dtagsyncpluskit.auth.IDMAuth
-import de.telekom.dtagsyncpluskit.davx5.log.Logger
-import de.telekom.dtagsyncpluskit.davx5.settings.AccountSettings
+import androidx.lifecycle.repeatOnLifecycle
+import de.telekom.dtagsyncpluskit.davx5.syncadapter.SyncHolder
 import de.telekom.dtagsyncpluskit.extra
 import de.telekom.dtagsyncpluskit.extraNotNull
 import de.telekom.dtagsyncpluskit.model.AuthHolder
-import de.telekom.dtagsyncpluskit.runOnMain
 import de.telekom.dtagsyncpluskit.ui.BaseActivity
-import de.telekom.dtagsyncpluskit.utils.IDMAccountManager
 import de.telekom.syncplus.ui.main.CustomAlertDialog
 import kotlinx.android.synthetic.main.layout_small_topbar.*
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 class LoginActivity : BaseActivity() {
@@ -59,68 +56,48 @@ class LoginActivity : BaseActivity() {
         }
     }
 
-    private val mAuth by lazy {
-        IDMAuth(this)
-    }
-
-    private val mRelogin by extraNotNull<Boolean>(EXTRA_RELOGIN)
+    private val mRelogin by extraNotNull(EXTRA_RELOGIN, false)
     private val mAccount by extra<Account>(EXTRA_ACCOUNT, null)
+
+    private val viewModel by viewModels<LoginViewModel>()
+
+    private val authLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) {
+        viewModel.processAuthResult(it)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_login)
         topbarTitle.text = getString(R.string.activity_login_title)
         backButtonSmall.visibility = View.GONE
-        startLogin(mAccount?.name)
-    }
 
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        if (requestCode == IDMAuth.RC_AUTH && data != null) {
-            try {
-                mAuth.onActivityResult(requestCode, resultCode, data)
-            } catch (ex: Exception) {
-                Logger.log.severe("Login Error 0: $ex")
-                Log.e("SyncPlus", "Login Error 0", ex)
-                showLoginErrorDialog(ex.localizedMessage)
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                launch { viewModel.action.collect(::handleAction) }
             }
-        } else {
-            super.onActivityResult(requestCode, resultCode, data)
+        }
+
+        if (savedInstanceState == null) {
+            viewModel.startLogin(mAccount, mRelogin, mAccount?.name)
         }
     }
 
-    private fun startLogin(loginHint: String?) {
-        mAuth.setErrorHandler { ex ->
-            Logger.log.severe("Login Error 1: $ex")
-            Log.e("SyncPlus", "Login Error 1", ex)
-            showLoginErrorDialog(ex.localizedMessage)
-        }
-        mAuth.setSuccessHandler { store ->
-            try {
-                Logger.log.severe("Login Success! (${store.getAlias()})")
-                if (mRelogin)
-                    reloginAccount(store)
-                else
-                    createAccount(store)
-            } catch (ex: Exception) {
-                Logger.log.severe("Login Error 2: $ex")
-                Log.e("SyncPlus", "Login Error 2", ex)
-                showLoginErrorDialog(ex.localizedMessage)
-            }
-        }
+    override fun onDestroy() {
+        // Login flow is finished or cancelled - allow syncing
+        SyncHolder.setSyncAllowed(true)
+        super.onDestroy()
+    }
 
-        lifecycleScope.launch(Dispatchers.IO) {
-            try {
-                val redirectUri = Uri.parse(getString(R.string.REDIRECT_URI))
-                val env = IDMEnv.fromBuildConfig(BuildConfig.ENVIRON[BuildConfig.FLAVOR]!!)
-                val intent = mAuth.getLoginProcessIntent(redirectUri, loginHint, env)
-                runOnMain {
-                    startActivityForResult(intent, IDMAuth.RC_AUTH)
-                }
-            } catch (ex: Exception) {
-                Logger.log.severe("Login Error 3: $ex")
-                Log.e("SyncPlus", "Login Error 3", ex)
-                showLoginErrorDialog(ex.localizedMessage)
-            }
+    private fun handleAction(action: LoginViewModel.Action) {
+        when (action) {
+            LoginViewModel.Action.Finish -> finish()
+            is LoginViewModel.Action.NavigateNext -> goNext(action.authHolder)
+            LoginViewModel.Action.ShowLoginDuplicated -> showLoginDuplicatedDialog()
+            is LoginViewModel.Action.ShowLoginError -> showLoginErrorDialog(action.message)
+            LoginViewModel.Action.ShowLoginErrorWithBooking -> showLoginErrorDialogWithBooking()
+            is LoginViewModel.Action.StartLogIn -> authLauncher.launch(action.intent)
         }
     }
 
@@ -149,10 +126,7 @@ class LoginActivity : BaseActivity() {
     private fun showLoginErrorDialog(description: String? = null) {
         val dialog = CustomAlertDialog()
         dialog.title = getString(R.string.dialog_login_failed_title)
-        if (BuildConfig.DEBUG)
-            dialog.text = description
-        else
-            dialog.text = null
+        dialog.text = if (BuildConfig.DEBUG) description else null
         dialog.hasCancelButton = false
         dialog.successText = getString(R.string.button_title_back)
         dialog.setOnSuccessListener {
@@ -171,43 +145,6 @@ class LoginActivity : BaseActivity() {
             finish()
         }
         dialog.show(supportFragmentManager, "DIALOG")
-    }
-
-    private fun reloginAccount(store: TokenStore) = lifecycleScope.launch(Dispatchers.IO) func@{
-        val account = mAccount ?: return@func showLoginErrorDialog()
-        // Logged in account differs from old account.
-        if (account.name != store.getAlias()) {
-            return@func showLoginErrorDialog()
-        }
-
-        val serviceEnvironments = App.serviceEnvironments(this@LoginActivity)
-        val accountSettings =
-            AccountSettings(this@LoginActivity, serviceEnvironments, account, null)
-        val credentials = accountSettings.getCredentials()
-        credentials.idToken = store.getIdToken()
-        credentials.accessToken = store.getAccessToken()
-        credentials.setRefreshToken(store.getRefreshToken())
-
-        runOnMain { finish() }
-    }
-
-    private fun createAccount(store: TokenStore) = lifecycleScope.launch(Dispatchers.IO) func@{
-        val serviceEnvironments = App.serviceEnvironments(this@LoginActivity)
-        val accountName = store.getAlias() ?: return@func showLoginErrorDialogWithBooking()
-        val accountManager = IDMAccountManager(this@LoginActivity, null)
-        if (accountManager.getAccounts().find { it.name == accountName } != null) {
-            return@func showLoginDuplicatedDialog()
-        }
-
-        (application as App).inSetup = true
-        val authHolder = AuthHolder(accountName, store)
-        if (authHolder.createAccount(application, serviceEnvironments) == null) {
-            Logger.log.severe("Error: Creating Account")
-            (application as App).inSetup = false
-            return@func showLoginErrorDialog("Error creating account.")
-        }
-
-        runOnMain { goNext(authHolder) }
     }
 
     private fun goNext(authHolder: AuthHolder) {

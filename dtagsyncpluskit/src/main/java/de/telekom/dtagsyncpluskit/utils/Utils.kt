@@ -19,16 +19,29 @@
 
 package de.telekom.dtagsyncpluskit.utils
 
-import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import de.telekom.dtagsyncpluskit.ui.BaseFragment
 
-fun openPlayStore(context: Context?, packageName: String) {
+fun openPlayStore(
+    fragment: BaseFragment?,
+    packageName: String,
+    resultCode: Int? = null,
+) {
     try {
         val uri = Uri.parse("market://details?id=${packageName}")
-        context?.startActivity(Intent(Intent.ACTION_VIEW, uri))
+        if (resultCode == null) {
+            fragment?.startActivity(Intent(Intent.ACTION_VIEW, uri))
+        } else {
+            fragment?.startActivityForResult(Intent(Intent.ACTION_VIEW, uri), resultCode)
+        }
     } catch (e: Exception) {
+        CountlyWrapper.recordHandledException(e)
         val uri = Uri.parse("https://play.google.com/store/apps/details?id=${packageName}")
-        context?.startActivity(Intent(Intent.ACTION_VIEW, uri))
+        if (resultCode == null) {
+            fragment?.startActivity(Intent(Intent.ACTION_VIEW, uri))
+        } else {
+            fragment?.startActivityForResult(Intent(Intent.ACTION_VIEW, uri), resultCode)
+        }
     }
 }

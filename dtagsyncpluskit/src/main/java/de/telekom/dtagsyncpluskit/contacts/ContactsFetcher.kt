@@ -21,7 +21,9 @@ package de.telekom.dtagsyncpluskit.contacts
 
 import android.content.ContentResolver
 import android.content.Context
+import android.database.Cursor
 import android.provider.ContactsContract
+import android.util.Log
 import de.telekom.dtagsyncpluskit.model.Group
 import de.telekom.dtagsyncpluskit.model.spica.*
 import de.telekom.dtagsyncpluskit.toArray
@@ -37,7 +39,7 @@ class ContactsFetcher(val context: Context) {
     // groupId -> [contactId]
     private var mGroupsMap: HashMap<Long, ArrayList<Long>>? = null
 
-    private var mGroups: ArrayList<Group>? = null
+    private var mGroups: List<Group>? = null
 
     // Don't EVER change the order:
     private val mDataProjection: Array<out String> =
@@ -66,32 +68,43 @@ class ContactsFetcher(val context: Context) {
         arrayOf(
             ContactsContract.Groups._ID,
             ContactsContract.Groups.TITLE,
-            ContactsContract.Groups.SUMMARY_COUNT
+            ContactsContract.Groups.SUMMARY_COUNT,
         )
 
     fun allGroups(): List<Group> {
-        return mGroups ?: {
-            val cursor = contentResolver.query(
-                ContactsContract.Groups.CONTENT_SUMMARY_URI,
-                mGroupProjection,
-                null,
-                null,
-                null
+        return mGroups ?: run {
+
+            val uri = ContactsContract.Groups.CONTENT_URI
+
+            // Projection to get group ID and group name
+            val groupProjection = arrayOf(
+                ContactsContract.Groups._ID,
+                ContactsContract.Groups.TITLE
             )
 
-            val groups = ArrayList<Group>()
-            while (cursor?.moveToNext() == true) {
-                val groupId = cursor.getLong(0)
-                val title = cursor.getString(1)
-                val summaryCount = cursor.getInt(2)
-                groups.add(Group(groupId, title, summaryCount))
+            // Perform the query to get groups
+            val groupCursor: Cursor? = contentResolver.query(uri, groupProjection, null, null, null)
+
+            val groups = mutableListOf<Group>()
+
+            groupCursor?.use { cursor ->
+                val groupIdColumnIndex = cursor.getColumnIndex(ContactsContract.Groups._ID)
+                val groupNameColumnIndex = cursor.getColumnIndex(ContactsContract.Groups.TITLE)
+
+                while (cursor.moveToNext()) {
+                    val groupId = cursor.getLong(groupIdColumnIndex)
+                    val groupName = cursor.getString(groupNameColumnIndex)
+                    val contactCount = allContacts(groupId).size
+
+                    groups.add(Group(groupId, groupName, contactCount))
+                }
             }
 
-            cursor?.close()
+            groupCursor?.close()
 
             mGroups = groups
             groups
-        }()
+        }
     }
 
     fun contactSum(): Int {

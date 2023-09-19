@@ -2,19 +2,20 @@ package de.telekom.syncplus.ui.main
 
 import android.annotation.SuppressLint
 import android.app.Dialog
-import android.content.Context
 import android.os.Bundle
-import android.util.Log
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
 import android.view.Window
 import androidx.fragment.app.DialogFragment
 import de.telekom.syncplus.R
 import de.telekom.syncplus.util.Prefs
 import kotlinx.android.synthetic.main.dialog_energysaver.view.*
 
-class EnergySaverDialog(private val ctx: Context) : DialogFragment() {
+class EnergySaverDialog : DialogFragment() {
+    companion object {
+        fun instantiate(): EnergySaverDialog {
+            return EnergySaverDialog()
+        }
+    }
+
     @SuppressLint("InflateParams")
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
         val view = layoutInflater.inflate(R.layout.dialog_energysaver, null)
@@ -23,9 +24,11 @@ class EnergySaverDialog(private val ctx: Context) : DialogFragment() {
         }
 
         view.button.setOnClickListener {
-            val prefs = Prefs(ctx)
-            prefs.energySavingDialogShown = true
-            dialog.dismiss()
+            requireActivity().let {
+                val prefs = Prefs(it)
+                prefs.energySavingDialogShown = true
+                dialog.dismiss()
+            }
         }
 
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)

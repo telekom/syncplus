@@ -19,6 +19,7 @@
 
 package de.telekom.syncplus
 
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
@@ -28,15 +29,19 @@ import de.telekom.syncplus.ui.main.HelpFragment
 import kotlinx.android.synthetic.main.layout_small_topbar.*
 
 class HelpActivity : BaseActivity() {
+
     companion object {
         fun newIntent(activity: Activity) = Intent(activity, HelpActivity::class.java)
     }
 
+    @SuppressLint("CommitTransaction")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.help_activity)
         backButtonSmall.visibility = View.GONE
         backButtonSmall.setOnClickListener {
+            if (HelpFragment.instance?.currentWebView?.goBackInWebView() == true)
+                return@setOnClickListener
             if (!popFragment())
                 finish()
         }

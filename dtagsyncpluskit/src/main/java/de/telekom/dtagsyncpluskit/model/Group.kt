@@ -26,5 +26,13 @@ import kotlinx.android.parcel.Parcelize
 data class Group(
     val groupId: Long,
     val name: String? = null,
-    val numberOfContacts: Int? = null
-) : Parcelable
+    val numberOfContacts: Int? = null,
+    val isSelected: Boolean = true,
+) : Parcelable {
+    fun same(group: Group): Boolean =
+        group.groupId == groupId && group.name == name && group.numberOfContacts == numberOfContacts
+
+    companion object {
+        const val ALL_CONTACTS_GROUP_ID = -1L
+    }
+}

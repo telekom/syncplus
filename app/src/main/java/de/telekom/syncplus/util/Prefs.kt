@@ -20,17 +20,23 @@
 package de.telekom.syncplus.util
 
 import android.content.Context
-import kotlinx.serialization.*
-import kotlinx.serialization.json.*
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
 class Prefs(context: Context?) {
     companion object {
         private const val PREFS = "de.telekom.syncplus.PREFERENCES"
-        private const val PREFS_STARTS = "PREFS_STARTS"
+        private const val ALL_TYPES_SYNCED = "ALL_TYPES_PREV_SYNCED"
         private const val PREFS_LOG_TO_FILE = "log_to_file"
         private const val PREFS_ENERGY_SAVING_DIALOG_SHOWN = "energy_saving_dialog_shown"
         private const val PREFS_CURRENT_VERSION = "prefs_current_version"
         private const val PREFS_LAST_SYNCS = "prefs_last_syncs"
+        private const val PREFS_CONSENT_DIALOG_SHOWN = "prefs_consent_dialog_shown"
+
+        // Different consents.
+        const val PREFS_ANALYTICAL_TOOLS_ENABLED = "prefs_analytical_tools_enabled"
 
         @Serializable
         data class LastSyncs(val lastSyncs: HashMap<String, Long>)
@@ -38,9 +44,9 @@ class Prefs(context: Context?) {
 
     private val prefs = context?.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
-    var starts: Int
-        get() = prefs?.getInt(PREFS_STARTS, 0) ?: 0
-        set(value) = prefs?.edit()?.putInt(PREFS_STARTS, value)?.apply() ?: Unit
+    var allTypesPrevSynced: Boolean
+        get() = prefs?.getBoolean(ALL_TYPES_SYNCED, false) ?: false
+        set(value) = prefs?.edit()?.putBoolean(ALL_TYPES_SYNCED, value)?.apply() ?: Unit
 
     var loggingEnabled: Boolean
         get() = prefs?.getBoolean(PREFS_LOG_TO_FILE, false) ?: false
@@ -66,4 +72,13 @@ class Prefs(context: Context?) {
             val encoded = Json.encodeToString(value)
             prefs?.edit()?.putString(PREFS_LAST_SYNCS, encoded)?.apply() ?: Unit
         }
+
+    var consentDialogShown: Boolean
+        get() = prefs?.getBoolean(PREFS_CONSENT_DIALOG_SHOWN, false) ?: false
+        set(value) = prefs?.edit()?.putBoolean(PREFS_CONSENT_DIALOG_SHOWN, value)?.apply() ?: Unit
+
+    var analyticalToolsEnabled: Boolean
+        get() = prefs?.getBoolean(PREFS_ANALYTICAL_TOOLS_ENABLED, false) ?: false
+        set(value) = prefs?.edit()?.putBoolean(PREFS_ANALYTICAL_TOOLS_ENABLED, value)?.apply()
+            ?: Unit
 }

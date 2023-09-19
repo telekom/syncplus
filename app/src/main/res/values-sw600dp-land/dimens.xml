@@ -19,7 +19,7 @@
 -->
 <resources>
     <dimen name="topBarHeight">304dp</dimen>
-    <dimen name="topBarMarginStart">348dp</dimen>
+    <dimen name="topBarMarginStart">64dp</dimen>
 
 
 
@@ -27,7 +27,7 @@
 
 
 
-    <dimen name="marginStart">262dp</dimen>
+    <dimen name="marginStart">209dp</dimen>
     <dimen name="marginEnd">@dimen/marginStart</dimen>
 
     <dimen name="marginBottom">24dp</dimen>
@@ -45,8 +45,8 @@
     <dimen name="marginBottomLarge">32dp</dimen>
     <dimen name="marginBottomExtraLarge">64dp</dimen>
 
-    <dimen name="marginIntroStart">329dp</dimen>
-    <dimen name="marginIntroBottom">107dp</dimen>
+    <dimen name="marginIntroStart">263dp</dimen>
+    <dimen name="marginIntroBottom">85dp</dimen>
     <dimen name="intro_icon_dimen">56dp</dimen>
     <dimen name="welcome_cloud_width">120dp</dimen>
     <dimen name="welcome_cloud_height">80dp</dimen>

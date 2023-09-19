@@ -1,5 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!--
+<?xml version="1.0" encoding="utf-8"?><!--
     This file is part of SyncPlus.
 
     Copyright (C) 2020  Deutsche Telekom AG
@@ -26,6 +25,7 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.READ_SYNC_SETTINGS" />
     <uses-permission android:name="android.permission.READ_SYNC_STATS" />
     <uses-permission android:name="android.permission.WRITE_SYNC_SETTINGS" />
@@ -68,31 +68,51 @@
 
         <activity
             android:name=".IntroActivity"
-            android:label="@string/title_activity_intro" />
+            android:label="@string/title_activity_intro"
+            android:screenOrientation="portrait" />
         <activity
             android:name=".SetupActivity"
-            android:label="@string/title_activity_setup" />
+            android:label="@string/title_activity_setup"
+            android:screenOrientation="portrait" />
         <activity
             android:name=".HelpActivity"
-            android:label="@string/title_activity_help" />
+            android:label="@string/title_activity_help"
+            android:screenOrientation="portrait" />
         <activity
             android:name=".ContactsActivity"
-            android:label="@string/title_activity_contacts" />
+            android:label="@string/title_activity_contacts"
+            android:screenOrientation="user" />
         <activity
             android:name=".ContactsCopyActivity"
-            android:label="@string/title_activity_contacts" />
+            android:label="@string/title_activity_contacts"
+            android:screenOrientation="portrait" />
         <activity
             android:name=".DuplicatedContactsActivity"
             android:label="@string/title_activity_duplicated_contacts" />
         <activity
             android:name=".AccountsActivity"
-            android:label="@string/title_activity_contact_detail" />
+            android:label="@string/title_activity_contact_detail"
+            android:screenOrientation="user" />
+        <activity
+            android:name=".ui.main.DataPrivacyDialogActivity"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:label="@string/data_privacy_settings_title"
+            android:screenOrientation="portrait" />
 
         <activity
             android:name=".LoginActivity"
-            android:label="@string/activity_login_title" />
-        <activity android:name=".AccountSettingsActivity" />
+            android:configChanges="orientation|keyboardHidden|screenSize|smallestScreenSize|screenLayout"
+            android:label="@string/activity_login_title"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".AccountSettingsActivity"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:screenOrientation="portrait" />
         <activity android:name=".WebViewActivity" />
+
+        <activity
+            android:name="net.openid.appauth.AuthorizationManagementActivity"
+            android:configChanges="orientation|keyboardHidden|screenSize|smallestScreenSize|screenLayout" />
 
         <!-- Account Authenticator Service -->
         <service
@@ -171,6 +191,7 @@
         <!-- Splash Screen -->
         <activity
             android:name=".WelcomeActivity"
+            android:exported="true"
             android:theme="@style/SplashTheme">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -181,6 +202,7 @@
         <!-- OAuth2 -->
         <activity
             android:name="net.openid.appauth.RedirectUriReceiverActivity"
+            android:exported="true"
             tools:node="replace">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />

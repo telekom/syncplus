@@ -29,32 +29,27 @@ package de.telekom.dtagsyncpluskit.davx5.syncadapter
 
 import android.accounts.Account
 import android.app.Service
-import android.content.*
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
+import android.content.AbstractThreadedSyncAdapter
+import android.content.ContentProviderClient
+import android.content.Intent
+import android.content.SyncResult
 import android.net.Uri
-import android.net.wifi.WifiManager
-import android.os.Build
 import android.os.Bundle
-import android.util.Log
-import androidx.core.app.NotificationManagerCompat
-import androidx.core.content.getSystemService
 import de.telekom.dtagsyncpluskit.R
 import de.telekom.dtagsyncpluskit.api.ServiceEnvironments
 import de.telekom.dtagsyncpluskit.davx5.InvalidAccountException
 import de.telekom.dtagsyncpluskit.davx5.log.Logger
 import de.telekom.dtagsyncpluskit.davx5.settings.AccountSettings
-import java.lang.ref.WeakReference
 import java.util.logging.Level
 
-abstract class SyncAdapterService: Service() {
+abstract class SyncAdapterService : Service() {
 
     companion object {
-        /** Keep a list of running syncs to block multiple calls at the same time,
-         *  like run by some devices. Weak references are used for the case that a thread
-         *  is terminated and the `finally` block which cleans up [runningSyncs] is not
-         *  executed. */
-        private val runningSyncs = mutableListOf<WeakReference<Pair<String, Account>>>()
+//        /** Keep a list of running syncs to block multiple calls at the same time,
+//         *  like run by some devices. Weak references are used for the case that a thread
+//         *  is terminated and the `finally` block which cleans up [runningSyncs] is not
+//         *  executed. */
+//        private val runningSyncs = mutableListOf<WeakReference<Pair<String, Account>>>()
 
         /**
          * Specifies an list of IDs which are requested to be synchronized before
@@ -96,7 +91,7 @@ abstract class SyncAdapterService: Service() {
 
     abstract class SyncAdapter(
         private val service: SyncAdapterService
-    ): AbstractThreadedSyncAdapter(
+    ) : AbstractThreadedSyncAdapter(
         service.applicationContext,
         true    // isSyncable shouldn't be -1 because DAVx5 sets it to 0 or 1.
         // However, if it is -1 by accident, set it to 1 to avoid endless sync loops.
@@ -122,37 +117,28 @@ abstract class SyncAdapterService: Service() {
         override fun onPerformSync(account: Account, extras: Bundle, authority: String, provider: ContentProviderClient, syncResult: SyncResult) {
             Logger.log.log(Level.INFO, "$authority sync of $account has been initiated", extras.keySet().joinToString(", "))
             val redirectUri = Uri.parse(context.getString(R.string.REDIRECT_URI))
-            val serviceEnvironments = ServiceEnvironments
-                .fromBuildConfig(
-                    redirectUri,
-                    de.telekom.dtagsyncpluskit.BuildConfig.ENVIRON[de.telekom.dtagsyncpluskit.BuildConfig.FLAVOR]!!
-                )
-
-            // prevent multiple syncs of the same authority to be run for the same account
-            val currentSync = Pair(authority, account)
-            synchronized(runningSyncs) {
-                if (runningSyncs.any { it.get() == currentSync }) {
-                    Logger.log.warning("There's already another $authority sync running for $account, aborting")
-                    return
-                }
-                runningSyncs += WeakReference(currentSync)
-            }
+            val serviceEnvironments = ServiceEnvironments.fromBuildConfig(
+                redirectUri,
+                de.telekom.dtagsyncpluskit.BuildConfig.ENVIRON[de.telekom.dtagsyncpluskit.BuildConfig.FLAVOR]!!
+            )
 
             // required for ServiceLoader -> ical4j -> ical4android
             Thread.currentThread().contextClassLoader = context.classLoader
 
             try {
-                if (/* always true in open-source edition */ true)
+                val pendingSync = SyncHolder.PendingSync(account, authority, extras)
+
+                // Check whether the same sync is not running already and syncing is allowed at all
+                if (SyncHolder.addSync(pendingSync) && SyncHolder.isSyncAllowed()) {
                     sync(serviceEnvironments, account, extras, authority, provider, syncResult)
+                }
             } catch (e: InvalidAccountException) {
                 Logger.log.log(Level.WARNING, "Account was removed during synchronization", e)
             } finally {
-                synchronized(runningSyncs) {
-                    runningSyncs.removeAll { it.get() == null || it.get() == currentSync }
-                }
+                SyncHolder.removeSync(account, authority)
             }
 
-            Logger.log.log(Level.INFO, "Sync for $currentSync finished", syncResult)
+            Logger.log.log(Level.INFO, "Sync for $authority $account finished", syncResult)
         }
 
         override fun onSecurityException(account: Account, extras: Bundle, authority: String, syncResult: SyncResult) {

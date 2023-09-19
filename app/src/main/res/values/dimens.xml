@@ -24,7 +24,7 @@
     <dimen name="fontSizeMedium">21sp</dimen>
     <dimen name="fontSizeSmall">18sp</dimen>
     <dimen name="fontSizeSmaller">16sp</dimen>
-    <!-- fontSizeVerySmall used to be 15sp. It's just too small -->
+    <!-- fontSizeVerySmall used to be 14sp. It's just too small -->
     <dimen name="fontSizeVerySmall">15sp</dimen>
     <dimen name="lineHeightMedium">24sp</dimen>
     <dimen name="marginStart">16dp</dimen>

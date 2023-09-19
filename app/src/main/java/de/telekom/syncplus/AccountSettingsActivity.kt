@@ -20,6 +20,7 @@
 package de.telekom.syncplus
 
 import android.accounts.Account
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
@@ -40,6 +41,7 @@ class AccountSettingsActivity : BaseActivity() {
 
     private val mAccount by extraNotNull<Account>(ARG_ACCOUNT)
 
+    @SuppressLint("CommitTransaction")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.accounts_settings_activity)

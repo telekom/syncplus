@@ -24,10 +24,12 @@ import android.accounts.AccountManager
 import android.accounts.AccountManagerFuture
 import android.app.Activity
 import android.app.Application
-import android.content.*
+import android.content.ContentResolver
+import android.content.Context
 import android.os.Build
 import android.os.Bundle
 import android.provider.CalendarContract
+import android.util.Log
 import at.bitfire.ical4android.TaskProvider
 import at.bitfire.vcard4android.GroupMethod
 import de.telekom.dtagsyncpluskit.R
@@ -35,17 +37,15 @@ import de.telekom.dtagsyncpluskit.api.ServiceEnvironments
 import de.telekom.dtagsyncpluskit.davx5.Constants
 import de.telekom.dtagsyncpluskit.davx5.InvalidAccountException
 import de.telekom.dtagsyncpluskit.davx5.log.Logger
+import de.telekom.dtagsyncpluskit.davx5.model.*
 import de.telekom.dtagsyncpluskit.davx5.model.Collection
-import de.telekom.dtagsyncpluskit.davx5.model.AppDatabase
-import de.telekom.dtagsyncpluskit.davx5.model.Credentials
-import de.telekom.dtagsyncpluskit.davx5.model.HomeSet
-import de.telekom.dtagsyncpluskit.davx5.model.Service
 import de.telekom.dtagsyncpluskit.davx5.settings.AccountSettings
 import de.telekom.dtagsyncpluskit.davx5.syncadapter.DavService
 import de.telekom.dtagsyncpluskit.davx5.ui.DavResourceFinder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.logging.Level
+import kotlin.collections.forEach
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
@@ -77,7 +77,7 @@ class IDMAccountManager(
         cardEnabled: Boolean
     ) = withContext(Dispatchers.IO) func@{
         val account = Account(email, accountType)
-        val bundle = Bundle(3)
+        val bundle = Bundle(5)
         bundle.putString(KEY_ID_TOKEN, loginHint)
         bundle.putString(KEY_REFRESH_TOKEN, password)
         bundle.putString(KEY_CAL_ENABLED, calEnabled.toString())
@@ -86,15 +86,32 @@ class IDMAccountManager(
         // Did SWAP password and authToken
         if (!accountManager.addAccountExplicitly(account, authToken, bundle))
             return@func null
+
         //accountManager.setAuthToken(account, "full_access", password)
         val credentials = Credentials(context, account, serviceEnvironments)
-        val configuration = detectConfiguration(app, credentials) ?: return@func null
-        addToServiceDB(account, serviceEnvironments, configuration)
-        setAllCalendarsSyncEnabled(account, calEnabled)
-        setAllAddressBookSyncEnabled(account, cardEnabled)
-        setCalendarSyncEnabled(account, calEnabled)
-        setContactSyncEnabled(account, cardEnabled)
+        discoverServicesConfiguration(account, serviceEnvironments, calEnabled, cardEnabled)
         return@func credentials
+    }
+
+    suspend fun discoverServicesConfiguration(
+        account: Account,
+        serviceEnvironments: ServiceEnvironments,
+        calendarSyncEnabled: Boolean,
+        contactSyncEnabled: Boolean
+    ): DavResourceFinder.Configuration? {
+        val credentials = Credentials(context, account, serviceEnvironments)
+        val configuration = detectConfiguration(context, credentials) ?: return null
+        if (configuration.calDAV == null || configuration.cardDAV == null) return null
+        addToServiceDB(
+            account,
+            serviceEnvironments,
+            configuration,
+            calendarSyncEnabled,
+            contactSyncEnabled
+        )
+        setCalendarSyncEnabled(account, calendarSyncEnabled)
+        setContactSyncEnabled(account, contactSyncEnabled)
+        return configuration
     }
 
     @Suppress("DEPRECATION")
@@ -125,6 +142,7 @@ class IDMAccountManager(
             try {
                 return GroupMethod.valueOf(name)
             } catch (e: IllegalArgumentException) {
+                CountlyWrapper.recordHandledException(e)
             }
         }
 
@@ -179,13 +197,12 @@ class IDMAccountManager(
         withContext<Unit>(Dispatchers.IO) {
             val db = AppDatabase.getInstance(context)
             db.serviceDao().getIdByAccountAndType(account.name, Service.TYPE_CALDAV)
-                .let { serviceId ->
+                ?.let { serviceId ->
                     db.collectionDao().getByServiceAndType(serviceId, Collection.TYPE_CALENDAR)
                         .forEach { collection ->
                             val newCollection = collection.copy(sync = enabled)
                             db.collectionDao().update(newCollection)
                         }
-
                 }
         }
 
@@ -193,7 +210,7 @@ class IDMAccountManager(
         withContext<Unit>(Dispatchers.IO) {
             val db = AppDatabase.getInstance(context)
             db.serviceDao().getIdByAccountAndType(account.name, Service.TYPE_CARDDAV)
-                .let { serviceId ->
+                ?.let { serviceId ->
                     db.collectionDao().getByServiceAndType(serviceId, Collection.TYPE_ADDRESSBOOK)
                         .forEach { collection ->
                             val newCollection = collection.copy(sync = enabled)
@@ -202,12 +219,9 @@ class IDMAccountManager(
                 }
         }
 
-    private suspend fun detectConfiguration(app: Application, credentials: Credentials) =
+    private suspend fun detectConfiguration(context: Context, credentials: Credentials) =
         suspendCoroutine<DavResourceFinder.Configuration?> { cont ->
-            DavResourceFinder(
-                app,
-                credentials
-            ).use {
+            DavResourceFinder(context, credentials).use {
                 cont.resume(it.findInitialConfiguration())
             }
         }
@@ -215,18 +229,14 @@ class IDMAccountManager(
     private fun addToServiceDB(
         account: Account,
         serviceEnvironments: ServiceEnvironments,
-        config: DavResourceFinder.Configuration
+        config: DavResourceFinder.Configuration,
+        calendarSyncEnabled: Boolean,
+        contactSyncEnabled: Boolean
     ) {
         val db = AppDatabase.getInstance(context)
         try {
             val name = account.name
-            val accountSettings =
-                AccountSettings(context, serviceEnvironments, account, onUnauthorized)
-
-            val refreshIntent = Intent(context, DavService::class.java)
-            refreshIntent.action = DavService.ACTION_REFRESH_COLLECTIONS
-            refreshIntent.putExtra(DavService.EXTRA_SERVICE_ENVIRONMENTS, serviceEnvironments)
-
+            val accountSettings = AccountSettings(context, serviceEnvironments, account, onUnauthorized)
             if (config.cardDAV != null) {
                 // insert CardDAV service
 
@@ -236,8 +246,7 @@ class IDMAccountManager(
                 accountSettings.setGroupMethod(GroupMethod.CATEGORIES) // TODO: Other Group Method?
 
                 // start CardDAV service detection (refresh collections)
-                refreshIntent.putExtra(DavService.EXTRA_DAV_SERVICE_ID, id)
-                context.startService(refreshIntent)
+                DavService.refreshCollections(context, id, serviceEnvironments, contactSyncEnabled)
 
                 // contact sync is automatically enabled by isAlwaysSyncable="true" in res/xml/sync_address_books.xml
                 accountSettings.setSyncInterval(
@@ -257,8 +266,7 @@ class IDMAccountManager(
                 val id = insertService(db, name, Service.TYPE_CALDAV, config.calDAV)
 
                 // start CalDAV service detection (refresh collections)
-                refreshIntent.putExtra(DavService.EXTRA_DAV_SERVICE_ID, id)
-                context.startService(refreshIntent)
+                DavService.refreshCollections(context, id, serviceEnvironments, calendarSyncEnabled)
 
                 // calendar sync is automatically enabled by isAlwaysSyncable="true" in res/xml/sync_calendars.xml
                 accountSettings.setSyncInterval(
@@ -275,6 +283,7 @@ class IDMAccountManager(
             }
 
         } catch (e: InvalidAccountException) {
+            CountlyWrapper.recordHandledException(e)
             Logger.log.log(Level.SEVERE, "Couldn't access account settings", e)
         }
     }
@@ -308,7 +317,25 @@ class IDMAccountManager(
     /* DavService.RefreshingStatusListener */
     override fun onDavRefreshStatusChanged(id: Long, refreshing: Boolean) {}
 
-    override fun onUnauthorized(authority: String, account: Account) {
+    override fun onUnauthorized(
+        authority: String,
+        account: Account,
+        service: Service,
+        accountSettings: AccountSettings,
+    ) {
+        val unauthorizedException: String =
+            String.format(
+                "Unauthorized Exception(401):\n" +
+                        "Account Details: %s,\n" +
+                        "Authority:%s\n" +
+                        "Service: %s\n" +
+                        "Enviroment: %s\n",
+                account.toString(),
+                authority,
+                service.toString(),
+                accountSettings.serviceEnvironments.toString(),
+            )
+        CountlyWrapper.addCrashBreadcrumb(unauthorizedException)
         onUnauthorized?.invoke(account)
     }
 }

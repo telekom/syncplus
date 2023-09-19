@@ -19,6 +19,7 @@
 
 package de.telekom.syncplus
 
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
@@ -56,6 +57,7 @@ class ContactsCopyActivity : TopBarActivity() {
         intent.getParcelableExtra(EXTRA_AUTH_HOLDER)
     }
 
+    @SuppressLint("CommitTransaction")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         if (savedInstanceState == null) {

@@ -27,17 +27,20 @@ import android.provider.ContactsContract
 import androidx.annotation.WorkerThread
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.Transformations
-import androidx.paging.PagedList
-import androidx.paging.toLiveData
+import androidx.lifecycle.switchMap
+import androidx.paging.*
 import de.telekom.dtagsyncpluskit.R
 import de.telekom.dtagsyncpluskit.api.ServiceEnvironments
 import de.telekom.dtagsyncpluskit.davx5.model.AppDatabase
+import de.telekom.dtagsyncpluskit.davx5.model.Collection
+import de.telekom.dtagsyncpluskit.davx5.model.Service
 import de.telekom.dtagsyncpluskit.davx5.resource.LocalAddressBook
+import de.telekom.dtagsyncpluskit.davx5.settings.AccountSettings
+import de.telekom.dtagsyncpluskit.davx5.syncadapter.DavService
+import de.telekom.dtagsyncpluskit.utils.CountlyWrapper
+import kotlinx.coroutines.asCoroutineDispatcher
 import java.io.Closeable
 import java.util.concurrent.Executors
-import de.telekom.dtagsyncpluskit.davx5.model.Collection
-import de.telekom.dtagsyncpluskit.davx5.syncadapter.DavService
 
 @Suppress("unused")
 class CollectionFetcher(
@@ -61,7 +64,7 @@ class CollectionFetcher(
     val isSyncPending: LiveData<Boolean> = _isSyncPending
     val serviceId: LiveData<Long> = _serviceId
     val collections: LiveData<PagedList<Collection>> =
-        Transformations.switchMap(serviceId) { service ->
+        serviceId.switchMap { service ->
             mDB.collectionDao().pageByServiceAndType(service, collectionType).toLiveData(25)
         }
 
@@ -102,12 +105,10 @@ class CollectionFetcher(
         }
     }
 
-    fun refresh(serviceEnvironments: ServiceEnvironments) {
-        val intent = Intent(context, DavService::class.java)
-        intent.action = DavService.ACTION_REFRESH_COLLECTIONS
-        intent.putExtra(DavService.EXTRA_DAV_SERVICE_ID, serviceId.value)
-        intent.putExtra(DavService.EXTRA_SERVICE_ENVIRONMENTS, serviceEnvironments)
-        context.startService(intent)
+    fun refresh(serviceEnvironments: ServiceEnvironments, isSyncEnabled: Boolean) {
+        serviceId.value?.let { serviceId ->
+            DavService.refreshCollections(context, serviceId, serviceEnvironments, isSyncEnabled)
+        }
     }
 
     /* DavService.RefreshingStatusListener */
@@ -117,7 +118,25 @@ class CollectionFetcher(
             _isRefreshing.postValue(refreshing)
     }
 
-    override fun onUnauthorized(authority: String, account: Account) {
+    override fun onUnauthorized(
+        authority: String,
+        account: Account,
+        service: Service,
+        accountSettings: AccountSettings,
+    ) {
+        val unauthorizedException: String =
+            String.format(
+                "Unauthorized Exception(401):\n" +
+                        "Account Details: %s,\n" +
+                        "Authority:%s\n" +
+                        "Service: %s\n" +
+                        "Enviroment: %s\n",
+                account.toString(),
+                authority,
+                service.toString(),
+                accountSettings.serviceEnvironments.toString(),
+            )
+        CountlyWrapper.addCrashBreadcrumb(unauthorizedException)
         onUnauthorized(account)
     }
 

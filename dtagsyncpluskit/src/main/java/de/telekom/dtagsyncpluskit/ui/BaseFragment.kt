@@ -87,47 +87,47 @@ abstract class BaseFragment : Fragment(), OnBackPressed {
         baseActivity?.pushFragment(containerViewId, fragment, withAnimation)
     }
 
-    fun requirePermission(permission: String, callback: (granted: Boolean) -> Unit) {
+    fun requirePermission(permission: String, callback: (granted: Boolean, report: MultiplePermissionsReport?) -> Unit) {
         if (ActivityCompat.checkSelfPermission(
                 requireContext(),
                 permission
             ) == PackageManager.PERMISSION_GRANTED
         ) {
-            return callback(true)
+            return callback(true, null)
         }
 
-        requestPermissions(permission) { granted, error ->
+        requestPermissions(permission) { granted, error, report ->
             if (error != null) {
                 Logger.log.severe("Error: Requesting Permission: ${error.message}")
-                callback(false)
+                callback(false, report)
                 return@requestPermissions
             }
 
-            callback(granted)
+            callback(granted, report)
         }
     }
 
     fun requestPermissions(
         vararg permissions: String,
-        callback: (granted: Boolean, error: Error?) -> Unit
+        callback: (granted: Boolean, error: Error?, report: MultiplePermissionsReport?) -> Unit
     ) {
         requestPermissions(listOf(*permissions), callback)
     }
 
     fun requestPermissions(
         permissions: List<String>,
-        callback: (granted: Boolean, error: Error?) -> Unit
+        callback: (granted: Boolean, error: Error?, report: MultiplePermissionsReport?) -> Unit
     ) {
         if (permissions.count() == 0) {
-            return callback(true, null)
+            return callback(true, null, null)
         }
 
         val listener = object : MultiplePermissionsListener {
             override fun onPermissionsChecked(report: MultiplePermissionsReport?) {
                 when {
-                    report == null -> callback(false, Error("Report is null"))
-                    report.areAllPermissionsGranted() -> callback(true, null)
-                    else -> callback(false, null)
+                    report == null -> callback(false, Error("Report is null"), report)
+                    report.areAllPermissionsGranted() -> callback(true, null, null)
+                    else -> callback(false, null, report)
                 }
             }
 
@@ -140,7 +140,7 @@ abstract class BaseFragment : Fragment(), OnBackPressed {
         }
 
         val errorListener = PermissionRequestErrorListener {
-            callback(false, Error(it.toString()))
+            callback(false, Error(it.toString()), null)
         }
 
         Dexter.withActivity(activity)

@@ -28,10 +28,12 @@ import android.provider.CalendarContract
 import at.bitfire.vcard4android.GroupMethod
 import de.telekom.dtagsyncpluskit.R
 import de.telekom.dtagsyncpluskit.api.ServiceEnvironments
+import de.telekom.dtagsyncpluskit.davx5.Constants
 import de.telekom.dtagsyncpluskit.davx5.log.Logger
 import de.telekom.dtagsyncpluskit.davx5.model.AppDatabase
 import de.telekom.dtagsyncpluskit.davx5.model.Credentials
 import de.telekom.dtagsyncpluskit.davx5.syncadapter.SyncAdapterService
+import de.telekom.dtagsyncpluskit.utils.CountlyWrapper
 import de.telekom.dtagsyncpluskit.utils.IDMAccountManager
 import java.lang.reflect.Field
 import java.lang.reflect.Method
@@ -132,6 +134,13 @@ class AccountSettings(
         }
 
         Logger.log.info("getSyncInterval | retVal = $retVal")
+
+        // If 'MANUAL' sync is enabled, we re-enable periodic sync.
+        if (retVal == SYNC_INTERVAL_MANUALLY) {
+            setSyncInterval(authority, Constants.DEFAULT_SYNC_INTERVAL)
+            return Constants.DEFAULT_SYNC_INTERVAL
+        }
+
         return retVal
     }
 
@@ -205,6 +214,7 @@ class AccountSettings(
                 result = successTime.getLong(status)
             }
         } catch (e: Exception) {
+            CountlyWrapper.recordUnhandledException(e)
             Logger.log.info("Error: Getting last sync time: $e")
             Logger.log.severe("Error: Getting last sync time: $e")
         }

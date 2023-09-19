@@ -62,7 +62,7 @@ class LocalContact: AndroidContact, LocalAddress {
 
     override var flags: Int = 0
 
-    constructor(addressBook: AndroidAddressBook<LocalContact,*>, values: ContentValues)
+    constructor(addressBook: AndroidAddressBook<LocalContact, *>, values: ContentValues)
             : super(addressBook, values) {
         flags = values.getAsInteger(COLUMN_FLAGS) ?: 0
     }
@@ -88,7 +88,7 @@ class LocalContact: AndroidContact, LocalAddress {
             values.put(COLUMN_UID, uid)
             addressBook.provider!!.update(rawContactSyncURI(), values, null, null)
 
-            contact!!.uid = uid
+            _contact!!.uid = uid
         }
 
         return "$uid.vcf"
@@ -139,27 +139,27 @@ class LocalContact: AndroidContact, LocalAddress {
     }
 
 
-    override fun populateData(mimeType: String, row: ContentValues) {
+/*    override fun populateData(mimeType: String, row: ContentValues) {
         when (mimeType) {
             CachedGroupMembership.CONTENT_ITEM_TYPE ->
                 cachedGroupMemberships += row.getAsLong(CachedGroupMembership.GROUP_ID)
             GroupMembership.CONTENT_ITEM_TYPE ->
                 groupMemberships += row.getAsLong(GroupMembership.GROUP_ROW_ID)
             UnknownProperties.CONTENT_ITEM_TYPE ->
-                contact!!.unknownProperties = row.getAsString(UnknownProperties.UNKNOWN_PROPERTIES)
+                _contact!!.unknownProperties = row.getAsString(UnknownProperties.UNKNOWN_PROPERTIES)
         }
-    }
+    }*/
 
-    override fun insertDataRows(batch: BatchOperation) {
+/*    override fun insertDataRows(batch: BatchOperation) {
         super.insertDataRows(batch)
 
-        contact!!.unknownProperties?.let { unknownProperties ->
-            val builder = insertDataBuilder(UnknownProperties.RAW_CONTACT_ID)
+        _contact!!.unknownProperties?.let { unknownProperties ->
+            val builder = insertDataBuilder()
                 .withValue(UnknownProperties.MIMETYPE, UnknownProperties.CONTENT_ITEM_TYPE)
                 .withValue(UnknownProperties.UNKNOWN_PROPERTIES, unknownProperties)
             batch.enqueue(builder)
         }
-    }
+    }*/
 
 
     /**
@@ -172,10 +172,10 @@ class LocalContact: AndroidContact, LocalAddress {
             throw IllegalStateException("dataHashCode() should not be called on Android != 7")
 
         // reset contact so that getContact() reads from database
-        contact = null
+        _contact = null
 
         // groupMemberships is filled by getContact()
-        val dataHash = contact!!.hashCode()
+        val dataHash = _contact!!.hashCode()
         val groupHash = groupMemberships.hashCode()
         Logger.log.finest("Calculated data hash = $dataHash, group memberships hash = $groupHash")
         return dataHash xor groupHash
@@ -247,7 +247,7 @@ class LocalContact: AndroidContact, LocalAddress {
      * @throws RemoteException on contacts provider errors
      */
     fun getCachedGroupMemberships(): Set<Long> {
-        contact
+        _contact
         return cachedGroupMemberships
     }
 
@@ -258,7 +258,7 @@ class LocalContact: AndroidContact, LocalAddress {
      * @throws RemoteException on contacts provider errors
      */
     fun getGroupMemberships(): Set<Long> {
-        contact
+        _contact
         return groupMemberships
     }
 

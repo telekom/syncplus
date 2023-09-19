@@ -21,4 +21,5 @@
 #-renamesourcefileattribute SourceFile
 
 -keep class androidx.core.app.CoreComponentFactory { *; }
--keep class de.telekom.views { **; }
+-keep class androidx.databinding.** { *; }
+-keep class * extends androidx.databinding.DataBinderMapper { *; }
