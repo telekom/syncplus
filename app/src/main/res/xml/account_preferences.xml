@@ -21,7 +21,7 @@
     <PreferenceScreen android:title="@string/manage_accounts">
         <intent
             android:action="ACTION_VIEW"
-            android:targetClass="de.telekom.syncplus.WelcomeActivity"
+            android:targetClass="de.telekom.syncplus.ui.main.welcome.WelcomeActivity"
             android:targetPackage="de.telekom.syncplus" />
     </PreferenceScreen>
 </PreferenceScreen>

@@ -23,13 +23,13 @@ import android.accounts.Account
 import android.annotation.SuppressLint
 import android.content.ContentResolver
 import android.content.Context
+import android.content.PeriodicSync
 import android.os.Bundle
 import android.provider.CalendarContract
 import android.provider.ContactsContract
 import at.bitfire.vcard4android.GroupMethod
 import de.telekom.dtagsyncpluskit.BuildConfig
 import de.telekom.dtagsyncpluskit.api.ServiceEnvironments
-import de.telekom.dtagsyncpluskit.davx5.Constants
 import de.telekom.dtagsyncpluskit.davx5.log.Logger
 import de.telekom.dtagsyncpluskit.davx5.model.AppDatabase
 import de.telekom.dtagsyncpluskit.davx5.model.Credentials
@@ -117,48 +117,64 @@ class AccountSettings(
         am.setGroupMethod(account, method)
     }
 
-    fun getSyncInterval(authority: String): Long? {
-        Logger.log.info("getSyncInterval($authority)")
-        if (ContentResolver.getIsSyncable(account, authority) <= 0) {
-            Logger.log.info("getIsSyncable <= 0")
-            return null
-        }
-
-        val syncAutomatically = ContentResolver.getSyncAutomatically(account, authority)
-        Logger.log.info("getSyncInterval | syncAutomatically = $syncAutomatically")
-        if (ContentResolver.getSyncAutomatically(account, authority)) {
-            val syncs = ContentResolver.getPeriodicSyncs(account, authority)
-            Logger.log.info("getSyncInterval | syncs = $syncs")
-        }
-
-        val retVal = if (ContentResolver.getSyncAutomatically(account, authority)) {
-            ContentResolver.getPeriodicSyncs(account, authority).firstOrNull()?.period
-                ?: SYNC_INTERVAL_MANUALLY
-        } else {
-            SYNC_INTERVAL_MANUALLY
-        }
-
-        Logger.log.info("getSyncInterval | retVal = $retVal")
-
-        // If 'MANUAL' sync is enabled, we re-enable periodic sync.
-        if (retVal == SYNC_INTERVAL_MANUALLY) {
-            setSyncInterval(authority, Constants.DEFAULT_SYNC_INTERVAL)
-            return Constants.DEFAULT_SYNC_INTERVAL
-        }
-
-        return retVal
+    fun tryGetSyncInterval(): Long? {
+        Logger.log.info("tryGetSyncInterval")
+        return am.getSyncInterval(account)
     }
+
+    fun getSyncPeriod(authority: String): Long? {
+        return ContentResolver.getPeriodicSyncs(account, authority).firstOrNull()?.period
+    }
+
+    fun getPeriodicSyncs(authority: String): List<PeriodicSync> {
+        return ContentResolver.getPeriodicSyncs(account, authority)
+    }
+//
+//    fun getSyncInterval(authority: String): Long? {
+//        Logger.log.info("getSyncInterval($authority)")
+//        if (ContentResolver.getIsSyncable(account, authority) <= 0) {
+//            Logger.log.info("getIsSyncable <= 0")
+//            return null
+//        }
+//
+//        val syncAutomatically = ContentResolver.getSyncAutomatically(account, authority)
+//        Logger.log.info("getSyncInterval | syncAutomatically = $syncAutomatically")
+//        if (ContentResolver.getSyncAutomatically(account, authority)) {
+//            val syncs = ContentResolver.getPeriodicSyncs(account, authority)
+//            Logger.log.info("getSyncInterval | syncs = $syncs")
+//        }
+//
+//        val retVal = if (ContentResolver.getSyncAutomatically(account, authority)) {
+//            ContentResolver.getPeriodicSyncs(account, authority).firstOrNull()?.period
+//                ?: SYNC_INTERVAL_MANUALLY
+//        } else {
+//            SYNC_INTERVAL_MANUALLY
+//        }
+//
+//        Logger.log.info("getSyncInterval | retVal = $retVal")
+//
+//        // If 'MANUAL' sync is enabled, we re-enable periodic sync.
+//        if (retVal == SYNC_INTERVAL_MANUALLY) {
+//            setSyncInterval(authority, DEFAULT_SYNC_INTERVAL)
+//            return DEFAULT_SYNC_INTERVAL
+//        }
+//
+//        return retVal
+//    }
 
     fun setSyncInterval(
         authority: String,
         seconds: Long,
     ) {
         Logger.log.info("setSyncInterval($authority, $seconds)")
+
         if (seconds == SYNC_INTERVAL_MANUALLY) {
             ContentResolver.setSyncAutomatically(account, authority, false)
+            am.setSyncInterval(account, null)
         } else {
             ContentResolver.setSyncAutomatically(account, authority, true)
             ContentResolver.addPeriodicSync(account, authority, Bundle(), seconds)
+            am.setSyncInterval(account, seconds)
         }
     }
 

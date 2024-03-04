@@ -60,8 +60,8 @@ android {
         applicationId "de.telekom.sync.plus"
         minSdkVersion 26    // Android 8
         targetSdkVersion 34 // Android 14
-        versionCode 77
-        versionName "1.7.0"
+        versionCode 80
+        versionName "1.7.1"
         multiDexEnabled true
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"

@@ -24,6 +24,7 @@ import android.os.Bundle
 import de.telekom.dtagsyncpluskit.ui.BaseActivity
 import de.telekom.syncplus.R
 import de.telekom.syncplus.databinding.MainActivityBinding
+import de.telekom.syncplus.ui.widget.TopBar
 import de.telekom.syncplus.util.viewbinding.viewBinding
 
 @SuppressLint("Registered")

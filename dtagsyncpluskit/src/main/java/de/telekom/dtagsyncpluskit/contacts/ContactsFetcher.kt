@@ -24,8 +24,18 @@ import android.content.Context
 import android.database.Cursor
 import android.provider.ContactsContract
 import de.telekom.dtagsyncpluskit.model.Group
-import de.telekom.dtagsyncpluskit.model.spica.*
+import de.telekom.dtagsyncpluskit.model.Group.Companion.ALL_CONTACTS_GROUP_ID
+import de.telekom.dtagsyncpluskit.model.spica.Address
+import de.telekom.dtagsyncpluskit.model.spica.AddressType
+import de.telekom.dtagsyncpluskit.model.spica.Contact
+import de.telekom.dtagsyncpluskit.model.spica.EmailAddress
+import de.telekom.dtagsyncpluskit.model.spica.Homepage
+import de.telekom.dtagsyncpluskit.model.spica.TelephoneNumber
+import de.telekom.dtagsyncpluskit.model.spica.TelephoneType
 import de.telekom.dtagsyncpluskit.toArray
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+import kotlin.coroutines.suspendCoroutine
 
 @Suppress("unused")
 class ContactsFetcher(val context: Context) {
@@ -36,7 +46,7 @@ class ContactsFetcher(val context: Context) {
     private var mContactsMap: HashMap<Long, Contact>? = null
 
     // groupId -> [contactId]
-    private var mGroupsMap: HashMap<Long, ArrayList<Long>>? = null
+    private var mGroupsMap: HashMap<Long, MutableList<Long>>? = null
 
     // Don't EVER change the order:
     private val mDataProjection: Array<out String> =
@@ -61,68 +71,61 @@ class ContactsFetcher(val context: Context) {
             ContactsContract.Contacts.IN_VISIBLE_GROUP,
         )
 
-    private val mGroupProjection: Array<out String> =
-        arrayOf(
-            ContactsContract.Groups._ID,
-            ContactsContract.Groups.TITLE,
-            ContactsContract.Groups.SUMMARY_COUNT,
-        )
+    suspend fun allGroups(): List<Group> = suspendCoroutine { continuation ->
+        try {
+            val groups = mutableListOf<Group>()
+            val cursor = contentResolver.query(
+                ContactsContract.Groups.CONTENT_SUMMARY_URI,
+                arrayOf(
+                    ContactsContract.Groups._ID,
+                    ContactsContract.Groups.TITLE,
+                    ContactsContract.Groups.SUMMARY_COUNT
+                ),
+                "${ContactsContract.Groups.DELETED} = ?",
+                arrayOf("0"),
+                null
+            )
 
-    fun allGroups(): List<Group> {
-        val uri = ContactsContract.Groups.CONTENT_URI
+            cursor?.use {
+                val idIndex = it.getColumnIndex(ContactsContract.Groups._ID)
+                val titleIndex = it.getColumnIndex(ContactsContract.Groups.TITLE)
+                val summaryCountIndex = it.getColumnIndex(ContactsContract.Groups.SUMMARY_COUNT)
 
-        // Projection to get group ID and group name
-        val groupProjection = arrayOf(
-            ContactsContract.Groups._ID,
-            ContactsContract.Groups.TITLE
-        )
+                while (it.moveToNext()) {
+                    val id = it.getLong(idIndex)
+                    val title = it.getString(titleIndex)
+                    val count = it.getInt(summaryCountIndex)
 
-        // Perform the query to get groups
-        val groupCursor: Cursor? = contentResolver.query(uri, groupProjection, null, null, null)
-
-        val groups = mutableListOf<Group>()
-
-        groupCursor?.use { cursor ->
-            val groupIdColumnIndex = cursor.getColumnIndex(ContactsContract.Groups._ID)
-            val groupNameColumnIndex = cursor.getColumnIndex(ContactsContract.Groups.TITLE)
-
-            while (cursor.moveToNext()) {
-                val groupId = cursor.getLong(groupIdColumnIndex)
-                val groupName = cursor.getString(groupNameColumnIndex)
-                val contactCount = allContacts(groupId).size
-
-                groups.add(Group(groupId, groupName, contactCount))
+                    groups.add(Group(id, title, count))
+                }
             }
+            continuation.resume(groups)
+        } catch (e: Throwable) {
+            continuation.resumeWithException(e)
         }
-
-        return groups
     }
 
-    fun allContacts(groupId: Long? = null): List<Contact> {
-        if (mContactsMap == null || mGroupsMap == null) {
-            refreshCache()
-        }
-
-        val ret = when (groupId) {
-            null -> {
-                mContactsMap!!.toArray()
+    suspend fun allContacts(groupId: Long? = null): List<Contact> = suspendCoroutine { continuation ->
+        try {
+            if (mContactsMap == null || mGroupsMap == null) {
+                refreshCache()
             }
 
-            (-1).toLong() -> {
-                mContactsMap!!.toArray()
-            }
-
-            else -> {
-                val contactIdsArray = mGroupsMap!![groupId] ?: return ArrayList()
-                val contactIds = HashMap<Long, Boolean>()
-                for (id in contactIdsArray) {
-                    contactIds[id] = true
+            val ret = when (groupId) {
+                null, ALL_CONTACTS_GROUP_ID -> {
+                    mContactsMap!!.toArray()
                 }
-                mContactsMap!!.filterKeys { contactIds[it] == true }.toArray()
+
+                else -> {
+                    val contactIds = mGroupsMap!![groupId] ?: emptyList()
+                    mContactsMap!!.filterKeys { contactIds.contains(it) }.toArray()
+                }
             }
+            ret.sortWith(compareBy({ it.last }, { it.first }))
+            continuation.resume(ret)
+        } catch (e: Throwable) {
+            continuation.resumeWithException(e)
         }
-        ret.sortWith(compareBy({ it.last }, { it.first }))
-        return ret
     }
 
     // CACHE
@@ -223,18 +226,33 @@ class ContactsFetcher(val context: Context) {
 
     private fun refreshCache() {
         val contacts = HashMap<Long, Contact>()
-        val groups = HashMap<Long, ArrayList<Long>>() // groupId -> [contactId]
-        val selection =
-            "${ContactsContract.Data.MIMETYPE} IN ('${ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE}', '${ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE}', '${ContactsContract.CommonDataKinds.Email.CONTENT_ITEM_TYPE}', '${ContactsContract.CommonDataKinds.Organization.CONTENT_ITEM_TYPE}', '${ContactsContract.CommonDataKinds.GroupMembership.CONTENT_ITEM_TYPE}', '${ContactsContract.CommonDataKinds.Website.CONTENT_ITEM_TYPE}', '${ContactsContract.CommonDataKinds.StructuredPostal.CONTENT_ITEM_TYPE}')"
-        val cursor = contentResolver.query(
+        val groups = HashMap<Long, MutableList<Long>>() // groupId -> [contactId]
+        val selection = """${ContactsContract.Data.MIMETYPE} 
+            IN ('${ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE}', 
+            '${ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE}', 
+            '${ContactsContract.CommonDataKinds.Email.CONTENT_ITEM_TYPE}', 
+            '${ContactsContract.CommonDataKinds.Organization.CONTENT_ITEM_TYPE}', 
+            '${ContactsContract.CommonDataKinds.GroupMembership.CONTENT_ITEM_TYPE}', 
+            '${ContactsContract.CommonDataKinds.Website.CONTENT_ITEM_TYPE}', 
+            '${ContactsContract.CommonDataKinds.StructuredPostal.CONTENT_ITEM_TYPE}')"""
+            .trimIndent()
+
+        contentResolver.query(
             ContactsContract.Data.CONTENT_URI,
             mDataProjection,
             selection,
             null,
             null
-        )
+        )?.use {
+            readContacs(it, contacts, groups)
+        }
 
-        while (cursor?.moveToNext() == true) {
+        mGroupsMap = groups
+        mContactsMap = contacts
+    }
+
+    private fun readContacs(cursor: Cursor, contacts: MutableMap<Long, Contact>, groups: MutableMap<Long, MutableList<Long>>) {
+        while (cursor.moveToNext()) {
             // val _id = cursor.getLong(0)
             val mimetype = cursor.getString(11)
             val contactId = cursor.getLong(13) // non-raw contactId
@@ -411,10 +429,5 @@ class ContactsFetcher(val context: Context) {
                 }
             }
         }
-
-        cursor?.close()
-
-        mGroupsMap = groups
-        mContactsMap = contacts
     }
 }

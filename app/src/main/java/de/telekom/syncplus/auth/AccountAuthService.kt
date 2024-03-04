@@ -34,7 +34,7 @@ import androidx.annotation.WorkerThread
 import androidx.core.os.bundleOf
 import de.telekom.dtagsyncpluskit.davx5.log.Logger
 import de.telekom.dtagsyncpluskit.davx5.resource.LocalAddressBook
-import de.telekom.syncplus.LoginActivity
+import de.telekom.syncplus.ui.main.login.LoginActivity
 import de.telekom.syncplus.R
 import kotlin.concurrent.thread
 

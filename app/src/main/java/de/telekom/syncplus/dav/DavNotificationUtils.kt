@@ -32,8 +32,8 @@ import de.telekom.dtagsyncpluskit.davx5.ui.NotificationUtils
 import de.telekom.dtagsyncpluskit.davx5.ui.NotificationUtils.CHANNEL_DEBUG
 import de.telekom.dtagsyncpluskit.davx5.ui.NotificationUtils.CHANNEL_GENERAL
 import de.telekom.dtagsyncpluskit.utils.getPendingIntentActivity
-import de.telekom.syncplus.AccountsActivity
-import de.telekom.syncplus.LoginActivity
+import de.telekom.syncplus.ui.main.account.AccountsActivity
+import de.telekom.syncplus.ui.main.login.LoginActivity
 import de.telekom.syncplus.R
 import de.telekom.syncplus.extensions.isPermissionGranted
 

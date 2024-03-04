@@ -24,7 +24,7 @@
     android:background="@android:color/white"
     android:orientation="vertical">
 
-    <de.telekom.syncplus.ui.main.TopBar
+    <de.telekom.syncplus.ui.widget.TopBar
         android:id="@+id/topbar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

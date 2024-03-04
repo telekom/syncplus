@@ -154,7 +154,7 @@ abstract class BaseFragment : Fragment {
                 callback(false, Error(it.toString()), null)
             }
 
-        Dexter.withActivity(activity)
+        Dexter.withContext(context)
             .withPermissions(permissions)
             .withListener(listener)
             .withErrorListener(errorListener)

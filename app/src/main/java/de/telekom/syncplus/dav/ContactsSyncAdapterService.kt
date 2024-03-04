@@ -69,7 +69,7 @@ class ContactsSyncAdapterService : ContactsSyncAdapterService() {
         val lastSyncs = prefs.lastSyncs
         val currentSync = System.currentTimeMillis()
         val lastSync = lastSyncs.lastSyncs.put("Contacts.$authority", currentSync)
-        val i = accountSettings.getSyncInterval(authority)
+        val i = accountSettings.tryGetSyncInterval()
         val interval = if (i == null) Long.MAX_VALUE else i * 1000
         if (lastSync != null && (currentSync - lastSync) > (interval * 2)) {
             notificationDelegate.processSyncFinished(authority, account)

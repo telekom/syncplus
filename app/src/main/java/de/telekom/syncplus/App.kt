@@ -46,6 +46,7 @@ import de.telekom.dtagsyncpluskit.model.spica.Contact
 import de.telekom.dtagsyncpluskit.model.spica.Duplicate
 import de.telekom.dtagsyncpluskit.utils.*
 import de.telekom.syncplus.dav.DavNotificationUtils
+import de.telekom.syncplus.ui.main.welcome.WelcomeActivity
 import de.telekom.syncplus.util.Prefs
 import java.io.File
 import java.util.logging.Handler

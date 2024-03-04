@@ -1,5 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!--
+<?xml version="1.0" encoding="utf-8"?><!--
     This file is part of SyncPlus.
 
     Copyright (C) 2020  Deutsche Telekom AG
@@ -17,33 +16,44 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical">
 
-    <ListView
+    <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/list"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1"
-        android:divider="@color/dividerColor"
-        android:dividerHeight="1dp"
+        android:orientation="vertical"
+        android:overScrollMode="never"
         android:paddingStart="@dimen/listPadding"
-        android:paddingEnd="@dimen/listPadding" />
+        android:paddingEnd="@dimen/listPadding"
+        android:scrollbars="vertical"
+        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+        app:layout_constraintBottom_toTopOf="@id/view_divider"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:itemCount="10"
+        tools:listitem="@layout/contacts_sublist_item" />
 
     <View
+        android:id="@+id/view_divider"
         android:layout_width="match_parent"
         android:layout_height="1dp"
-        android:background="@color/dividerColor" />
+        android:background="@color/dividerColor"
+        app:layout_constraintBottom_toTopOf="@id/button_container" />
 
     <LinearLayout
+        android:id="@+id/button_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="bottom|center"
         android:orientation="horizontal"
         android:paddingStart="@dimen/marginStart"
-        android:paddingEnd="@dimen/marginEnd">
+        android:paddingEnd="@dimen/marginEnd"
+        app:layout_constraintBottom_toBottomOf="parent">
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/bottomBackButton"
@@ -58,4 +68,4 @@
             android:text="@string/button_title_back" />
     </LinearLayout>
 
-</LinearLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

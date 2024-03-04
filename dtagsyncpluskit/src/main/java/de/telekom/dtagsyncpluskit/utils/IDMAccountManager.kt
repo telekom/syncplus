@@ -54,6 +54,7 @@ class IDMAccountManager(val context: Context) {
         const val KEY_ID_TOKEN = "id_token"
         const val KEY_REFRESH_TOKEN = "refresh_token"
         const val KEY_CONTACT_GROUP_METHOD = "group_method"
+        const val KEY_SYNC_INTERVAL = "sync_interval"
         const val KEY_CAL_ENABLED = "calEnabled"
         const val KEY_CARD_ENABLED = "cardEnabled"
         const val KEY_SETUP_COMPLETED = "setupCompleted"
@@ -147,6 +148,15 @@ class IDMAccountManager(val context: Context) {
         }
 
         return GroupMethod.GROUP_VCARDS
+    }
+
+
+    fun setSyncInterval(account: Account, interval: Long?) {
+        accountManager.setUserData(account, KEY_SYNC_INTERVAL, interval?.toString())
+    }
+
+    fun getSyncInterval(account: Account): Long? {
+        return accountManager.getUserData(account, KEY_SYNC_INTERVAL)?.toLong()
     }
 
     fun isCalendarSyncEnabled(account: Account): Boolean {

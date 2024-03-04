@@ -28,7 +28,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import androidx.core.os.bundleOf
-import de.telekom.syncplus.AccountsActivity
+import de.telekom.syncplus.ui.main.account.AccountsActivity
 
 class NullAuthService : Service() {
     private lateinit var accountAuthenticator: AccountAuthenticator

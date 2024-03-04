@@ -30,7 +30,17 @@ import de.telekom.dtagsyncpluskit.api.IDMEnv
 import de.telekom.dtagsyncpluskit.api.TokenStore
 import de.telekom.dtagsyncpluskit.davx5.log.Logger
 import de.telekom.dtagsyncpluskit.utils.CountlyWrapper
-import net.openid.appauth.*
+import net.openid.appauth.AppAuthConfiguration
+import net.openid.appauth.AuthState
+import net.openid.appauth.AuthorizationException
+import net.openid.appauth.AuthorizationRequest
+import net.openid.appauth.AuthorizationResponse
+import net.openid.appauth.AuthorizationService
+import net.openid.appauth.AuthorizationServiceConfiguration
+import net.openid.appauth.GrantTypeValues
+import net.openid.appauth.ResponseTypeValues
+import net.openid.appauth.TokenRequest
+import net.openid.appauth.TokenResponse
 import okhttp3.internal.notifyAll
 import okhttp3.internal.wait
 import org.json.JSONObject
@@ -78,18 +88,17 @@ class IDMAuth(private val context: Context) {
     private var mAuthState: AuthState? = null
     private val mAuthService: AuthorizationService by lazy {
         Logger.log.fine("--> Building AuthService")
-        val config =
-            AppAuthConfiguration.Builder()
-                .setConnectionBuilder { uri ->
-                    val userAgent = "${BuildConfig.userAgent}/${BuildConfig.VERSION_NAME} AOS"
-                    val conn = URL(uri.toString()).openConnection() as HttpURLConnection
-                    conn.connectTimeout = TimeUnit.SECONDS.toMillis(15L).toInt()
-                    conn.readTimeout = TimeUnit.SECONDS.toMillis(10L).toInt()
-                    conn.instanceFollowRedirects = false
-                    conn.setRequestProperty("User-Agent", userAgent)
-                    conn
-                }
-                .build()
+        val config = AppAuthConfiguration.Builder()
+            .setConnectionBuilder { uri ->
+                val userAgent = "${BuildConfig.userAgent}/${BuildConfig.VERSION_NAME} AOS"
+                val conn = URL(uri.toString()).openConnection() as HttpURLConnection
+                conn.connectTimeout = TimeUnit.SECONDS.toMillis(15L).toInt()
+                conn.readTimeout = TimeUnit.SECONDS.toMillis(30L).toInt()
+                conn.instanceFollowRedirects = false
+                conn.setRequestProperty("User-Agent", userAgent)
+                conn
+            }
+            .build()
         AuthorizationService(context, config)
     }
 
@@ -172,9 +181,11 @@ class IDMAuth(private val context: Context) {
                     CountlyWrapper.recordUnhandledException(ex)
                     mErrorHandler?.onError(ex)
                 }
+
                 resp != null -> {
                     updateRefreshToken(resp)
                 }
+
                 else -> {
                     val e = IllegalStateException("Should not happen")
                     CountlyWrapper.recordUnhandledException(e)
@@ -206,6 +217,7 @@ class IDMAuth(private val context: Context) {
                     CountlyWrapper.recordUnhandledException(ex)
                     mErrorHandler?.onError(ex)
                 }
+
                 resp != null -> {
                     val accessToken =
                         resp.accessToken ?: throw IllegalStateException("accessToken is null")
@@ -214,6 +226,7 @@ class IDMAuth(private val context: Context) {
                     val store = TokenStore(accessToken, idToken, refreshToken)
                     mSuccessHandler?.onSuccess(store)
                 }
+
                 else -> {
                     val e = IllegalStateException("Should not happen")
                     CountlyWrapper.recordUnhandledException(e)
@@ -260,6 +273,7 @@ class IDMAuth(private val context: Context) {
                                 lock.notifyAll()
                             }
                         }
+
                         resp != null -> {
                             synchronized(lock) {
                                 ready = true
@@ -267,6 +281,7 @@ class IDMAuth(private val context: Context) {
                                 lock.notifyAll()
                             }
                         }
+
                         else -> {
                             throw IllegalStateException("Should not happen")
                         }

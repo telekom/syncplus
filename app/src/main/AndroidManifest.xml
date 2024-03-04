@@ -66,48 +66,48 @@
         <service android:name="de.telekom.dtagsyncpluskit.davx5.syncadapter.DavService" />
 
         <activity
-            android:name=".IntroActivity"
+            android:name=".ui.main.intro.IntroActivity"
             android:label="@string/title_activity_intro"
             android:screenOrientation="portrait" />
         <activity
-            android:name=".SetupActivity"
+            android:name=".ui.setup.SetupActivity"
             android:label="@string/title_activity_setup"
             android:screenOrientation="portrait" />
         <activity
-            android:name=".HelpActivity"
+            android:name=".ui.main.help.HelpActivity"
             android:label="@string/title_activity_help"
             android:screenOrientation="portrait" />
         <activity
-            android:name=".ContactsActivity"
+            android:name=".ui.setup.contacts.list.ContactsActivity"
             android:label="@string/title_activity_contacts"
             android:screenOrientation="user" />
         <activity
-            android:name=".ContactsCopyActivity"
+            android:name=".ui.setup.contacts.copy.ContactsCopyActivity"
             android:label="@string/title_activity_contacts"
             android:screenOrientation="portrait" />
         <activity
-            android:name=".DuplicatedContactsActivity"
+            android:name=".ui.setup.contacts.duplicates.DuplicatedContactsActivity"
             android:label="@string/title_activity_duplicated_contacts" />
         <activity
-            android:name=".AccountsActivity"
+            android:name=".ui.main.account.AccountsActivity"
             android:label="@string/title_activity_contact_detail"
             android:screenOrientation="user" />
         <activity
-            android:name=".ui.main.DataPrivacyDialogActivity"
+            android:name=".ui.dialog.DataPrivacyDialogActivity"
             android:configChanges="orientation|screenSize|keyboardHidden"
             android:label="@string/data_privacy_settings_title"
             android:screenOrientation="portrait" />
 
         <activity
-            android:name=".LoginActivity"
+            android:name=".ui.main.login.LoginActivity"
             android:configChanges="orientation|keyboardHidden|screenSize|smallestScreenSize|screenLayout"
             android:label="@string/activity_login_title"
             android:screenOrientation="portrait" />
         <activity
-            android:name=".AccountSettingsActivity"
+            android:name=".ui.main.account.AccountSettingsActivity"
             android:configChanges="orientation|screenSize|keyboardHidden"
             android:screenOrientation="portrait" />
-        <activity android:name=".WebViewActivity" />
+        <activity android:name=".ui.main.help.WebViewActivity" />
 
         <!-- Account Authenticator Service -->
         <service
@@ -165,7 +165,7 @@
 
         <!-- Splash Screen -->
         <activity
-            android:name=".WelcomeActivity"
+            android:name=".ui.main.welcome.WelcomeActivity"
             android:exported="true"
             android:theme="@style/SplashTheme">
             <intent-filter>
