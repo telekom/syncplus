@@ -33,57 +33,62 @@ import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.FragmentStatePagerAdapter
 import androidx.viewpager.widget.ViewPager
 import de.telekom.dtagsyncpluskit.ui.BaseActivity
+import de.telekom.syncplus.databinding.IntroActivityBinding
 import de.telekom.syncplus.ui.main.IntroCalendarFragment
 import de.telekom.syncplus.ui.main.IntroCloudFragment
 import de.telekom.syncplus.ui.main.IntroContactsFragment
 import de.telekom.syncplus.ui.main.IntroMailFragment
-import kotlinx.android.parcel.Parcelize
-import kotlinx.android.synthetic.main.intro_activity.*
+import de.telekom.syncplus.util.viewbinding.viewBinding
+import kotlinx.parcelize.Parcelize
 
-class IntroActivity : BaseActivity() {
+class IntroActivity : BaseActivity(R.layout.intro_activity) {
     companion object {
         private const val NUM_PAGES = 4
     }
 
+    // TODO Refactor in favor of using the Fragment Result API
     @Parcelize
     open class OnCancelListener : Parcelable {
         open fun onCancel() {}
     }
 
     private var mBottomPadding: Int = 0
+    private val binding by viewBinding(R.id.root) { IntroActivityBinding.bind(it) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.intro_activity)
 
         // Setup view
-        bottomLayout.measure(0, 0)
-        mBottomPadding = bottomLayout.measuredHeight
+        binding.bottomLayout.measure(0, 0)
+        mBottomPadding = binding.bottomLayout.measuredHeight
 
         // The pager adapter, which provides the pages to the view pager widget.
         val pagerAdapter = IntroPagerAdapter(this, supportFragmentManager)
-        viewPager.adapter = pagerAdapter
+        binding.viewPager.adapter = pagerAdapter
 
-        viewPager.addOnPageChangeListener(object : ViewPager.OnPageChangeListener {
-            override fun onPageScrollStateChanged(state: Int) {}
-            override fun onPageScrolled(
-                position: Int,
-                positionOffset: Float,
-                positionOffsetPixels: Int
-            ) {
-            }
+        binding.viewPager.addOnPageChangeListener(
+            object : ViewPager.OnPageChangeListener {
+                override fun onPageScrollStateChanged(state: Int) {}
 
-            override fun onPageSelected(position: Int) {
-                updatePaginationForPage(position)
-                updateBackgroundForPage(position)
-                updateTextForPage(position)
-                if (position != 0) {
-                    nextButton.setStrokeColorResource(R.color.colorPrimary)
-                } else {
-                    nextButton.setStrokeColorResource(android.R.color.white)
+                override fun onPageScrolled(
+                    position: Int,
+                    positionOffset: Float,
+                    positionOffsetPixels: Int,
+                ) {
                 }
-            }
-        })
+
+                override fun onPageSelected(position: Int) {
+                    updatePaginationForPage(position)
+                    updateBackgroundForPage(position)
+                    updateTextForPage(position)
+                    if (position != 0) {
+                        binding.nextButton.setStrokeColorResource(R.color.colorPrimary)
+                    } else {
+                        binding.nextButton.setStrokeColorResource(android.R.color.white)
+                    }
+                }
+            },
+        )
 
         // Initial page
         updatePaginationForPage(0)
@@ -91,19 +96,25 @@ class IntroActivity : BaseActivity() {
         updateTextForPage(0)
 
         @Suppress("DEPRECATION")
-        nextButton.setBackgroundColor(resources.getColor(R.color.colorPrimary))
-        nextButton.setStrokeColorResource(android.R.color.white)
-        nextButton.setOnClickListener {
-            if (viewPager.currentItem >= 3) {
+        binding.nextButton.setBackgroundColor(resources.getColor(R.color.colorPrimary))
+        binding.nextButton.setStrokeColorResource(android.R.color.white)
+        binding.nextButton.setOnClickListener {
+            if (binding.viewPager.currentItem >= 3) {
                 startActivity(LoginActivity.newIntent(this))
             } else {
-                viewPager.currentItem = viewPager.currentItem + 1
+                binding.viewPager.currentItem = binding.viewPager.currentItem + 1
             }
         }
     }
 
     private fun updatePaginationForPage(position: Int) {
-        val dots = arrayOf(paginationDot1, paginationDot2, paginationDot3, paginationDot4)
+        val dots =
+            arrayOf(
+                binding.paginationDot1,
+                binding.paginationDot2,
+                binding.paginationDot3,
+                binding.paginationDot4,
+            )
 
         if (position >= 1) {
             val dotNormal = ContextCompat.getDrawable(applicationContext, R.drawable.ic_dot)
@@ -143,9 +154,9 @@ class IntroActivity : BaseActivity() {
 
     private fun updateTextForPage(position: Int) {
         if (position >= 3) {
-            nextButton.text = getString(R.string.button_setup)
+            binding.nextButton.text = getString(R.string.button_setup)
         } else {
-            nextButton.text = getString(R.string.button_next)
+            binding.nextButton.text = getString(R.string.button_next)
         }
     }
 
@@ -158,11 +169,12 @@ class IntroActivity : BaseActivity() {
         override fun getCount(): Int = NUM_PAGES
 
         override fun getItem(position: Int): Fragment {
-            val l = object : OnCancelListener() {
-                override fun onCancel() {
-                    startActivity(LoginActivity.newIntent(context))
+            val l =
+                object : OnCancelListener() {
+                    override fun onCancel() {
+                        startActivity(LoginActivity.newIntent(context))
+                    }
                 }
-            }
 
             return when (position) {
                 0 -> {
@@ -179,9 +191,6 @@ class IntroActivity : BaseActivity() {
                 }
                 else -> throw Exception("Too many pages in ViewPager")
             }
-
         }
     }
-
-
 }

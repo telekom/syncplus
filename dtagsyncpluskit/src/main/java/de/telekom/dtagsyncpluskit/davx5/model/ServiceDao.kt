@@ -26,12 +26,17 @@ import androidx.room.Query
 
 @Dao
 interface ServiceDao {
-
     @Query("SELECT * FROM service WHERE accountName=:accountName AND type=:type")
-    fun getByAccountAndType(accountName: String, type: String): Service?
+    fun getByAccountAndType(
+        accountName: String,
+        type: String,
+    ): Service?
 
     @Query("SELECT id FROM service WHERE accountName=:accountName AND type=:type")
-    fun getIdByAccountAndType(accountName: String, type: String): Long?
+    fun getIdByAccountAndType(
+        accountName: String,
+        type: String,
+    ): Long?
 
     @Query("SELECT * FROM service WHERE id=:id")
     fun get(id: Long): Service?
@@ -46,6 +51,8 @@ interface ServiceDao {
     fun deleteExceptAccounts(accountNames: Array<String>)
 
     @Query("UPDATE service SET accountName=:newName WHERE accountName=:oldName")
-    fun renameAccount(oldName: String, newName: String)
-
+    fun renameAccount(
+        oldName: String,
+        newName: String,
+    )
 }

@@ -19,45 +19,31 @@
 
 package de.telekom.syncplus.dav
 
-import android.Manifest
 import android.accounts.Account
-import android.annotation.SuppressLint
 import android.content.ContentProviderClient
 import android.content.SyncResult
 import android.os.Bundle
-import androidx.core.app.NotificationManagerCompat
 import de.telekom.dtagsyncpluskit.api.ServiceEnvironments
 import de.telekom.dtagsyncpluskit.davx5.settings.AccountSettings
 import de.telekom.dtagsyncpluskit.davx5.syncadapter.ContactsSyncAdapterService
-import de.telekom.dtagsyncpluskit.davx5.ui.NotificationUtils
-import de.telekom.syncplus.App
-import de.telekom.syncplus.extensions.isPermissionGranted
 import de.telekom.syncplus.util.Prefs
 
-@SuppressLint("MissingPermission")
 class ContactsSyncAdapterService : ContactsSyncAdapterService() {
-    private val notificationManager by lazy { NotificationManagerCompat.from(this) }
     private val prefs by lazy { Prefs(this.applicationContext) }
+    private val notificationDelegate by lazy { SyncAdapterNotificationDelegateImpl(this) }
 
-    override fun onSecurityException(account: Account, syncResult: SyncResult) {
-        if ((this.applicationContext as? App)?.inSetup == true) return
-        if (isPermissionGranted(Manifest.permission.POST_NOTIFICATIONS)) {
-            notificationManager.notify(
-                NotificationUtils.notificationTag(syncResult.toDebugString(), account),
-                NotificationUtils.NOTIFY_PERMISSIONS,
-                DavNotificationUtils.buildMissingPermissionNotification(this)
-            )
-        }
+    override fun onSecurityException(
+        account: Account,
+        syncResult: SyncResult,
+    ) {
+        notificationDelegate.processSequrityExceprion(account, syncResult)
     }
 
-    override fun onLoginException(authority: String, account: Account) {
-        if (isPermissionGranted(Manifest.permission.POST_NOTIFICATIONS)) {
-            notificationManager.notify(
-                NotificationUtils.notificationTag(authority, account),
-                NotificationUtils.NOTIFY_SYNC_ERROR,
-                DavNotificationUtils.buildReloginNotification(this, account)
-            )
-        }
+    override fun onLoginException(
+        authority: String,
+        account: Account,
+    ) {
+        notificationDelegate.processLoginException(authority, account)
     }
 
     override fun onSyncWillRun(
@@ -66,8 +52,9 @@ class ContactsSyncAdapterService : ContactsSyncAdapterService() {
         extras: Bundle,
         authority: String,
         provider: ContentProviderClient,
-        syncResult: SyncResult
+        syncResult: SyncResult,
     ) {
+        // no-op
     }
 
     override fun onSyncDidRun(
@@ -76,24 +63,16 @@ class ContactsSyncAdapterService : ContactsSyncAdapterService() {
         extras: Bundle,
         authority: String,
         provider: ContentProviderClient,
-        syncResult: SyncResult
+        syncResult: SyncResult,
     ) {
-        val accountSettings = AccountSettings(this, serviceEnvironments, account) {
-            onLoginException(authority, it)
-        }
+        val accountSettings = AccountSettings(this, account)
         val lastSyncs = prefs.lastSyncs
         val currentSync = System.currentTimeMillis()
         val lastSync = lastSyncs.lastSyncs.put("Contacts.$authority", currentSync)
         val i = accountSettings.getSyncInterval(authority)
         val interval = if (i == null) Long.MAX_VALUE else i * 1000
         if (lastSync != null && (currentSync - lastSync) > (interval * 2)) {
-            if (isPermissionGranted(Manifest.permission.POST_NOTIFICATIONS)) {
-                notificationManager.notify(
-                    NotificationUtils.notificationTag(authority, account),
-                    NotificationUtils.NOTIFY_SYNC_ERROR,
-                    DavNotificationUtils.energySavingNotification(this)
-                )
-            }
+            notificationDelegate.processSyncFinished(authority, account)
         }
         prefs.lastSyncs = lastSyncs
     }

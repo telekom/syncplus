@@ -27,9 +27,8 @@ import java.util.logging.Level
 import java.util.logging.LogRecord
 
 class PlainTextFormatter private constructor(
-    private val logcat: Boolean
+    private val logcat: Boolean,
 ) : Formatter() {
-
     companion object {
         val LOGCAT = PlainTextFormatter(true)
         val DEFAULT = PlainTextFormatter(false)
@@ -50,8 +49,9 @@ class PlainTextFormatter private constructor(
         }
 
         val className = shortClassName(r.sourceClassName)
-        if (className != r.loggerName)
+        if (className != r.loggerName) {
             builder.append("[").append(className).append("] ")
+        }
 
         builder.append(StringUtils.abbreviate(r.message, MAX_MESSAGE_LENGTH))
 
@@ -65,8 +65,9 @@ class PlainTextFormatter private constructor(
                 builder.append("\n\tPARAMETER #").append(idx).append(" = ").append(param)
         }
 
-        if (!logcat)
+        if (!logcat) {
             builder.append("\n")
+        }
 
         return builder.toString()
     }
@@ -81,11 +82,11 @@ class PlainTextFormatter private constructor(
         }
     }
 
-    private fun shortClassName(className: String) = className
-        .replace(
-            Regex("^de\\.telekom\\.(davdroid|cert4android|dav4android|ical4android|vcard4android|sync\\.plus|dtagsyncpluskit)\\."),
-            ""
-        )
-        .replace(Regex("\\$.*$"), "")
-
+    private fun shortClassName(className: String) =
+        className
+            .replace(
+                Regex("^de\\.telekom\\.(davdroid|cert4android|dav4android|ical4android|vcard4android|sync\\.plus|dtagsyncpluskit)\\."),
+                "",
+            )
+            .replace(Regex("\\$.*$"), "")
 }

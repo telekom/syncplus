@@ -5,7 +5,6 @@ import android.accounts.AccountManager
 import androidx.fragment.app.Fragment
 
 class AccountObserverDelegate : AccountObserver {
-
     private lateinit var accountManager: AccountManager
 
     private val storedAccounts = mutableSetOf<Account>()

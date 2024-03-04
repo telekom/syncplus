@@ -23,7 +23,6 @@ import android.content.ContentResolver
 import android.content.Context
 import android.database.Cursor
 import android.provider.ContactsContract
-import android.util.Log
 import de.telekom.dtagsyncpluskit.model.Group
 import de.telekom.dtagsyncpluskit.model.spica.*
 import de.telekom.dtagsyncpluskit.toArray
@@ -38,8 +37,6 @@ class ContactsFetcher(val context: Context) {
 
     // groupId -> [contactId]
     private var mGroupsMap: HashMap<Long, ArrayList<Long>>? = null
-
-    private var mGroups: List<Group>? = null
 
     // Don't EVER change the order:
     private val mDataProjection: Array<out String> =
@@ -61,7 +58,7 @@ class ContactsFetcher(val context: Context) {
             ContactsContract.Data.CONTACT_ID,
             ContactsContract.Contacts.LOOKUP_KEY,
             ContactsContract.Contacts.DISPLAY_NAME,
-            ContactsContract.Contacts.IN_VISIBLE_GROUP
+            ContactsContract.Contacts.IN_VISIBLE_GROUP,
         )
 
     private val mGroupProjection: Array<out String> =
@@ -72,53 +69,33 @@ class ContactsFetcher(val context: Context) {
         )
 
     fun allGroups(): List<Group> {
-        return mGroups ?: run {
+        val uri = ContactsContract.Groups.CONTENT_URI
 
-            val uri = ContactsContract.Groups.CONTENT_URI
-
-            // Projection to get group ID and group name
-            val groupProjection = arrayOf(
-                ContactsContract.Groups._ID,
-                ContactsContract.Groups.TITLE
-            )
-
-            // Perform the query to get groups
-            val groupCursor: Cursor? = contentResolver.query(uri, groupProjection, null, null, null)
-
-            val groups = mutableListOf<Group>()
-
-            groupCursor?.use { cursor ->
-                val groupIdColumnIndex = cursor.getColumnIndex(ContactsContract.Groups._ID)
-                val groupNameColumnIndex = cursor.getColumnIndex(ContactsContract.Groups.TITLE)
-
-                while (cursor.moveToNext()) {
-                    val groupId = cursor.getLong(groupIdColumnIndex)
-                    val groupName = cursor.getString(groupNameColumnIndex)
-                    val contactCount = allContacts(groupId).size
-
-                    groups.add(Group(groupId, groupName, contactCount))
-                }
-            }
-
-            groupCursor?.close()
-
-            mGroups = groups
-            groups
-        }
-    }
-
-    fun contactSum(): Int {
-        val cursor = contentResolver.query(
-            ContactsContract.Contacts.CONTENT_URI,
-            null,
-            null,
-            null,
-            null
+        // Projection to get group ID and group name
+        val groupProjection = arrayOf(
+            ContactsContract.Groups._ID,
+            ContactsContract.Groups.TITLE
         )
 
-        val count = cursor?.count ?: 0
-        cursor?.close()
-        return count
+        // Perform the query to get groups
+        val groupCursor: Cursor? = contentResolver.query(uri, groupProjection, null, null, null)
+
+        val groups = mutableListOf<Group>()
+
+        groupCursor?.use { cursor ->
+            val groupIdColumnIndex = cursor.getColumnIndex(ContactsContract.Groups._ID)
+            val groupNameColumnIndex = cursor.getColumnIndex(ContactsContract.Groups.TITLE)
+
+            while (cursor.moveToNext()) {
+                val groupId = cursor.getLong(groupIdColumnIndex)
+                val groupName = cursor.getString(groupNameColumnIndex)
+                val contactCount = allContacts(groupId).size
+
+                groups.add(Group(groupId, groupName, contactCount))
+            }
+        }
+
+        return groups
     }
 
     fun allContacts(groupId: Long? = null): List<Contact> {
@@ -130,9 +107,11 @@ class ContactsFetcher(val context: Context) {
             null -> {
                 mContactsMap!!.toArray()
             }
+
             (-1).toLong() -> {
                 mContactsMap!!.toArray()
             }
+
             else -> {
                 val contactIdsArray = mGroupsMap!![groupId] ?: return ArrayList()
                 val contactIds = HashMap<Long, Boolean>()
@@ -158,20 +137,22 @@ class ContactsFetcher(val context: Context) {
         business: List<T>,
         maxPrivate: Int,
         maxBusiness: Int,
-        maxCombined: Int
+        maxCombined: Int,
     ): List<T> {
         val numPrivate = private.count()
         val numBusiness = business.count()
-        val listPrivate = if (numPrivate > maxPrivate) {
-            private.dropLast(numPrivate - maxPrivate)
-        } else {
-            private
-        }
-        val listBusiness = if (numBusiness > maxBusiness) {
-            business.dropLast(numBusiness - maxBusiness)
-        } else {
-            business
-        }
+        val listPrivate =
+            if (numPrivate > maxPrivate) {
+                private.dropLast(numPrivate - maxPrivate)
+            } else {
+                private
+            }
+        val listBusiness =
+            if (numBusiness > maxBusiness) {
+                business.dropLast(numBusiness - maxBusiness)
+            } else {
+                business
+            }
 
         val numAll = listPrivate.count() + listBusiness.count()
         return if (numAll > maxCombined) {
@@ -254,17 +235,17 @@ class ContactsFetcher(val context: Context) {
         )
 
         while (cursor?.moveToNext() == true) {
-            //val _id = cursor.getLong(0)
+            // val _id = cursor.getLong(0)
             val mimetype = cursor.getString(11)
             val contactId = cursor.getLong(13) // non-raw contactId
-            //val lookupKey = cursor.getString(14)
-            //val displayName = cursor.getString(15)
-            //val inVisibleGroup = cursor.getInt(16)
+            // val lookupKey = cursor.getString(14)
+            // val displayName = cursor.getString(15)
+            // val inVisibleGroup = cursor.getInt(16)
 
             if (!contacts.containsKey(contactId)) {
                 val contact = Contact()
                 // Setting a contactId will fail the upload.
-                //contact.contactId = contactId.toString()
+                // contact.contactId = contactId.toString()
                 contacts[contactId] = contact
             }
 
@@ -281,21 +262,27 @@ class ContactsFetcher(val context: Context) {
                         ContactsContract.CommonDataKinds.Phone.TYPE_HOME -> {
                             TelephoneType.PRIVATE
                         }
+
                         ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE -> {
                             TelephoneType.PRIVATE_MOBILE
                         }
+
                         ContactsContract.CommonDataKinds.Phone.TYPE_WORK -> {
                             TelephoneType.BUSINESS
                         }
+
                         ContactsContract.CommonDataKinds.Phone.TYPE_WORK_MOBILE -> {
                             TelephoneType.BUSINESS_MOBILE
                         }
+
                         ContactsContract.CommonDataKinds.Phone.TYPE_FAX_HOME -> {
                             TelephoneType.PRIVATE_FAX
                         }
+
                         ContactsContract.CommonDataKinds.Phone.TYPE_FAX_WORK -> {
                             TelephoneType.BUSINESS_FAX
                         }
+
                         else -> {
                             // Formerly 'UNKNOWN', which will be converted to 'PRIVATE' in the
                             // backend, anyways.
@@ -312,9 +299,11 @@ class ContactsFetcher(val context: Context) {
                         ContactsContract.CommonDataKinds.Email.TYPE_HOME -> {
                             AddressType.PRIVATE
                         }
+
                         ContactsContract.CommonDataKinds.Email.TYPE_WORK -> {
                             AddressType.BUSINESS
                         }
+
                         else -> {
                             // Default to 'PRIVATE', rather than 'UNKNOWN'
                             AddressType.PRIVATE
@@ -349,9 +338,11 @@ class ContactsFetcher(val context: Context) {
                         ContactsContract.CommonDataKinds.Website.TYPE_HOME -> {
                             AddressType.PRIVATE
                         }
+
                         ContactsContract.CommonDataKinds.Website.TYPE_WORK -> {
                             AddressType.BUSINESS
                         }
+
                         else -> {
                             // Default to 'PRIVATE', rather than 'UNKNOWN'
                             AddressType.PRIVATE
@@ -367,9 +358,11 @@ class ContactsFetcher(val context: Context) {
                         ContactsContract.CommonDataKinds.StructuredPostal.TYPE_HOME -> {
                             AddressType.PRIVATE
                         }
+
                         ContactsContract.CommonDataKinds.StructuredPostal.TYPE_WORK -> {
                             AddressType.BUSINESS
                         }
+
                         else -> {
                             // Default to 'PRIVATE', rather than 'UNKNOWN'
                             AddressType.PRIVATE

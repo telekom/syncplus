@@ -23,8 +23,8 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
-import de.telekom.dtagsyncpluskit.model.Group
 import de.telekom.dtagsyncpluskit.model.AuthHolder
+import de.telekom.dtagsyncpluskit.model.Group
 import de.telekom.syncplus.ui.main.CopyProgressFragment
 import de.telekom.syncplus.ui.main.TopBarActivity
 
@@ -41,14 +41,15 @@ class ContactsCopyActivity : TopBarActivity() {
             authHolder: AuthHolder,
             currentStep: Int,
             maxSteps: Int,
-            selectedGroups: List<Group>?
+            selectedGroups: List<Group>?,
         ): Intent {
             val intent = Intent(activity, ContactsCopyActivity::class.java)
             intent.putExtra(EXTRA_AUTH_HOLDER, authHolder)
             intent.putExtra(EXTRA_STEP, currentStep)
             intent.putExtra(EXTRA_MAX_STEPS, maxSteps)
-            if (selectedGroups != null)
+            if (selectedGroups != null) {
                 intent.putExtra(EXTRA_GROUPS, ArrayList(selectedGroups))
+            }
             return intent
         }
     }
@@ -61,12 +62,18 @@ class ContactsCopyActivity : TopBarActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         if (savedInstanceState == null) {
-            val fragment = CopyProgressFragment.newInstance(
-                authHolder ?: throw IllegalStateException("AuthHolder missing")
-            )
+            val fragment =
+                CopyProgressFragment.newInstance(
+                    authHolder ?: throw IllegalStateException("AuthHolder missing"),
+                )
             supportFragmentManager.beginTransaction()
                 .replace(R.id.container, fragment, fragment.TAG)
                 .commitNow()
         }
+    }
+
+    override fun onBackPressed() {
+        setResult(Activity.RESULT_CANCELED, Intent())
+        finish()
     }
 }

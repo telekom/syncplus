@@ -23,55 +23,58 @@ import android.accounts.Account
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
-import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup
 import androidx.lifecycle.lifecycleScope
 import de.telekom.dtagsyncpluskit.davx5.log.Logger
 import de.telekom.dtagsyncpluskit.davx5.settings.AccountSettings
 import de.telekom.dtagsyncpluskit.model.Group
 import de.telekom.dtagsyncpluskit.runOnMain
 import de.telekom.dtagsyncpluskit.ui.BaseFragment
-import de.telekom.syncplus.*
-import de.telekom.syncplus.dav.DavNotificationUtils
-import kotlinx.android.synthetic.main.fragment_setup_contacts.view.*
+import de.telekom.syncplus.AccountsActivity
+import de.telekom.syncplus.ContactsActivity
+import de.telekom.syncplus.ContactsCopyActivity
+import de.telekom.syncplus.HelpActivity
+import de.telekom.syncplus.R
+import de.telekom.syncplus.SetupActivity
+import de.telekom.syncplus.databinding.FragmentSetupContactsBinding
+import de.telekom.syncplus.util.viewbinding.viewBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import parcelableArrayList
 
-class SetupContactsFragment : BaseFragment() {
+class SetupContactsFragment : BaseFragment(R.layout.fragment_setup_contacts) {
     override val TAG = "SETUP_CONTACTS_FRAGMENT"
 
     companion object {
         fun newInstance() = SetupContactsFragment()
     }
 
+    private val binding by viewBinding(FragmentSetupContactsBinding::bind)
     private val authHolder by lazy {
         (activity as SetupActivity).authHolder
     }
 
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View? {
-        val v = inflater.inflate(R.layout.fragment_setup_contacts, container, false)
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?,
+    ) {
+        super.onViewCreated(view, savedInstanceState)
         setupTopBar()
-        updateSelection(v, authHolder.selectedGroups)
-        v.dropdown.setOnClickListener {
-            v.dropdown.isEnabled = false
+        updateSelection(authHolder.selectedGroups)
+        binding.dropdown.setOnClickListener {
+            binding.dropdown.isEnabled = false
             val intent = ContactsActivity.newIntent(requireActivity(), authHolder.selectedGroups)
             startActivityForResult(intent, ContactsActivity.SELECTED_ADDRESS_BOOKS)
         }
-        v.skipButton.setOnClickListener {
+        binding.skipButton.setOnClickListener {
             showSkipDialog { skip ->
                 if (skip) {
                     goNext()
                 }
             }
         }
-        v.copyButton.setOnClickListener {
-            v.copyButton.isEnabled = false
+        binding.copyButton.setOnClickListener {
+            binding.copyButton.isEnabled = false
             viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
                 val topBar = (activity as TopBarActivity).topBar
                 val intent = ContactsCopyActivity.newIntent(
@@ -79,22 +82,21 @@ class SetupContactsFragment : BaseFragment() {
                     authHolder,
                     topBar.currentStep,
                     topBar.maxSteps,
-                    authHolder.selectedGroups
+                    authHolder.selectedGroups,
                 )
                 runOnMain {
                     startActivityForResult(intent, ContactsCopyActivity.RESULTS)
                 }
             }
         }
-        return v
     }
 
     override fun onStart() {
         super.onStart()
         setupTopBar()
-        view?.dropdown?.isEnabled = true
-        view?.skipButton?.isEnabled = true
-        view?.copyButton?.isEnabled = true
+        binding.dropdown.isEnabled = true
+        binding.skipButton.isEnabled = true
+        binding.copyButton.isEnabled = true
     }
 
     private fun setupTopBar() {
@@ -127,21 +129,27 @@ class SetupContactsFragment : BaseFragment() {
         } ?: throw IllegalStateException("FragmentManager missing")
     }
 
-    private fun updateSelection(view: View?, selectedGroups: List<Group>?) {
-        if (selectedGroups != null)
-            view?.copyButton?.isEnabled = selectedGroups.isNotEmpty()
+    private fun updateSelection(selectedGroups: List<Group>?) {
+        if (selectedGroups != null) {
+            binding.copyButton.isEnabled = selectedGroups.isNotEmpty()
+        }
         if (selectedGroups != null && selectedGroups.find { it.groupId == -1L } == null) {
-            val string = selectedGroups.joinToString(
-                " - ",
-                transform = { it.name ?: "" }
-            )
-            view?.dropdown?.text = string
+            val string =
+                selectedGroups.joinToString(
+                    " - ",
+                    transform = { it.name ?: "" },
+                )
+            binding.dropdown.text = string
         } else {
-            view?.dropdown?.text = getString(R.string.all_contacts)
+            binding.dropdown.text = getString(R.string.all_contacts)
         }
     }
 
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+    override fun onActivityResult(
+        requestCode: Int,
+        resultCode: Int,
+        data: Intent?,
+    ) {
         super.onActivityResult(requestCode, resultCode, data)
 
         when (requestCode) {
@@ -151,14 +159,16 @@ class SetupContactsFragment : BaseFragment() {
                         data?.parcelableArrayList<Group>(ContactsActivity.EXTRA_RESULT)
                     Logger.log.finest("Results: $results")
                     authHolder.selectedGroups = results
-                    updateSelection(view, results)
+                    updateSelection(results)
                 }
             }
+
             ContactsCopyActivity.RESULTS -> {
                 when (resultCode) {
                     Activity.RESULT_OK -> {
                         goNext()
                     }
+
                     Activity.RESULT_CANCELED -> {
                         // Stay here.
                     }
@@ -172,9 +182,7 @@ class SetupContactsFragment : BaseFragment() {
         val account = Account(authHolder.accountName, getString(R.string.account_type))
         val accountSettings = AccountSettings(
             requireContext(),
-            App.serviceEnvironments(requireContext()),
             account,
-            DavNotificationUtils.reloginCallback(requireContext(), "authority")
         )
         accountSettings.resyncContacts(true)
 
@@ -182,12 +190,14 @@ class SetupContactsFragment : BaseFragment() {
             authHolder.calEnabled -> {
                 push(R.id.container, SetupCalendarFragment.newInstance())
             }
+
             authHolder.emailEnabled -> {
                 // Assume the account setup is completed right away because the
                 // email configuration may change outside of the application
                 accountSettings.setSetupCompleted(true)
                 push(R.id.container, SetupEmailFragment.newInstance())
             }
+
             else -> {
                 accountSettings.setSetupCompleted(true)
                 startActivity(
@@ -195,7 +205,7 @@ class SetupContactsFragment : BaseFragment() {
                         requireActivity(),
                         newAccountCreated = true,
                         allTypesSynced = authHolder.allTypesSynced(),
-                    )
+                    ),
                 )
             }
         }

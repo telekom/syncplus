@@ -2,6 +2,7 @@ package de.telekom.syncplus.util
 
 import android.os.SystemClock
 
+// TODO: Remove commented code after successful tests
 object EmailAccountFlagController {
     private const val ADD_ACCOUNT_TIMEOUT_MS = 20_000L
 

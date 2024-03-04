@@ -41,20 +41,24 @@ object Logger : SharedPreferences.OnSharedPreferenceChangeListener {
 
     fun initialize(
         context: Context,
-        notificationHandler: (logDir: File?, logFile: File?, cancel: Boolean) -> Unit
+        notificationHandler: (logDir: File?, logFile: File?, cancel: Boolean) -> Unit,
     ) {
         this.context = context.applicationContext
-        this.preferences = this.context.getSharedPreferences(
-            "de.telekom.syncplus.PREFERENCES",
-            Context.MODE_PRIVATE
-        )
+        this.preferences =
+            this.context.getSharedPreferences(
+                "de.telekom.syncplus.PREFERENCES",
+                Context.MODE_PRIVATE,
+            )
         this.preferences.registerOnSharedPreferenceChangeListener(this)
         this.notificationHandler = notificationHandler
 
         reInit()
     }
 
-    override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences, key: String) {
+    override fun onSharedPreferenceChanged(
+        sharedPreferences: SharedPreferences,
+        key: String?,
+    ) {
         if (key == LOG_TO_FILE) {
             log.info("Logging settings changed; re-initializing logger")
             reInit()
@@ -82,7 +86,6 @@ object Logger : SharedPreferences.OnSharedPreferenceChangeListener {
                 val fileHandler = FileHandler(logFile.toString(), true)
                 fileHandler.formatter = PlainTextFormatter.DEFAULT
                 rootLogger.addHandler(fileHandler)
-
             } catch (e: IOException) {
                 CountlyWrapper.recordHandledException(e)
                 log.log(Level.SEVERE, "Couldn't create log file", e)
@@ -99,11 +102,13 @@ object Logger : SharedPreferences.OnSharedPreferenceChangeListener {
 
     private fun debugDir(context: Context): File? {
         val dir = File(context.filesDir, "debug")
-        if (dir.exists() && dir.isDirectory)
+        if (dir.exists() && dir.isDirectory) {
             return dir
+        }
 
-        if (dir.mkdir())
+        if (dir.mkdir()) {
             return dir
+        }
 
         return null
     }

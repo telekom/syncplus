@@ -12,8 +12,9 @@ abstract class AndroidSingleton<T> {
             return it
         }
 
-        if (creatingSingleton)
+        if (creatingSingleton) {
             throw IllegalStateException("AndroidSingleton::getInstance() must not be called while createInstance()")
+        }
         creatingSingleton = true
 
         val newSingleton = createInstance(context.applicationContext)

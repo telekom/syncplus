@@ -26,7 +26,6 @@ import java.util.logging.Level
 import java.util.logging.LogRecord
 
 object LogcatHandler : Handler() {
-
     private const val MAX_LINE_LENGTH = 3000
 
     init {
@@ -54,5 +53,6 @@ object LogcatHandler : Handler() {
     }
 
     override fun flush() {}
+
     override fun close() {}
 }

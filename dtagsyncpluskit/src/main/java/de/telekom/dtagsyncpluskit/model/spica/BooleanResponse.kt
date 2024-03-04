@@ -21,5 +21,5 @@ package de.telekom.dtagsyncpluskit.model.spica
 
 data class BooleanResponse(
     val error: ErrorDescription?,
-    val value: Boolean?
+    val value: Boolean?,
 )

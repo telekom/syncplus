@@ -20,26 +20,31 @@
 package de.telekom.dtagsyncpluskit.ui
 
 import android.annotation.SuppressLint
-import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.os.Bundle
-import androidx.appcompat.app.AppCompatActivity
+import androidx.annotation.LayoutRes
+import androidx.fragment.app.FragmentActivity
 import de.telekom.dtagsyncpluskit.R
 import de.telekom.dtagsyncpluskit.utils.CountlyWrapper
 
 interface FragmentCallbacks {
     fun onFragmentPopped()
+
     fun onFragmentPushed()
 }
 
-open class BaseActivity : AppCompatActivity(), FragmentCallbacks {
-
+open class BaseActivity : FragmentActivity, FragmentCallbacks {
     // Bookkeeping for backstack.
     private var backstackSize: Int = 0
 
+    constructor() : super()
+    constructor(
+        @LayoutRes contentLayoutId: Int,
+    ) : super(contentLayoutId)
+
     @SuppressLint("SourceLockedOrientationActivity")
     override fun onCreate(savedInstanceState: Bundle?) {
-        //requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+        // requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
 
         super.onCreate(savedInstanceState)
         backstackSize = supportFragmentManager.backStackEntryCount
@@ -71,13 +76,6 @@ open class BaseActivity : AppCompatActivity(), FragmentCallbacks {
         CountlyWrapper.onConfigurationChanged(newConfig)
     }
 
-    override fun onBackPressed() {
-        supportFragmentManager.fragments.forEach {
-            (it as? BaseFragment)?.onBackPressed()
-        }
-        super.onBackPressed()
-    }
-
     override fun onFragmentPopped() {
     }
 
@@ -91,7 +89,7 @@ open class BaseActivity : AppCompatActivity(), FragmentCallbacks {
     open fun <T : BaseFragment> pushFragment(
         containerViewId: Int,
         fragment: T,
-        withAnimation: Boolean = true
+        withAnimation: Boolean = true,
     ) {
         val transaction = supportFragmentManager.beginTransaction()
         if (withAnimation) {
@@ -99,7 +97,7 @@ open class BaseActivity : AppCompatActivity(), FragmentCallbacks {
                 R.anim.in_right,
                 R.anim.out_left,
                 R.anim.in_left,
-                R.anim.out_right
+                R.anim.out_right,
             )
         }
 

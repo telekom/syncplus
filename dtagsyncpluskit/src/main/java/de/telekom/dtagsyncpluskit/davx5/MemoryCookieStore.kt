@@ -39,8 +39,7 @@ import java.util.*
  * Primitive cookie store that stores cookies in a (volatile) hash map.
  * Will be sufficient for session cookies.
  */
-class MemoryCookieStore: CookieJar {
-
+class MemoryCookieStore : CookieJar {
     /**
      * Stored cookies. The multi-key consists of three parts: name, domain, and path.
      * This ensures that cookies can be overwritten. [RFC 6265 5.3 Storage Model]
@@ -48,7 +47,10 @@ class MemoryCookieStore: CookieJar {
      */
     private val storage = MultiKeyMap.multiKeyMap(HashedMap<MultiKey<out String>, Cookie>())!!
 
-    override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
+    override fun saveFromResponse(
+        url: HttpUrl,
+        cookies: List<Cookie>,
+    ) {
         synchronized(storage) {
             for (cookie in cookies)
                 storage.put(cookie.name, cookie.domain, cookie.path, cookie)
@@ -71,12 +73,12 @@ class MemoryCookieStore: CookieJar {
                 }
 
                 // add applicable cookies
-                if (cookie.matches(url))
+                if (cookie.matches(url)) {
                     cookies += cookie
+                }
             }
         }
 
         return cookies
     }
-
 }

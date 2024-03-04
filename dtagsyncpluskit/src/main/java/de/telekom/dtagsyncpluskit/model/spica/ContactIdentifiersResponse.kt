@@ -21,5 +21,5 @@ package de.telekom.dtagsyncpluskit.model.spica
 
 data class ContactIdentifiersResponse(
     val contactIds: List<String>?,
-    val error: ErrorDescription?
+    val error: ErrorDescription?,
 )

@@ -29,7 +29,7 @@ fun openPlayStore(
     resultCode: Int? = null,
 ) {
     try {
-        val uri = Uri.parse("market://details?id=${packageName}")
+        val uri = Uri.parse("market://details?id=$packageName")
         if (resultCode == null) {
             fragment?.startActivity(Intent(Intent.ACTION_VIEW, uri))
         } else {
@@ -37,7 +37,7 @@ fun openPlayStore(
         }
     } catch (e: Exception) {
         CountlyWrapper.recordHandledException(e)
-        val uri = Uri.parse("https://play.google.com/store/apps/details?id=${packageName}")
+        val uri = Uri.parse("https://play.google.com/store/apps/details?id=$packageName")
         if (resultCode == null) {
             fragment?.startActivity(Intent(Intent.ACTION_VIEW, uri))
         } else {

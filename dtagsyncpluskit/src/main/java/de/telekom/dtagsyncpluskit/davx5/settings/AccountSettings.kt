@@ -25,8 +25,9 @@ import android.content.ContentResolver
 import android.content.Context
 import android.os.Bundle
 import android.provider.CalendarContract
+import android.provider.ContactsContract
 import at.bitfire.vcard4android.GroupMethod
-import de.telekom.dtagsyncpluskit.R
+import de.telekom.dtagsyncpluskit.BuildConfig
 import de.telekom.dtagsyncpluskit.api.ServiceEnvironments
 import de.telekom.dtagsyncpluskit.davx5.Constants
 import de.telekom.dtagsyncpluskit.davx5.log.Logger
@@ -46,17 +47,14 @@ import java.util.*
 @Suppress("unused")
 class AccountSettings(
     val context: Context,
-    val serviceEnvironments: ServiceEnvironments,
     val account: Account,
-    onUnauthorized: ((account: Account) -> Unit)?
 ) {
-
     companion object {
         const val SYNC_INTERVAL_MANUALLY = -1L
     }
 
     private val mDB = AppDatabase.getInstance(context)
-    private val am = IDMAccountManager(context, onUnauthorized)
+    private val am = IDMAccountManager(context)
 
     fun db(): AppDatabase = mDB
 
@@ -91,16 +89,23 @@ class AccountSettings(
     suspend fun setSyncAllAddressBooks(enabled: Boolean) =
         am.setAllAddressBookSyncEnabled(account, enabled)
 
-
     fun getSyncWifiOnly(): Boolean = false
-    fun setSyncWiFiOnly(@Suppress("UNUSED_PARAMETER") wiFiOnly: Boolean) = Unit
+
+    fun setSyncWiFiOnly(
+        @Suppress("UNUSED_PARAMETER") wiFiOnly: Boolean,
+    ) = Unit
+
     fun getSyncWifiOnlySSIDs(): List<String>? = null
-    fun setSyncWifiOnlySSIDs(@Suppress("UNUSED_PARAMETER") ssids: List<String>?) = Unit
+
+    fun setSyncWifiOnlySSIDs(
+        @Suppress("UNUSED_PARAMETER") ssids: List<String>?,
+    ) = Unit
 
     fun getEventColors(): Boolean = false
+
     fun getManageCalendarColors(): Boolean = false
 
-    fun getTimeRangePastDays(): Int? = 90 // 90 days
+    fun getTimeRangePastDays(): Int = 90 // 90 days
 
     fun getDefaultAlarm(): Int? = null // no default alarm
 
@@ -113,7 +118,7 @@ class AccountSettings(
     }
 
     fun getSyncInterval(authority: String): Long? {
-        Logger.log.info("getSyncInterval(${authority})")
+        Logger.log.info("getSyncInterval($authority)")
         if (ContentResolver.getIsSyncable(account, authority) <= 0) {
             Logger.log.info("getIsSyncable <= 0")
             return null
@@ -144,8 +149,11 @@ class AccountSettings(
         return retVal
     }
 
-    fun setSyncInterval(authority: String, seconds: Long) {
-        Logger.log.info("setSyncInterval(${authority}, $seconds)")
+    fun setSyncInterval(
+        authority: String,
+        seconds: Long,
+    ) {
+        Logger.log.info("setSyncInterval($authority, $seconds)")
         if (seconds == SYNC_INTERVAL_MANUALLY) {
             ContentResolver.setSyncAutomatically(account, authority, false)
         } else {
@@ -157,7 +165,7 @@ class AccountSettings(
     fun getCredentials() = Credentials(
         context,
         account,
-        serviceEnvironments
+        ServiceEnvironments.fromBuildConfig(BuildConfig.ENVIRON[BuildConfig.FLAVOR]!!),
     )
 
     fun lastSyncDate(authority: String): Pair<String, String>? {
@@ -183,16 +191,21 @@ class AccountSettings(
     }
 
     fun resyncContacts(fullResync: Boolean) {
-        resync(context.getString(R.string.address_books_authority), fullResync)
+        resync(ContactsContract.AUTHORITY, fullResync)
     }
 
-    private fun resync(authority: String, fullResync: Boolean) {
+    private fun resync(
+        authority: String,
+        fullResync: Boolean,
+    ) {
         val args = Bundle(1)
         args.putBoolean(
-            if (fullResync)
+            if (fullResync) {
                 SyncAdapterService.SYNC_EXTRAS_FULL_RESYNC
-            else
-                SyncAdapterService.SYNC_EXTRAS_RESYNC, true
+            } else {
+                SyncAdapterService.SYNC_EXTRAS_RESYNC
+            },
+            true,
         )
 
         ContentResolver.requestSync(account, authority, args)
@@ -203,7 +216,9 @@ class AccountSettings(
         var result: Long = 0
         try {
             val getSyncStatus: Method = ContentResolver::class.java.getMethod(
-                "getSyncStatus", Account::class.java, String::class.java
+                "getSyncStatus",
+                Account::class.java,
+                String::class.java,
             )
             val status = getSyncStatus.invoke(null, account, authority)
             val statusClass = Class.forName("android.content.SyncStatusInfo")

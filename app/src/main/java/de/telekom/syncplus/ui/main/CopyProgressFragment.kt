@@ -24,9 +24,7 @@ import android.app.Activity
 import android.app.Application
 import android.net.Uri
 import android.os.Bundle
-import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup
 import androidx.core.os.bundleOf
 import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.setFragmentResult
@@ -57,9 +55,9 @@ import de.telekom.syncplus.App
 import de.telekom.syncplus.BuildConfig
 import de.telekom.syncplus.ContactsCopyActivity
 import de.telekom.syncplus.R
-import de.telekom.syncplus.ui.main.CopyViewModel.UploadProgress.*
+import de.telekom.syncplus.databinding.FragmentCopyProgressBinding
 import de.telekom.syncplus.ui.main.dialog.SingleActionDialog
-import kotlinx.android.synthetic.main.fragment_copy_progress.view.*
+import de.telekom.syncplus.util.viewbinding.viewBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -68,83 +66,6 @@ import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.properties.Delegates
-
-@Deprecated(message = "Use CopyProgressViewModel instead", ReplaceWith("CopyProgressViewModel"))
-class CopyViewModel(private val app: Application) : AndroidViewModel(app) {
-    enum class UploadProgress {
-        SUCCESS,
-        ERROR,
-        UNKNOWN
-    }
-
-    private val _progress = MutableLiveData(UNKNOWN)
-    val progress: LiveData<UploadProgress> = _progress
-
-    private var _originals: List<Contact>? = null
-    fun getOriginals() = _originals
-
-    private var _duplicates: List<Duplicate>? = null
-    fun getDuplicates() = _duplicates
-
-    private var _lastError: String? = null
-    fun getLastError() = _lastError
-
-    fun uploadContacts(groups: List<Group>?, authHolder: AuthHolder) {
-        val fetcher = ContactsFetcher(getApplication())
-        viewModelScope.launch(Dispatchers.IO) {
-            val redirectUri = Uri.parse(app.getString(R.string.REDIRECT_URI))
-            val environ = BuildConfig.ENVIRON[BuildConfig.FLAVOR]!!
-            val serviceEnvironments = ServiceEnvironments.fromBuildConfig(redirectUri, environ)
-            val account = Account(authHolder.accountName, app.getString(R.string.account_type))
-            val credentials = Credentials(app, account, serviceEnvironments)
-            val spicaAPI = APIFactory.spicaAPI(app, credentials)
-            val contacts = if (groups == null) {
-                ContactList(fetcher.allContacts())
-            } else {
-                val contacts = groups.flatMap { fetcher.allContacts(it.groupId) }
-                ContactList(contacts)
-            }
-
-            // AG: Removed, due to creating too many duplicates in SPICA.
-            /*
-            val contactData = ImportContactData(contacts, null)
-            val importResponse = spicaAPI.importContacts(contactData).awaitResponseOrNull()
-            if (importResponse == null || !importResponse.isSuccessful) {
-                Log.e("SyncPlus", "Error: importContacts: $importResponse")
-                _lastError = importResponse.toString()
-                runOnMain { _progress.value = ERROR }
-                return@launch
-            }
-            */
-
-            when (val duplicatesResponse = spicaAPI.checkDuplicates(contacts).awaitResponse()) {
-                is Err -> {
-                    Logger.log.severe("Error: checkDuplicates: ${duplicatesResponse.error}")
-                    _lastError = duplicatesResponse.error.toString()
-                    runOnMain { _progress.value = ERROR }
-                    return@launch
-                }
-
-                is Ok -> {
-                    val duplicates = duplicatesResponse.value.body()
-                    val count = duplicates?.count ?: 0
-                    runOnMain {
-                        if (count > 0) {
-                            _duplicates = duplicates?.duplicates
-                            _originals = contacts.contacts
-                            _progress.value = SUCCESS
-                        } else {
-                            _duplicates = null
-                            _originals = contacts.contacts
-                            _progress.value = SUCCESS
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
 
 class CopyProgressViewModel(private val app: Application) : AndroidViewModel(app) {
 
@@ -158,7 +79,10 @@ class CopyProgressViewModel(private val app: Application) : AndroidViewModel(app
 
     val action: SharedFlow<Action> = actionFlow.asSharedFlow()
 
-    fun uploadContacts(authHolder: AuthHolder, groups: List<Group>?) {
+    fun uploadContacts(
+        authHolder: AuthHolder,
+        groups: List<Group>?
+    ) {
         this.authHolder = authHolder
         val fetcher = ContactsFetcher(getApplication())
 
@@ -167,6 +91,7 @@ class CopyProgressViewModel(private val app: Application) : AndroidViewModel(app
                 fetcher.allContacts(it.groupId)
             } ?: fetcher.allContacts()
 
+            duplicates.clear()
             originals.clear()
             originals.addAll(contacts)
 
@@ -208,6 +133,7 @@ class CopyProgressViewModel(private val app: Application) : AndroidViewModel(app
                             duplicates.addAll(it)
                         }
                     }
+
                     is Err -> {
                         Logger.log.severe("Error: Merging Contacts: ${response.error}")
                         lastError.set(response.error)
@@ -240,7 +166,7 @@ class CopyProgressViewModel(private val app: Application) : AndroidViewModel(app
 
     private suspend fun uploadContactsChunk(
         accountName: String,
-        contacts: List<Contact>
+        contacts: List<Contact>,
     ): ResultExt<DuplicatesResponse, ApiError> {
         return buildSpicaApi(accountName)
             .checkDuplicates(duplicates = ContactList(contacts))
@@ -248,9 +174,8 @@ class CopyProgressViewModel(private val app: Application) : AndroidViewModel(app
     }
 
     private fun buildSpicaApi(accountName: String): SpicaAPI {
-        val redirectUri = Uri.parse(app.getString(R.string.REDIRECT_URI))
         val environ = BuildConfig.ENVIRON[BuildConfig.FLAVOR]!!
-        val serviceEnvironments = ServiceEnvironments.fromBuildConfig(redirectUri, environ)
+        val serviceEnvironments = ServiceEnvironments.fromBuildConfig(environ)
         val account = Account(accountName, app.getString(R.string.account_type))
         val credentials = Credentials(app, account, serviceEnvironments)
         return APIFactory.spicaAPI(app, credentials)
@@ -269,7 +194,7 @@ class CopyProgressViewModel(private val app: Application) : AndroidViewModel(app
     }
 }
 
-class CopyProgressFragment : BaseFragment() {
+class CopyProgressFragment : BaseFragment(R.layout.fragment_copy_progress) {
     override val TAG = "COPY_PROGRESS_FRAGMENT"
 
     private val viewModel: CopyProgressViewModel by activityViewModels()
@@ -295,6 +220,7 @@ class CopyProgressFragment : BaseFragment() {
     }
 
     private val mAuthHolder by extraNotNull<AuthHolder>(ARG_AUTH_HOLDER)
+    private val binding by viewBinding(FragmentCopyProgressBinding::bind)
 
     override fun onStart() {
         super.onStart()
@@ -311,20 +237,14 @@ class CopyProgressFragment : BaseFragment() {
         topBar.extraTitle = null
     }
 
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View? {
-        val v = inflater.inflate(R.layout.fragment_copy_progress, container, false)
-        v.skipButton.setOnClickListener {
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?,
+    ) {
+        super.onViewCreated(view, savedInstanceState)
+        binding.skipButton.setOnClickListener {
             showConfirmationDialog()
         }
-        return v
-    }
-
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch { viewModel.action.collect(::handleAction) }
@@ -348,20 +268,23 @@ class CopyProgressFragment : BaseFragment() {
 
     private fun handleAction(action: CopyProgressViewModel.Action) {
         when (action) {
-            is CopyProgressViewModel.Action.NavigateToCopySuccess -> push(
-                R.id.container,
-                CopySuccessFragment.newInstance(importContacts = action.importContacts)
-            )
-            CopyProgressViewModel.Action.NavigateToDuplicates -> push(
-                R.id.container,
-                DuplicatesFoundFragment.newInstance()
-            )
+            is CopyProgressViewModel.Action.NavigateToCopySuccess ->
+                push(
+                    R.id.container,
+                    CopySuccessFragment.newInstance(importContacts = action.importContacts),
+                )
+            CopyProgressViewModel.Action.NavigateToDuplicates ->
+                push(
+                    R.id.container,
+                    DuplicatesFoundFragment.newInstance(),
+                )
             CopyProgressViewModel.Action.ShowRetry -> showErrorDialog()
             CopyProgressViewModel.Action.ShowContactLimitError -> showContactLimitError()
-            CopyProgressViewModel.Action.UploadCancelled -> finishWithResult(
-                Activity.RESULT_CANCELED,
-                null
-            )
+            CopyProgressViewModel.Action.UploadCancelled ->
+                finishWithResult(
+                    Activity.RESULT_CANCELED,
+                    null,
+                )
         }
     }
 
@@ -389,7 +312,7 @@ class CopyProgressFragment : BaseFragment() {
         SingleActionDialog.instantiate(
             titleText = getString(R.string.dialog_max_contact_count_error_title),
             messageText = getString(R.string.dialog_max_contact_count_error_message),
-            actionText = getString(R.string.dialog_max_contact_count_error_action)
+            actionText = getString(R.string.dialog_max_contact_count_error_action),
         ).show(parentFragmentManager, "ContactLimitError")
     }
 

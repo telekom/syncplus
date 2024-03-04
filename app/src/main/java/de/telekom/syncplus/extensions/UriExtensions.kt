@@ -6,4 +6,3 @@ fun Uri.isPDFUrl(): Boolean {
     val url = toString()
     return url.endsWith(".pdf?") || url.endsWith(".pdf")
 }
-

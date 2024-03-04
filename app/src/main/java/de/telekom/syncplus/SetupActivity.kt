@@ -33,7 +33,11 @@ import de.telekom.syncplus.util.Prefs
 class SetupActivity : TopBarActivity() {
     companion object {
         const val EXTRA_AUTH_HOLDER = "EXTRA_AUTH_HOLDER"
-        fun newIntent(activity: Activity, authHolder: AuthHolder): Intent {
+
+        fun newIntent(
+            activity: Activity,
+            authHolder: AuthHolder,
+        ): Intent {
             val intent = Intent(activity, SetupActivity::class.java)
             intent.putExtra(EXTRA_AUTH_HOLDER, authHolder)
             intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_NEW_TASK
@@ -82,6 +86,5 @@ class SetupActivity : TopBarActivity() {
         authHolder.currentStep -= 1
         topBar.currentStep = authHolder.currentStep
         topBar.maxSteps = authHolder.maxSteps
-
     }
 }

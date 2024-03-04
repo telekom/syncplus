@@ -28,39 +28,39 @@ import de.telekom.dtagsyncpluskit.extra
 import de.telekom.dtagsyncpluskit.model.Group
 import de.telekom.dtagsyncpluskit.ui.BaseActivity
 import de.telekom.dtagsyncpluskit.ui.BaseFragment
+import de.telekom.syncplus.databinding.ContactsActivityBinding
 import de.telekom.syncplus.ui.main.contacts.AddressBookFragment
-import kotlinx.android.synthetic.main.layout_small_topbar.*
+import de.telekom.syncplus.util.viewbinding.viewBinding
 
-class ContactsActivity : BaseActivity() {
-
+class ContactsActivity : BaseActivity(R.layout.contacts_activity) {
     companion object {
         const val SELECTED_ADDRESS_BOOKS = 101
         const val EXTRA_RESULT = "EXTRA_RESULT"
         const val ARG_SELECTED_GROUPS = "ARG_SELECTED_GROUPS"
-        fun newIntent(activity: Activity, selectedGroups: List<Group>?): Intent {
+
+        fun newIntent(
+            activity: Activity,
+            selectedGroups: List<Group>?,
+        ): Intent {
             val intent = Intent(activity, ContactsActivity::class.java)
-            if (selectedGroups != null)
+            if (selectedGroups != null) {
                 intent.putExtra(ARG_SELECTED_GROUPS, ArrayList(selectedGroups))
+            }
             return intent
         }
     }
 
     private val selectedGroups by extra<List<Group>>(ARG_SELECTED_GROUPS)
+    private val binding by viewBinding(R.id.root) { ContactsActivityBinding.bind(it) }
 
     @SuppressLint("CommitTransaction")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.contacts_activity)
-        topbarTitle.text = getString(R.string.all_contacts)
-        helpButtonSmall.visibility = View.GONE
-        backButtonSmall.setOnClickListener {
-            val addressBookFragment =
-                supportFragmentManager.findFragmentByTag(AddressBookFragment.TAG) as? BaseFragment
-            if (addressBookFragment?.isVisible == true) {
-                finishWithResult()
-            } else {
-                addressBookFragment?.finish()
-            }
+
+        binding.layoutSmallTopbar.topbarTitle.text = getString(R.string.all_contacts)
+        binding.layoutSmallTopbar.helpButtonSmall.visibility = View.GONE
+        binding.layoutSmallTopbar.backButtonSmall.setOnClickListener {
+            handleBackPressed()
         }
 
         if (savedInstanceState == null) {
@@ -68,9 +68,23 @@ class ContactsActivity : BaseActivity() {
                 .replace(
                     R.id.container,
                     AddressBookFragment.newInstance(selectedGroups),
-                    AddressBookFragment.TAG
+                    AddressBookFragment.TAG,
                 )
                 .commitNow()
+        }
+    }
+
+    override fun onBackPressed() {
+        handleBackPressed()
+    }
+
+    private fun handleBackPressed() {
+        val addressBookFragment =
+            supportFragmentManager.findFragmentByTag(AddressBookFragment.TAG) as? BaseFragment
+        if (addressBookFragment?.isVisible == true) {
+            finishWithResult()
+        } else {
+            addressBookFragment?.finish()
         }
     }
 

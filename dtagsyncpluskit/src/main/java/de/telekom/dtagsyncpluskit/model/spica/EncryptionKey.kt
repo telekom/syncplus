@@ -22,5 +22,5 @@ package de.telekom.dtagsyncpluskit.model.spica
 data class EncryptionKey(
     val publicKey: String,
     val algorithm: String,
-    val lastChanged: Long
+    val lastChanged: Long,
 )

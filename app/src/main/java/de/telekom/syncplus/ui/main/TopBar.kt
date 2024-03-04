@@ -21,156 +21,161 @@ package de.telekom.syncplus.ui.main
 
 import android.content.Context
 import android.util.AttributeSet
+import android.view.LayoutInflater
 import android.view.View
-import android.widget.LinearLayout
+import androidx.appcompat.widget.LinearLayoutCompat
 import de.telekom.dtagsyncpluskit.px
 import de.telekom.syncplus.R
-import kotlinx.android.synthetic.main.layout_topbar.view.*
+import de.telekom.syncplus.databinding.LayoutTopbarBinding
 
 @Suppress("unused")
-class TopBar : LinearLayout {
+class TopBar
+    @JvmOverloads
+    constructor(
+        context: Context,
+        attrs: AttributeSet? = null,
+        defStyleAttr: Int = 0,
+    ) : LinearLayoutCompat(context, attrs, defStyleAttr) {
+        private val binding = LayoutTopbarBinding.inflate(LayoutInflater.from(context), this)
 
-    var hasBackButton: Boolean = true
-        set(value) {
-            field = value
-            backButton.visibility = if (value) View.VISIBLE else View.GONE
-        }
-
-    var hasHelpButton: Boolean = true
-        set(value) {
-            field = value
-            helpButton.visibility = if (value) View.VISIBLE else View.GONE
-        }
-
-    var currentStep: Int = 0
-        set(value) {
-            field = value
-            stepTextView.text = context.getString(R.string.topbar_steps, currentStep, maxSteps)
-            if (maxSteps > 0) {
-                progress = currentStep.toFloat() / maxSteps.toFloat()
+        var hasBackButton: Boolean = true
+            set(value) {
+                field = value
+                binding.backButton.visibility = if (value) View.VISIBLE else View.GONE
             }
-        }
 
-    var maxSteps: Int = 0
-        set(value) {
-            field = value
-            stepTextView.text = context.getString(R.string.topbar_steps, currentStep, maxSteps)
-            if (maxSteps > 0) {
-                progress = currentStep.toFloat() / maxSteps.toFloat()
+        var hasHelpButton: Boolean = true
+            set(value) {
+                field = value
+                binding.helpButton.visibility = if (value) View.VISIBLE else View.GONE
             }
+
+        var currentStep: Int = 0
+            set(value) {
+                field = value
+                binding.stepTextView.text =
+                    context.getString(R.string.topbar_steps, currentStep, maxSteps)
+                if (maxSteps > 0) {
+                    progress = currentStep.toFloat() / maxSteps.toFloat()
+                }
+            }
+
+        var maxSteps: Int = 0
+            set(value) {
+                field = value
+                binding.stepTextView.text =
+                    context.getString(R.string.topbar_steps, currentStep, maxSteps)
+                if (maxSteps > 0) {
+                    progress = currentStep.toFloat() / maxSteps.toFloat()
+                }
+            }
+
+        var description: String? = null
+            set(value) {
+                field = value
+                binding.descriptionText.text = description
+                binding.descriptionText.visibility = if (value == null) View.GONE else View.VISIBLE
+            }
+
+        var progressVisible: Boolean = true
+            set(value) {
+                field = value
+                binding.progressIndicator.visibility = if (value) View.VISIBLE else View.GONE
+            }
+
+        var progress: Float = 0.0f
+            set(value) {
+                field = value
+                binding.progressBar.layoutParams = LayoutParams(0.px, 4.px, progress)
+                binding.progressBarFiller.layoutParams = LayoutParams(0, 0, 1.0f - progress)
+            }
+
+        var large: Boolean = false
+            set(value) {
+                field = value
+                binding.extraSectionWrapper.visibility = if (large) View.VISIBLE else View.GONE
+            }
+
+        var extraDrawable: Int = 0
+            set(value) {
+                field = value
+                if (value != 0) binding.extraSectionGraphic.setImageResource(value)
+                binding.extraSectionGraphic.visibility = if (value == 0) View.GONE else View.VISIBLE
+            }
+
+        var extraDrawableSmall: Int = 0
+            set(value) {
+                field = value
+                if (value != 0) binding.extraSectionGraphicSmall.setImageResource(value)
+                binding.extraSectionGraphicSmall.visibility =
+                    if (value == 0) View.GONE else View.VISIBLE
+            }
+
+        var extraTitle: String? = null
+            set(value) {
+                field = value
+                binding.extraSectionTitle.text = value
+                binding.extraSectionTitle.visibility = if (value == null) View.GONE else View.VISIBLE
+            }
+
+        var extraDescription: String? = null
+            set(value) {
+                field = value
+                binding.extraSectionDescription.text = value
+                binding.extraSectionDescription.visibility =
+                    if (value == null) View.GONE else View.VISIBLE
+            }
+
+        var extraSectionButtonTitle: String? = null
+            set(value) {
+                field = value
+                binding.extraSectionLinkText.text = value
+                binding.extraSectionLinkWrapper.visibility =
+                    if (value == null) View.GONE else View.VISIBLE
+            }
+
+        fun setOnHelpClickListener(l: (v: View) -> Unit) {
+            binding.helpButton.setOnClickListener(l)
         }
 
-    var description: String? = null
-        set(value) {
-            field = value
-            descriptionText.text = description
-            descriptionText.visibility = if (value == null) View.GONE else View.VISIBLE
+        fun setOnBackClickListener(l: (v: View) -> Unit) {
+            binding.backButton.setOnClickListener(l)
         }
 
-    var progressVisible: Boolean = true
-        set(value) {
-            field = value
-            progress_indicator.visibility = if (value) View.VISIBLE else View.GONE
+        fun setOnHelpClickListener(l: OnClickListener?) {
+            binding.helpButton.setOnClickListener(l)
         }
 
-    var progress: Float = 0.0f
-        set(value) {
-            field = value
-            progressBar.layoutParams = LayoutParams(0.px, 4.px, progress)
-            progressBarFiller.layoutParams = LayoutParams(0, 0, 1.0f - progress)
+        fun setOnBackClickListener(l: OnClickListener?) {
+            binding.backButton.setOnClickListener(l)
         }
 
-    var large: Boolean = false
-        set(value) {
-            field = value
-            extraSectionWrapper.visibility = if (large) View.VISIBLE else View.GONE
+        fun setOnLinkClickListener(l: OnClickListener?) {
+            binding.extraSectionLinkWrapper.visibility = if (l == null) View.GONE else View.VISIBLE
+            binding.extraSectionLinkWrapper.setOnClickListener(l)
         }
 
-    var extraDrawable: Int = 0
-        set(value) {
-            field = value
-            if (value != 0) extraSectionGraphic.setImageResource(value)
-            extraSectionGraphic.visibility = if (value == 0) View.GONE else View.VISIBLE
+        fun setOnLinkClickListener(l: (View) -> Unit) {
+            binding.extraSectionLinkWrapper.visibility = View.VISIBLE
+            binding.extraSectionLinkWrapper.setOnClickListener(l)
         }
 
-    var extraDrawableSmall: Int = 0
-        set(value) {
-            field = value
-            if (value != 0) extraSectionGraphicSmall.setImageResource(value)
-            extraSectionGraphicSmall.visibility = if (value == 0) View.GONE else View.VISIBLE
+        fun updateProgress() {
+            progress = progress
         }
 
-    var extraTitle: String? = null
-        set(value) {
-            field = value
-            extraSectionTitle.text = value
-            extraSectionTitle.visibility = if (value == null) View.GONE else View.VISIBLE
+        override fun onFinishInflate() {
+            super.onFinishInflate()
+
+            description = null
+            progress = 0.0f
+            maxSteps = 0
+            currentStep = 0
+            large = false
+            extraDrawable = 0
+            extraDrawableSmall = 0
+            extraTitle = null
+            extraDescription = null
+            extraSectionButtonTitle = null
         }
-
-    var extraDescription: String? = null
-        set(value) {
-            field = value
-            extraSectionDescription.text = value
-            extraSectionDescription.visibility = if (value == null) View.GONE else View.VISIBLE
-        }
-
-    var extraSectionButtonTitle: String? = null
-        set(value) {
-            field = value
-            extraSectionLinkText.text = value
-            extraSectionLinkWrapper.visibility = if (value == null) View.GONE else View.VISIBLE
-        }
-
-    constructor(context: Context) : this(context, null)
-    constructor(context: Context, attrs: AttributeSet?) : this(context, attrs, 0)
-    constructor(context: Context, attrs: AttributeSet?, defStyleAttr: Int) : super(
-        context,
-        attrs,
-        defStyleAttr
-    )
-
-    fun setOnHelpClickListener(l: (v: View) -> Unit) {
-        helpButton.setOnClickListener(l)
     }
-
-    fun setOnBackClickListener(l: (v: View) -> Unit) {
-        backButton.setOnClickListener(l)
-    }
-
-    fun setOnHelpClickListener(l: OnClickListener?) {
-        helpButton.setOnClickListener(l)
-    }
-
-    fun setOnBackClickListener(l: OnClickListener?) {
-        backButton.setOnClickListener(l)
-    }
-
-    fun setOnLinkClickListener(l: OnClickListener?) {
-        extraSectionLinkWrapper.visibility = if (l == null) View.GONE else View.VISIBLE
-        extraSectionLinkWrapper.setOnClickListener(l)
-    }
-
-    fun setOnLinkClickListener(l: (View) -> Unit) {
-        extraSectionLinkWrapper.visibility = View.VISIBLE
-        extraSectionLinkWrapper.setOnClickListener(l)
-    }
-
-    fun updateProgress() {
-        progress = progress
-    }
-
-    override fun onFinishInflate() {
-        super.onFinishInflate()
-
-        description = null
-        progress = 0.0f
-        maxSteps = 0
-        currentStep = 0
-        large = false
-        extraDrawable = 0
-        extraDrawableSmall = 0
-        extraTitle = null
-        extraDescription = null
-        extraSectionButtonTitle = null
-    }
-}

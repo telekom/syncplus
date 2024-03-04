@@ -21,32 +21,34 @@ package de.telekom.dtagsyncpluskit.api
 
 import de.telekom.dtagsyncpluskit.model.spica.*
 import retrofit2.Call
-import retrofit2.Response
 import retrofit2.http.*
 
 @Suppress("unused")
 interface SpicaAPI {
-
     enum class Filter {
         HARD,
-        SOFT
+        SOFT,
     }
 
     @PUT("spica/rest/contacts/v1/import")
-    fun importContacts(@Body importContactData: ImportContactData): Call<ContactIdentifiersResponse>
+    fun importContacts(
+        @Body importContactData: ImportContactData,
+    ): Call<ContactIdentifiersResponse>
 
     @Headers(
         "group: true",
-        "showImportResult: true"
+        "showImportResult: true",
     )
     @POST("spica/rest/contacts/v1/import")
-    fun importAndMergeContacts(@Body contacts: ContactList): Call<ContactIdentifiersResponse>
+    fun importAndMergeContacts(
+        @Body contacts: ContactList,
+    ): Call<ContactIdentifiersResponse>
 
     @POST("spica/rest/contacts/v1/duplicates")
     fun checkDuplicates(
         @Body duplicates: ContactList,
         @Header("filter") filter: Filter = Filter.HARD,
         @Header("full") full: Boolean = true,
-        @Header("pictures") pictures: Boolean = false
+        @Header("pictures") pictures: Boolean = false,
     ): Call<DuplicatesResponse>
 }

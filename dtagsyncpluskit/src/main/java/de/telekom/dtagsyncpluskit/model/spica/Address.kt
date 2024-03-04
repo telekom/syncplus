@@ -20,12 +20,14 @@
 package de.telekom.dtagsyncpluskit.model.spica
 
 import android.os.Parcelable
-import kotlinx.android.parcel.Parcelize
-import kotlinx.android.parcel.WriteWith
+import kotlinx.parcelize.Parcelize
+import kotlinx.parcelize.WriteWith
 
 @Suppress("unused")
 enum class AddressType {
-    PRIVATE, BUSINESS, UNKNOWN
+    PRIVATE,
+    BUSINESS,
+    UNKNOWN,
 }
 
 @Parcelize
@@ -35,5 +37,5 @@ data class Address(
     var country: @WriteWith<UTF8StringParceler100> String? = null,
     var state: @WriteWith<UTF8StringParceler100> String? = null,
     var street: @WriteWith<UTF8StringParceler120> String? = null,
-    var zipCode: @WriteWith<UTF8StringParceler40> String? = null
+    var zipCode: @WriteWith<UTF8StringParceler40> String? = null,
 ) : Parcelable

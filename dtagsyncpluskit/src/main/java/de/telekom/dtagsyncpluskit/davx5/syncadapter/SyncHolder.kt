@@ -19,13 +19,14 @@ import java.util.concurrent.atomic.AtomicBoolean
  * and triggers their pausing/restoring when the [isSyncPaused] flag allows it.
  * */
 object SyncHolder {
-
     private var isSyncPaused = AtomicBoolean(false)
+
     // Keep the track on the running syncs with WeakReferences to handle cases when
     // sync is cancelled due to account deletion or thread interruption
-    private val runningSyncs = Collections.synchronizedSet(
-        mutableSetOf<WeakReference<PendingSync>>()
-    )
+    private val runningSyncs =
+        Collections.synchronizedSet(
+            mutableSetOf<WeakReference<PendingSync>>(),
+        )
 
     fun isSyncAllowed(): Boolean {
         return !isSyncPaused.get()
@@ -43,7 +44,8 @@ object SyncHolder {
         // prevent multiple syncs of the same authority to be run for the same account
         if (runningSyncs
                 .mapNotNull { it.get() }
-                .any { it.account == sync.account && it.authority == sync.authority }) {
+                .any { it.account == sync.account && it.authority == sync.authority }
+        ) {
             Logger.log.warning("There's already another ${sync.authority} sync running for ${sync.account}, aborting")
 
             return false
@@ -54,7 +56,10 @@ object SyncHolder {
         return true
     }
 
-    fun removeSync(account: Account, authority: String) {
+    fun removeSync(
+        account: Account,
+        authority: String,
+    ) {
         // Don't delete sync when syncing is forbidden
         // as the sync may be cancelled
         if (!isSyncAllowed()) return
@@ -89,6 +94,6 @@ object SyncHolder {
     data class PendingSync(
         val account: Account,
         val authority: String,
-        val syncExtras: Bundle
+        val syncExtras: Bundle,
     )
 }

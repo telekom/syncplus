@@ -22,58 +22,45 @@ package de.telekom.syncplus.ui.main
 import android.accounts.Account
 import android.content.Intent
 import android.os.Bundle
-import android.provider.Settings
-import android.util.Patterns
-import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup
-import de.telekom.dtagsyncpluskit.davx5.log.Logger
 import de.telekom.dtagsyncpluskit.davx5.settings.AccountSettings
 import de.telekom.dtagsyncpluskit.ui.BaseFragment
 import de.telekom.dtagsyncpluskit.utils.openPlayStore
-import de.telekom.syncplus.*
+import de.telekom.syncplus.AccountsActivity
+import de.telekom.syncplus.HelpActivity
+import de.telekom.syncplus.R
+import de.telekom.syncplus.SetupActivity
+import de.telekom.syncplus.databinding.FragmentSetupEmailBinding
 import de.telekom.syncplus.dav.DavNotificationUtils
-import de.telekom.syncplus.util.AccountObserver
-import de.telekom.syncplus.util.AccountObserverDelegate
-import de.telekom.syncplus.util.EmailAccountFlagController
-import kotlinx.android.synthetic.main.fragment_setup_email.view.*
+import de.telekom.syncplus.util.viewbinding.viewBinding
 
-class SetupEmailFragment : BaseFragment(), AccountObserver by AccountObserverDelegate() {
+class SetupEmailFragment : BaseFragment(R.layout.fragment_setup_email) {
     override val TAG = "SETUP_EMAIL_FRAGMENT"
 
     companion object {
         fun newInstance() = SetupEmailFragment()
+
         private const val PRE_INSTALLED_APPS_RESULT_CODE = 4210
         private const val PLAY_STORE_RESULT_CODE = 2104
     }
 
+    private val binding by viewBinding(FragmentSetupEmailBinding::bind)
     private val authHolder by lazy {
         (activity as SetupActivity).authHolder
     }
 
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View? {
-        val v = inflater.inflate(R.layout.fragment_setup_email, container, false)
-        v.downloadMailAppLayout.setOnClickListener {
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?,
+    ) {
+        super.onViewCreated(view, savedInstanceState)
+        binding.downloadMailAppLayout.setOnClickListener {
             openPlayStore(
                 this,
-                "de.telekom.mail", PLAY_STORE_RESULT_CODE
+                "de.telekom.mail",
+                PLAY_STORE_RESULT_CODE,
             )
         }
-        v.preinstalledMailAppLayout.setOnClickListener {
-            EmailAccountFlagController.initiateAddAccount()
-            val intent = Intent(Settings.ACTION_ADD_ACCOUNT)
-            startActivityForResult(intent, PRE_INSTALLED_APPS_RESULT_CODE)
-        }
-        return v
-    }
-
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
-        init(this)
     }
 
     override fun onStart() {
@@ -91,81 +78,28 @@ class SetupEmailFragment : BaseFragment(), AccountObserver by AccountObserverDel
     }
 
     override fun onDestroy() {
-        EmailAccountFlagController.isAddAccountStarted = false
-        EmailAccountFlagController.isInternalAccountSelected = false
+//        EmailAccountFlagController.isAddAccountStarted = false
+//        EmailAccountFlagController.isInternalAccountSelected = false
         super.onDestroy()
     }
 
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        EmailAccountFlagController.isAddAccountStarted = false
+    override fun onActivityResult(
+        requestCode: Int,
+        resultCode: Int,
+        data: Intent?,
+    ) {
+//        EmailAccountFlagController.isAddAccountStarted = false
 
         when (requestCode) {
-            PRE_INSTALLED_APPS_RESULT_CODE -> updateAccounts(resultCode)
+//            PRE_INSTALLED_APPS_RESULT_CODE -> updateAccounts(resultCode)
             PLAY_STORE_RESULT_CODE -> goNext()
         }
         super.onActivityResult(requestCode, resultCode, data)
     }
 
-    private fun updateAccounts(resultCode: Int) {
-        val accountSet = getAddedAccounts()
-        Logger.log.info("[Account adding] returned with result code $resultCode")
-        Logger.log.info("[Account adding] accounts changed - ${accountSet.isNotEmpty()}")
-
-        if (BuildConfig.DEBUG) {
-            Logger.log.info("[Account adding] accounts added - ${accountSet.map { it.name to it.type }}")
-        }
-
-        // There were attempts to add an internal account - showing error
-        Logger.log.info("There were attempts to add an internal account - showing error")
-        if (EmailAccountFlagController.isInternalAccountSelected) {
-            EmailAccountFlagController.isInternalAccountSelected = false
-            showErrorDialog()
-            return
-        }
-
-        val addedAccount = accountSet.lastOrNull()
-        if (addedAccount != null) {
-            Logger.log.info("Account is added - handling")
-            handleAccountAdded(addedAccount)
-        } else if (EmailAccountFlagController.isTimeoutExceed()) {
-            Logger.log.info("Account is not added but timeout exceeded - go next")
-            goNext()
-        } else {
-            Logger.log.info("Account is not added - show error")
-            showErrorDialog()
-        }
-    }
-
-    private fun handleAccountAdded(account: Account) {
-        if (Patterns.EMAIL_ADDRESS.matcher(account.name).matches() ||
-            EmailAccountFlagController.isWhitelisted(account.type)
-        ) {
-            // Added account is an email account - go next
-            Logger.log.info("Added account is an email account - go next")
-            goNext()
-        } else if (EmailAccountFlagController.isTimeoutExceed()) {
-            Logger.log.info("Added account is not an email account but timeout exceeded - go next")
-            goNext()
-        } else {
-            // Added account is not an email account - show error dialog
-            Logger.log.info("Added account is not an email account - show error dialog")
-            showErrorDialog()
-        }
-    }
-
-    private fun showErrorDialog() {
-        EmailSetupErrorDialog.instantiate()
-            .show(childFragmentManager, "EmailSetupErrorDialog")
-    }
-
     private fun goNext() {
         val account = Account(authHolder.accountName, getString(R.string.account_type))
-        val accountSettings = AccountSettings(
-            requireContext(),
-            App.serviceEnvironments(requireContext()),
-            account,
-            DavNotificationUtils.reloginCallback(requireContext(), "authority")
-        )
+        val accountSettings = AccountSettings(requireContext(), account)
         accountSettings.setSetupCompleted(true)
 
         startActivity(
@@ -173,7 +107,7 @@ class SetupEmailFragment : BaseFragment(), AccountObserver by AccountObserverDel
                 requireActivity(),
                 newAccountCreated = true,
                 allTypesSynced = authHolder.allTypesSynced(),
-            )
+            ),
         )
     }
 }

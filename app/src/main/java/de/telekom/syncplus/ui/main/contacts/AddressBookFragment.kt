@@ -22,9 +22,7 @@ package de.telekom.syncplus.ui.main.contacts
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
-import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
@@ -37,19 +35,21 @@ import de.telekom.dtagsyncpluskit.model.Group
 import de.telekom.dtagsyncpluskit.ui.BaseFragment
 import de.telekom.syncplus.ContactsActivity
 import de.telekom.syncplus.R
-import kotlinx.android.synthetic.main.fragment_addressbook.*
-import kotlinx.android.synthetic.main.fragment_addressbook.view.*
+import de.telekom.syncplus.databinding.FragmentAddressbookBinding
+import de.telekom.syncplus.util.viewbinding.viewBinding
 import kotlinx.coroutines.launch
 
-class AddressBookFragment : BaseFragment() {
+class AddressBookFragment : BaseFragment(R.layout.fragment_addressbook) {
     override val TAG = Companion.TAG
 
     companion object {
         private const val ARG_SELECTED_GROUPS = "ARG_SELECTED_GROUPS"
+
         fun newInstance(selectedGroups: List<Group>?): AddressBookFragment {
             val args = Bundle()
-            if (selectedGroups != null)
+            if (selectedGroups != null) {
                 args.putParcelableArrayList(ARG_SELECTED_GROUPS, ArrayList(selectedGroups))
+            }
             val fragment = AddressBookFragment()
             fragment.arguments = args
             return fragment
@@ -61,40 +61,42 @@ class AddressBookFragment : BaseFragment() {
     private val mSelectedGroups by extra<List<Group>>(ARG_SELECTED_GROUPS, null)
 
     private val viewModel: AddressBookContract.ViewModel by viewModels<AddressBookViewModel>()
+    private val binding by viewBinding(FragmentAddressbookBinding::bind)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         viewModel.fetchGroups(mSelectedGroups ?: emptyList())
     }
 
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View? {
-        val v = inflater.inflate(R.layout.fragment_addressbook, container, false)
-        v.bottomBackButton.setOnClickListener { finishWithResult(Activity.RESULT_CANCELED, null) }
-        v.bottomAcceptButton.setOnClickListener { viewModel.onAccepted() }
-
-        v.list.adapter = adapter
-        v.list.addItemDecoration(DividerItemDecoration(requireContext(), VERTICAL).apply {
-            ContextCompat.getDrawable(requireContext(), R.drawable.list_divider)?.let {
-                setDrawable(it)
-            }
-        })
-
-        return v
-    }
-
     private val adapter: AddressBookAdapter by lazy {
         AddressBookAdapter(
             onClicked = { viewModel.onGroupClicked(it) },
-            onSelectionChanged = { viewModel.onGroupSelected(it) }
+            onSelectionChanged = { viewModel.onGroupSelected(it) },
         )
     }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?,
+    ) {
         super.onViewCreated(view, savedInstanceState)
+
+        binding.bottomBackButton.setOnClickListener {
+            finishWithResult(
+                Activity.RESULT_CANCELED,
+                null,
+            )
+        }
+        binding.bottomAcceptButton.setOnClickListener { viewModel.onAccepted() }
+
+        binding.list.adapter = adapter
+        binding.list.addItemDecoration(
+            DividerItemDecoration(requireContext(), VERTICAL).apply {
+                ContextCompat.getDrawable(requireContext(), R.drawable.list_divider)?.let {
+                    setDrawable(it)
+                }
+            },
+        )
 
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -105,7 +107,7 @@ class AddressBookFragment : BaseFragment() {
     }
 
     private fun handleState(state: AddressBookContract.State) {
-        bottomAcceptButton?.isEnabled = state.groupList.any { it.isSelected }
+        binding.bottomAcceptButton.isEnabled = state.groupList.any { it.isSelected }
         adapter.submitList(state.groupList)
     }
 
@@ -120,8 +122,8 @@ class AddressBookFragment : BaseFragment() {
                     Activity.RESULT_OK,
                     Intent().putParcelableArrayListExtra(
                         ContactsActivity.EXTRA_RESULT,
-                        ArrayList(action.groups)
-                    )
+                        ArrayList(action.groups),
+                    ),
                 )
             }
         }

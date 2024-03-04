@@ -1,8 +1,8 @@
 apply plugin: 'com.android.application'
 //apply plugin: 'com.jaredsburrows.license'
 apply plugin: 'kotlin-android'
-apply plugin: 'kotlin-android-extensions'
 apply plugin: 'kotlin-kapt'
+apply plugin: 'kotlin-parcelize'
 apply plugin: 'kotlinx-serialization'
 apply from: '../env/env.gradle'
 apply from: '../utils.gradle'
@@ -44,8 +44,8 @@ static def gitBranch() {
 
 
 android {
-    compileSdkVersion 33
-
+    compileSdk 34
+    namespace "de.telekom.syncplus"
     signingConfigs {
         // signing configuration for a local debug.keystore file
         debug {
@@ -59,9 +59,9 @@ android {
     defaultConfig {
         applicationId "de.telekom.sync.plus"
         minSdkVersion 26    // Android 8
-        targetSdkVersion 33 // Android 13
-        versionCode 71
-        versionName "1.6.4"
+        targetSdkVersion 34 // Android 14
+        versionCode 77
+        versionName "1.7.0"
         multiDexEnabled true
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
@@ -77,7 +77,7 @@ android {
         print getGithubSourceCodeZipURL()
     }
 
-    flavorDimensions "environment"
+    flavorDimensions = ["environment"]
     productFlavors {
         dev {
             applicationIdSuffix ""
@@ -139,7 +139,6 @@ dependencies {
 
     implementation fileTree(dir: 'libs', include: ['*.jar'])
 
-    //implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
     implementation libs.navigation.fragment.ktx
     implementation libs.navigation.ui.ktx
     implementation libs.appcompat
@@ -166,7 +165,7 @@ dependencies {
     androidTestImplementation libs.junit.android
     androidTestImplementation libs.espresso.core
 
-    implementation 'com.github.bitfireAT:cert4android:75d64c2'
-    implementation 'com.github.bitfireAT:ical4android:43ef146'
-    implementation 'com.github.bitfireAT:vcard4android:a6e9dc4'
+    implementation libs.cert4android
+    implementation libs.ical4android
+    implementation libs.vcard4android
 }

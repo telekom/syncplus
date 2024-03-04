@@ -33,9 +33,7 @@ import android.content.AbstractThreadedSyncAdapter
 import android.content.ContentProviderClient
 import android.content.Intent
 import android.content.SyncResult
-import android.net.Uri
 import android.os.Bundle
-import de.telekom.dtagsyncpluskit.R
 import de.telekom.dtagsyncpluskit.api.ServiceEnvironments
 import de.telekom.dtagsyncpluskit.davx5.InvalidAccountException
 import de.telekom.dtagsyncpluskit.davx5.log.Logger
@@ -43,14 +41,7 @@ import de.telekom.dtagsyncpluskit.davx5.settings.AccountSettings
 import java.util.logging.Level
 
 abstract class SyncAdapterService : Service() {
-
     companion object {
-//        /** Keep a list of running syncs to block multiple calls at the same time,
-//         *  like run by some devices. Weak references are used for the case that a thread
-//         *  is terminated and the `finally` block which cleans up [runningSyncs] is not
-//         *  executed. */
-//        private val runningSyncs = mutableListOf<WeakReference<Pair<String, Account>>>()
-
         /**
          * Specifies an list of IDs which are requested to be synchronized before
          * the other collections. For instance, if some calendars of a CalDAV
@@ -88,15 +79,13 @@ abstract class SyncAdapterService : Service() {
 
     override fun onBind(intent: Intent?) = syncAdapter().syncAdapterBinder!!
 
-
     abstract class SyncAdapter(
-        private val service: SyncAdapterService
+        private val service: SyncAdapterService,
     ) : AbstractThreadedSyncAdapter(
         service.applicationContext,
-        true    // isSyncable shouldn't be -1 because DAVx5 sets it to 0 or 1.
+        true, // isSyncable shouldn't be -1 because DAVx5 sets it to 0 or 1.
         // However, if it is -1 by accident, set it to 1 to avoid endless sync loops.
     ) {
-
         companion object {
             fun priorityCollections(extras: Bundle): Set<Long> {
                 val ids = mutableSetOf<Long>()
@@ -105,22 +94,42 @@ abstract class SyncAdapterService : Service() {
                         try {
                             ids += rawId.toLong()
                         } catch (e: NumberFormatException) {
-                            Logger.log.log(Level.WARNING, "Couldn't parse SYNC_EXTRAS_PRIORITY_COLLECTIONS", e)
+                            Logger.log.log(
+                                Level.WARNING,
+                                "Couldn't parse SYNC_EXTRAS_PRIORITY_COLLECTIONS",
+                                e
+                            )
                         }
                 }
                 return ids
             }
         }
 
-        abstract fun sync(serviceEnvironments: ServiceEnvironments, account: Account, extras: Bundle, authority: String, provider: ContentProviderClient, syncResult: SyncResult)
+        abstract fun sync(
+            serviceEnvironments: ServiceEnvironments,
+            account: Account,
+            extras: Bundle,
+            authority: String,
+            provider: ContentProviderClient,
+            syncResult: SyncResult,
+        )
 
-        override fun onPerformSync(account: Account, extras: Bundle, authority: String, provider: ContentProviderClient, syncResult: SyncResult) {
-            Logger.log.log(Level.INFO, "$authority sync of $account has been initiated", extras.keySet().joinToString(", "))
-            val redirectUri = Uri.parse(context.getString(R.string.REDIRECT_URI))
-            val serviceEnvironments = ServiceEnvironments.fromBuildConfig(
-                redirectUri,
-                de.telekom.dtagsyncpluskit.BuildConfig.ENVIRON[de.telekom.dtagsyncpluskit.BuildConfig.FLAVOR]!!
+        override fun onPerformSync(
+            account: Account,
+            extras: Bundle,
+            authority: String,
+            provider: ContentProviderClient,
+            syncResult: SyncResult,
+        ) {
+            Logger.log.log(
+                Level.INFO,
+                "$authority sync of $account has been initiated",
+                extras.keySet().joinToString(", ")
             )
+            val serviceEnvironments =
+                ServiceEnvironments.fromBuildConfig(
+                    de.telekom.dtagsyncpluskit.BuildConfig.ENVIRON[de.telekom.dtagsyncpluskit.BuildConfig.FLAVOR]!!,
+                )
 
             // required for ServiceLoader -> ical4j -> ical4android
             Thread.currentThread().contextClassLoader = context.classLoader
@@ -141,8 +150,16 @@ abstract class SyncAdapterService : Service() {
             Logger.log.log(Level.INFO, "Sync for $authority $account finished", syncResult)
         }
 
-        override fun onSecurityException(account: Account, extras: Bundle, authority: String, syncResult: SyncResult) {
-            Logger.log.log(Level.WARNING, "Security exception when opening content provider for $authority")
+        override fun onSecurityException(
+            account: Account,
+            extras: Bundle,
+            authority: String,
+            syncResult: SyncResult,
+        ) {
+            Logger.log.log(
+                Level.WARNING,
+                "Security exception when opening content provider for $authority"
+            )
             securityExceptionOccurred(account, syncResult)
         }
 
@@ -156,11 +173,10 @@ abstract class SyncAdapterService : Service() {
             super.onSyncCanceled(thread)
         }
 
-
         protected fun checkSyncConditions(settings: AccountSettings): Boolean {
             if (settings.getSyncWifiOnly()) {
                 // WiFi required
-                //val connectivityManager = context.getSystemService<ConnectivityManager>()!!
+                // val connectivityManager = context.getSystemService<ConnectivityManager>()!!
 
                 // check for connected WiFi network
                 /*var wifiAvailable = false
@@ -202,27 +218,84 @@ abstract class SyncAdapterService : Service() {
             return true
         }
 
-        protected fun securityExceptionOccurred(account: Account, syncResult: SyncResult) {
+        private fun securityExceptionOccurred(
+            account: Account,
+            syncResult: SyncResult,
+        ) {
             Logger.log.finest("securityExceptionOccurred")
             service.onSecurityException(account, syncResult)
         }
 
-        protected fun loginExceptionOccurred(authority: String, account: Account) {
+        protected fun loginExceptionOccurred(
+            authority: String,
+            account: Account,
+        ) {
             Logger.log.finest("loginExceptionOccurred")
             service.onLoginException(authority, account)
         }
 
-        protected fun syncWillRun(serviceEnvironments: ServiceEnvironments, account: Account, extras: Bundle, authority: String, provider: ContentProviderClient, syncResult: SyncResult) {
-            service.onSyncWillRun(serviceEnvironments, account, extras, authority, provider, syncResult)
+        protected fun syncWillRun(
+            serviceEnvironments: ServiceEnvironments,
+            account: Account,
+            extras: Bundle,
+            authority: String,
+            provider: ContentProviderClient,
+            syncResult: SyncResult,
+        ) {
+            service.onSyncWillRun(
+                serviceEnvironments,
+                account,
+                extras,
+                authority,
+                provider,
+                syncResult
+            )
         }
 
-        protected fun syncDidRun(serviceEnvironments: ServiceEnvironments, account: Account, extras: Bundle, authority: String, provider: ContentProviderClient, syncResult: SyncResult) {
-            service.onSyncWillRun(serviceEnvironments, account, extras, authority, provider, syncResult)
+        protected fun syncDidRun(
+            serviceEnvironments: ServiceEnvironments,
+            account: Account,
+            extras: Bundle,
+            authority: String,
+            provider: ContentProviderClient,
+            syncResult: SyncResult,
+        ) {
+            service.onSyncWillRun(
+                serviceEnvironments,
+                account,
+                extras,
+                authority,
+                provider,
+                syncResult
+            )
         }
     }
 
-    abstract fun onSecurityException(account: Account, syncResult: SyncResult)
-    abstract fun onLoginException(authority: String, account: Account)
-    abstract fun onSyncWillRun(serviceEnvironments: ServiceEnvironments, account: Account, extras: Bundle, authority: String, provider: ContentProviderClient, syncResult: SyncResult)
-    abstract fun onSyncDidRun(serviceEnvironments: ServiceEnvironments, account: Account, extras: Bundle, authority: String, provider: ContentProviderClient, syncResult: SyncResult)
+    abstract fun onSecurityException(
+        account: Account,
+        syncResult: SyncResult,
+    )
+
+    abstract fun onLoginException(
+        authority: String,
+        account: Account,
+    )
+
+    abstract fun onSyncWillRun(
+        serviceEnvironments: ServiceEnvironments,
+        account: Account,
+        extras: Bundle,
+        authority: String,
+        provider: ContentProviderClient,
+        syncResult: SyncResult,
+    )
+
+    abstract fun onSyncDidRun(
+        serviceEnvironments: ServiceEnvironments,
+        account: Account,
+        extras: Bundle,
+        authority: String,
+        provider: ContentProviderClient,
+        syncResult: SyncResult,
+    )
 }

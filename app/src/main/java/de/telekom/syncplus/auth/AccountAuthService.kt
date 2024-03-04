@@ -19,7 +19,11 @@
 
 package de.telekom.syncplus.auth
 
-import android.accounts.*
+import android.accounts.AbstractAccountAuthenticator
+import android.accounts.Account
+import android.accounts.AccountAuthenticatorResponse
+import android.accounts.AccountManager
+import android.accounts.OnAccountsUpdateListener
 import android.app.Service
 import android.content.Context
 import android.content.Intent
@@ -32,27 +36,26 @@ import de.telekom.dtagsyncpluskit.davx5.log.Logger
 import de.telekom.dtagsyncpluskit.davx5.resource.LocalAddressBook
 import de.telekom.syncplus.LoginActivity
 import de.telekom.syncplus.R
-import de.telekom.syncplus.util.EmailAccountFlagController
-import de.telekom.syncplus.util.Prefs
 import kotlin.concurrent.thread
 
 class AccountAuthService : Service() {
-
     companion object {
         @WorkerThread
         fun cleanupAccounts(context: Context) {
             val accountManager = AccountManager.get(context)
-            val accountNames = accountManager
-                .getAccountsByType(context.getString(R.string.account_type))
-                .map { it.name }
+            val accountNames =
+                accountManager
+                    .getAccountsByType(context.getString(R.string.account_type))
+                    .map { it.name }
 
             // delete orphaned address book accounts
             accountManager.getAccountsByType(context.getString(R.string.account_type_address_book))
                 .map { LocalAddressBook(context, it, null) }
                 .forEach {
                     try {
-                        if (!accountNames.contains(it.mainAccount.name))
+                        if (!accountNames.contains(it.mainAccount?.name)) {
                             it.delete()
+                        }
                     } catch (e: Exception) {
                         Logger.log.severe("Couldn't delete address book account: $e")
                         Log.e("SyncPlus", "Couldn't delete address book account", e)
@@ -90,24 +93,25 @@ class AccountAuthService : Service() {
     }
 
     class AccountAuthenticator(val context: Context) : AbstractAccountAuthenticator(context) {
-
         override fun addAccount(
             response: AccountAuthenticatorResponse?,
             accountType: String?,
             authTokenType: String?,
             requiredFeatures: Array<out String>?,
-            options: Bundle?
+            options: Bundle?,
         ): Bundle {
-            return if (EmailAccountFlagController.isAddAccountStarted) {
-                EmailAccountFlagController.isAddAccountStarted = false
-                EmailAccountFlagController.isInternalAccountSelected = true
-
-                bundleOf()
-            } else {
-                val intent = Intent(context, LoginActivity::class.java)
+            // TODO: Remove commented code after successful tests
+//            return if (EmailAccountFlagController.isAddAccountStarted) {
+//                EmailAccountFlagController.isAddAccountStarted = false
+//                EmailAccountFlagController.isInternalAccountSelected = true
+//
+//                bundleOf()
+//            } else {
+            val intent =
+                Intent(context, LoginActivity::class.java)
                     .putExtra(AccountManager.KEY_ACCOUNT_AUTHENTICATOR_RESPONSE, response)
-                bundleOf(AccountManager.KEY_INTENT to intent)
-            }
+            return bundleOf(AccountManager.KEY_INTENT to intent)
+//            }
         }
 
         override fun getAuthTokenLabel(authTokenType: String?) = null
@@ -115,32 +119,32 @@ class AccountAuthService : Service() {
         override fun confirmCredentials(
             response: AccountAuthenticatorResponse?,
             account: Account?,
-            options: Bundle?
+            options: Bundle?,
         ) = null
 
         override fun updateCredentials(
             response: AccountAuthenticatorResponse?,
             account: Account?,
             authTokenType: String?,
-            options: Bundle?
+            options: Bundle?,
         ) = null
 
         override fun getAuthToken(
             response: AccountAuthenticatorResponse?,
             account: Account?,
             authTokenType: String?,
-            options: Bundle?
+            options: Bundle?,
         ) = null
 
         override fun hasFeatures(
             response: AccountAuthenticatorResponse?,
             account: Account?,
-            features: Array<out String>?
+            features: Array<out String>?,
         ) = null
 
         override fun editProperties(
             response: AccountAuthenticatorResponse?,
-            accountType: String?
+            accountType: String?,
         ) = null
     }
 }

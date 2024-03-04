@@ -19,22 +19,19 @@
 
 package de.telekom.dtagsyncpluskit.api
 
-import android.net.Uri
 import android.os.Parcelable
-import kotlinx.android.parcel.Parcelize
+import kotlinx.parcelize.Parcelize
 
 @Parcelize
 data class ServiceEnvironments(
     val spicaEnv: SpicaEnv,
-    val idmEnv: IDMEnv,
-    val redirectUri: Uri
+    val idmEnv: IDMEnv
 ) : Parcelable {
     companion object {
-        fun fromBuildConfig(redirectUri: Uri, environ: Array<String>): ServiceEnvironments {
+        fun fromBuildConfig(environ: Array<String>): ServiceEnvironments {
             return ServiceEnvironments(
                 SpicaEnv.fromBuildConfig(environ),
                 IDMEnv.fromBuildConfig(environ),
-                redirectUri
             )
         }
     }

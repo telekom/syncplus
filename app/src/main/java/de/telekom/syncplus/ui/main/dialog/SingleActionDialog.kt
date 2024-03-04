@@ -7,13 +7,11 @@ import android.view.Window
 import androidx.core.os.bundleOf
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.setFragmentResult
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import de.telekom.dtagsyncpluskit.extra
-import de.telekom.syncplus.R
-import kotlinx.android.synthetic.main.dialog_energysaver.view.*
-import kotlinx.android.synthetic.main.dialog_single_action.view.*
+import de.telekom.syncplus.databinding.DialogSingleActionBinding
 
 class SingleActionDialog : DialogFragment() {
-
     companion object {
         const val ACTION_EVENT = "dialog_action_event"
 
@@ -24,14 +22,15 @@ class SingleActionDialog : DialogFragment() {
         fun instantiate(
             titleText: String,
             messageText: String,
-            actionText: String
+            actionText: String,
         ): SingleActionDialog {
             return SingleActionDialog().apply {
-                arguments = bundleOf(
-                    TITLE_EXTRA to titleText,
-                    MESSAGE_EXTRA to messageText,
-                    ACTION_EXTRA to actionText
-                )
+                arguments =
+                    bundleOf(
+                        TITLE_EXTRA to titleText,
+                        MESSAGE_EXTRA to messageText,
+                        ACTION_EXTRA to actionText,
+                    )
             }
         }
     }
@@ -42,24 +41,25 @@ class SingleActionDialog : DialogFragment() {
 
     @SuppressLint("InflateParams")
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-        val view = layoutInflater.inflate(R.layout.dialog_single_action, null)
-        val dialog = object : Dialog(requireContext(), theme) {
-            override fun onBackPressed() {}
-        }
+        val binding = DialogSingleActionBinding.inflate(layoutInflater, null, false)
+        val dialog =
+            MaterialAlertDialogBuilder(requireContext(), theme)
+                .setCancelable(false)
+                .setView(binding.root)
+                .create()
+                .apply {
+                    requestWindowFeature(Window.FEATURE_NO_TITLE)
+                    setCanceledOnTouchOutside(false)
+                }
 
-        view.text_title.text = title
-        view.text_message.text = message
-        view.button_action.text = action
-
-        view.button_action.setOnClickListener {
+        binding.textTitle.text = title
+        binding.textMessage.text = message
+        binding.buttonAction.text = action
+        binding.buttonAction.setOnClickListener {
             setFragmentResult(ACTION_EVENT, bundleOf())
             dialog.dismiss()
         }
 
-        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
-        dialog.setCanceledOnTouchOutside(false)
-        dialog.setCancelable(false)
-        dialog.setContentView(view)
         return dialog
     }
 }

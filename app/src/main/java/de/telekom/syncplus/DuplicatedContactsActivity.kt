@@ -24,25 +24,28 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import de.telekom.dtagsyncpluskit.ui.BaseActivity
+import de.telekom.syncplus.databinding.DuplicatedContactsActivityBinding
 import de.telekom.syncplus.ui.main.DuplicatesListFragment
-import kotlinx.android.synthetic.main.layout_small_topbar.*
+import de.telekom.syncplus.util.viewbinding.viewBinding
 
-class DuplicatedContactsActivity : BaseActivity() {
+class DuplicatedContactsActivity : BaseActivity(R.layout.duplicated_contacts_activity) {
     companion object {
-        //const val EXTRA_DUPLICATES = "EXTRA_DUPLICATES"
+        // const val EXTRA_DUPLICATES = "EXTRA_DUPLICATES"
         fun newIntent(packageContext: Context): Intent {
             return Intent(packageContext, DuplicatedContactsActivity::class.java)
         }
     }
 
+    private val binding by viewBinding(R.id.root) { DuplicatedContactsActivityBinding.bind(it) }
+
     @SuppressLint("CommitTransaction")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.duplicated_contacts_activity)
         setTitle(getString(R.string.title_activity_duplicated_contacts))
-        backButtonSmall.setOnClickListener {
-            if (!popFragment())
+        binding.layoutSmallTopbar.backButtonSmall.setOnClickListener {
+            if (!popFragment()) {
                 finish()
+            }
         }
         if (savedInstanceState == null) {
             val fragment = DuplicatesListFragment.newInstance()
@@ -54,6 +57,6 @@ class DuplicatedContactsActivity : BaseActivity() {
     }
 
     fun setTitle(title: String?) {
-        topbarTitle.text = title
+        binding.layoutSmallTopbar.topbarTitle.text = title
     }
 }

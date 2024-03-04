@@ -20,13 +20,13 @@
 package de.telekom.dtagsyncpluskit.api
 
 import android.os.Parcelable
-import kotlinx.android.parcel.Parcelize
+import kotlinx.parcelize.Parcelize
 
 @Parcelize
 data class IDMEnv(
     val baseUrl: String,
     val clientId: String,
-    val accountBaseUrl: String
+    val accountBaseUrl: String,
 ) : Parcelable {
     companion object {
         fun fromBuildConfig(environ: Array<String>): IDMEnv {

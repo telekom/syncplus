@@ -20,13 +20,9 @@
 package de.telekom.dtagsyncpluskit.davx5.ui
 
 import android.accounts.Account
-import android.app.Notification
-import android.app.PendingIntent
 import android.content.Context
-import android.os.Build
 import androidx.core.app.NotificationCompat
 import de.telekom.dtagsyncpluskit.R
-import de.telekom.dtagsyncpluskit.davx5.log.Logger
 
 object NotificationUtils {
     // notification IDs
@@ -47,18 +43,24 @@ object NotificationUtils {
     const val CHANNEL_SYNC_WARNINGS = "syncWarnings"
     const val CHANNEL_SYNC_IO_ERRORS = "syncIoErrors"
 
-    fun newBuilder(context: Context, channel: String): NotificationCompat.Builder {
-        val builder = NotificationCompat.Builder(context, channel)
-            .setColor(context.resources.getColor(R.color.colorPrimary))
+    fun newBuilder(
+        context: Context,
+        channel: String,
+    ): NotificationCompat.Builder {
+        val builder =
+            NotificationCompat.Builder(context, channel)
+                .setColor(context.resources.getColor(R.color.colorPrimary))
 
-        //if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N)
+        // if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N)
         //    builder.setLargeIcon(App.getLauncherBitmap(context))
 
         return builder
     }
 
     // AGE: Remove 'authority', to prevent several similar notifications.
-    fun notificationTag(authority: String, account: Account) =
-        account.name.hashCode().toString()
-        //"$authority-${account.name}".hashCode().toString()
+    fun notificationTag(
+        authority: String,
+        account: Account,
+    ) = account.name.hashCode().toString()
+    // "$authority-${account.name}".hashCode().toString()
 }

@@ -26,13 +26,18 @@ import android.net.Uri
 import android.os.Bundle
 import de.telekom.dtagsyncpluskit.extraNotNull
 import de.telekom.dtagsyncpluskit.ui.BaseActivity
+import de.telekom.syncplus.databinding.ActivityWebviewBinding
 import de.telekom.syncplus.ui.main.WebViewFragment
-import kotlinx.android.synthetic.main.layout_small_topbar.*
+import de.telekom.syncplus.util.viewbinding.viewBinding
 
 class WebViewActivity : BaseActivity() {
     companion object {
         private const val ARG_URL = "ARG_URL"
-        fun newIntent(activity: Activity, url: Uri): Intent {
+
+        fun newIntent(
+            activity: Activity,
+            url: Uri,
+        ): Intent {
             val intent = Intent(activity, WebViewActivity::class.java)
             intent.putExtra(ARG_URL, url)
             return intent
@@ -40,13 +45,14 @@ class WebViewActivity : BaseActivity() {
     }
 
     private val mUrl by extraNotNull<Uri>(ARG_URL)
+    private val binding by viewBinding(R.id.root) { ActivityWebviewBinding.bind(it) }
 
     @SuppressLint("CommitTransaction")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_webview)
-        topbarTitle.text = getString(R.string.help_for_syncplus)
-        backButtonSmall.setOnClickListener { finish() }
+        binding.layoutSmallTopbar.topbarTitle.text = getString(R.string.help_for_syncplus)
+        binding.layoutSmallTopbar.backButtonSmall.setOnClickListener { finish() }
+
         if (savedInstanceState == null) {
             val fragment = WebViewFragment.newInstance(mUrl)
             supportFragmentManager

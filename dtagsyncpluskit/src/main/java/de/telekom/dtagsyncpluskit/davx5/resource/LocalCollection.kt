@@ -30,8 +30,7 @@ package de.telekom.dtagsyncpluskit.davx5.resource
 import android.provider.CalendarContract.Events
 import de.telekom.dtagsyncpluskit.davx5.model.SyncState
 
-interface LocalCollection<out T: LocalResource<*>> {
-
+interface LocalCollection<out T : LocalResource<*>> {
     /** a tag that uniquely identifies the collection (DAVx5-wide) */
     val tag: String
 
@@ -65,14 +64,13 @@ interface LocalCollection<out T: LocalResource<*>> {
      */
     fun findByName(name: String): T?
 
-
     /**
      * Sets the [LocalEvent.COLUMN_FLAGS] value for entries which are not dirty ([Events.DIRTY] is 0)
      * and have an [Events.ORIGINAL_ID] of null.
      *
      * @param flags    value of flags to set (for instance, [LocalResource.FLAG_REMOTELY_PRESENT]])
      *
-     * @return         number of marked entries
+     * @return number of marked entries
      */
     fun markNotDirty(flags: Int): Int
 
@@ -83,14 +81,12 @@ interface LocalCollection<out T: LocalResource<*>> {
      * @param flags    exact flags value to remove entries with (for instance, if this is [LocalResource.FLAG_REMOTELY_PRESENT]],
      *                 all entries with exactly this flag will be removed)
      *
-     * @return         number of removed entries
+     * @return number of removed entries
      */
     fun removeNotDirtyMarked(flags: Int): Int
-
 
     /**
      * Forgets the ETags of all members so that they will be reloaded from the server during sync.
      */
     fun forgetETags()
-
 }

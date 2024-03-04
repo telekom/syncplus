@@ -28,7 +28,9 @@ package de.telekom.dtagsyncpluskit.davx5.syncadapter
 
 import android.Manifest
 import android.accounts.Account
-import android.content.*
+import android.content.ContentProviderClient
+import android.content.ContentResolver
+import android.content.SyncResult
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.provider.ContactsContract
@@ -46,37 +48,42 @@ import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import java.util.logging.Level
 
+@Deprecated("AddressBooks sync is performed by ContactsSyncAdapterService now only")
 abstract class AddressBooksSyncAdapterService : SyncAdapterService() {
-
     override fun syncAdapter() = AddressBooksSyncAdapter(this)
 
-
     class AddressBooksSyncAdapter(
-        private val service: SyncAdapterService
+        private val service: SyncAdapterService,
     ) : SyncAdapter(service) {
-
-        override fun sync(serviceEnvironments: ServiceEnvironments, account: Account, extras: Bundle, authority: String, provider: ContentProviderClient, syncResult: SyncResult) {
+        override fun sync(
+            serviceEnvironments: ServiceEnvironments,
+            account: Account,
+            extras: Bundle,
+            authority: String,
+            provider: ContentProviderClient,
+            syncResult: SyncResult,
+        ) {
             try {
-                val accountSettings = AccountSettings(context, serviceEnvironments, account) {
-                    service.onLoginException(authority, it)
-                }
+                val accountSettings = AccountSettings(context, account)
 
                 /* don't run sync if
                    - sync conditions (e.g. "sync only in WiFi") are not met AND
                    - this is is an automatic sync (i.e. manual syncs are run regardless of sync conditions)
                  */
-                if (!extras.containsKey(ContentResolver.SYNC_EXTRAS_MANUAL) && !checkSyncConditions(accountSettings))
+                if (!extras.containsKey(ContentResolver.SYNC_EXTRAS_MANUAL) && !checkSyncConditions(accountSettings)) {
                     return
+                }
                 syncWillRun(serviceEnvironments, account, extras, authority, provider, syncResult)
 
-                if (updateLocalAddressBooks(account, syncResult))
-                    for (addressBookAccount in LocalAddressBook.findAll(context, null, account).map { it.account }) {
+                if (updateLocalAddressBooks(account, syncResult)) {
+                    for (addressBookAccount in LocalAddressBook.findAllObsolete(context, null, account).map { it.account }) {
                         Logger.log.log(Level.INFO, "Running sync for address book", addressBookAccount)
                         val syncExtras = Bundle(extras)
                         syncExtras.putBoolean(ContentResolver.SYNC_EXTRAS_IGNORE_SETTINGS, true)
                         syncExtras.putBoolean(ContentResolver.SYNC_EXTRAS_IGNORE_BACKOFF, true)
                         ContentResolver.requestSync(addressBookAccount, ContactsContract.AUTHORITY, syncExtras)
                     }
+                }
             } catch (e: Exception) {
                 CountlyWrapper.recordHandledException(e)
                 Logger.log.log(Level.SEVERE, "Couldn't sync address books", e)
@@ -86,20 +93,29 @@ abstract class AddressBooksSyncAdapterService : SyncAdapterService() {
             Logger.log.info("Address book sync complete")
         }
 
-        private fun updateLocalAddressBooks(account: Account, syncResult: SyncResult): Boolean {
+        private fun updateLocalAddressBooks(
+            account: Account,
+            syncResult: SyncResult,
+        ): Boolean {
             val db = AppDatabase.getInstance(context)
             val service = db.serviceDao().getByAccountAndType(account.name, Service.TYPE_CARDDAV)
 
             val remoteAddressBooks = mutableMapOf<HttpUrl, Collection>()
-            if (service != null)
+            if (service != null) {
                 for (collection in db.collectionDao().getByServiceAndSync(service.id))
                     remoteAddressBooks[collection.url] = collection
+            }
 
-            if (ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
-                if (remoteAddressBooks.isEmpty())
+            if (ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.WRITE_CONTACTS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                if (remoteAddressBooks.isEmpty()) {
                     Logger.log.info("No contacts permission, but no address book selected for synchronization")
-                else
+                } else {
                     Logger.log.warning("No contacts permission, but address books are selected for synchronization")
+                }
                 return false
             }
 
@@ -112,7 +128,7 @@ abstract class AddressBooksSyncAdapterService : SyncAdapterService() {
                 }
 
                 // delete/update local address books
-                for (addressBook in LocalAddressBook.findAll(context, contactsProvider, account)) {
+                for (addressBook in LocalAddressBook.findAllObsolete(context, contactsProvider, account)) {
                     val url = addressBook.url.toHttpUrlOrNull()!!
                     val info = remoteAddressBooks[url]
                     if (info == null) {
@@ -143,7 +159,5 @@ abstract class AddressBooksSyncAdapterService : SyncAdapterService() {
 
             return true
         }
-
     }
-
 }

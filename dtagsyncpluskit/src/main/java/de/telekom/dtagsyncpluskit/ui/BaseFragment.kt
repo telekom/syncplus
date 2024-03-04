@@ -24,7 +24,7 @@ package de.telekom.dtagsyncpluskit.ui
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
-import android.util.Log
+import androidx.annotation.LayoutRes
 import androidx.core.app.ActivityCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
@@ -37,14 +37,13 @@ import com.karumi.dexter.listener.multi.MultiplePermissionsListener
 import de.telekom.dtagsyncpluskit.davx5.log.Logger
 import de.telekom.dtagsyncpluskit.utils.InstanceStateProvider
 
-interface OnBackPressed {
-    fun onBackPressed()
-}
-
-abstract class BaseFragment : Fragment(), OnBackPressed {
+abstract class BaseFragment : Fragment {
     abstract val TAG: String
 
-    override fun onBackPressed() {}
+    constructor() : super()
+    constructor(
+        @LayoutRes contentLayoutId: Int,
+    ) : super(contentLayoutId)
 
     protected val supportFragmentManager: FragmentManager?
         get() = activity?.supportFragmentManager
@@ -67,8 +66,8 @@ abstract class BaseFragment : Fragment(), OnBackPressed {
     }
 
     protected fun <T> instanceState() = InstanceStateProvider.Nullable<T>(savable)
-    protected fun <T> instanceState(defaultValue: T) =
-        InstanceStateProvider.NotNull<T>(savable, defaultValue)
+
+    protected fun <T> instanceState(defaultValue: T) = InstanceStateProvider.NotNull<T>(savable, defaultValue)
 
     fun finish() {
         supportFragmentManager?.popBackStackImmediate()
@@ -78,19 +77,29 @@ abstract class BaseFragment : Fragment(), OnBackPressed {
         requireActivity().finish()
     }
 
-    fun finishWithResult(resultCode: Int, intent: Intent?) {
+    fun finishWithResult(
+        resultCode: Int,
+        intent: Intent?,
+    ) {
         baseActivity?.setResult(resultCode, intent ?: Intent())
         baseActivity?.finish()
     }
 
-    fun <T : BaseFragment> push(containerViewId: Int, fragment: T, withAnimation: Boolean = true) {
+    fun <T : BaseFragment> push(
+        containerViewId: Int,
+        fragment: T,
+        withAnimation: Boolean = true,
+    ) {
         baseActivity?.pushFragment(containerViewId, fragment, withAnimation)
     }
 
-    fun requirePermission(permission: String, callback: (granted: Boolean, report: MultiplePermissionsReport?) -> Unit) {
+    fun requirePermission(
+        permission: String,
+        callback: (granted: Boolean, report: MultiplePermissionsReport?) -> Unit,
+    ) {
         if (ActivityCompat.checkSelfPermission(
                 requireContext(),
-                permission
+                permission,
             ) == PackageManager.PERMISSION_GRANTED
         ) {
             return callback(true, null)
@@ -109,39 +118,41 @@ abstract class BaseFragment : Fragment(), OnBackPressed {
 
     fun requestPermissions(
         vararg permissions: String,
-        callback: (granted: Boolean, error: Error?, report: MultiplePermissionsReport?) -> Unit
+        callback: (granted: Boolean, error: Error?, report: MultiplePermissionsReport?) -> Unit,
     ) {
         requestPermissions(listOf(*permissions), callback)
     }
 
     fun requestPermissions(
         permissions: List<String>,
-        callback: (granted: Boolean, error: Error?, report: MultiplePermissionsReport?) -> Unit
+        callback: (granted: Boolean, error: Error?, report: MultiplePermissionsReport?) -> Unit,
     ) {
-        if (permissions.count() == 0) {
+        if (permissions.isEmpty()) {
             return callback(true, null, null)
         }
 
-        val listener = object : MultiplePermissionsListener {
-            override fun onPermissionsChecked(report: MultiplePermissionsReport?) {
-                when {
-                    report == null -> callback(false, Error("Report is null"), report)
-                    report.areAllPermissionsGranted() -> callback(true, null, null)
-                    else -> callback(false, null, report)
+        val listener =
+            object : MultiplePermissionsListener {
+                override fun onPermissionsChecked(report: MultiplePermissionsReport?) {
+                    when {
+                        report == null -> callback(false, Error("Report is null"), report)
+                        report.areAllPermissionsGranted() -> callback(true, null, null)
+                        else -> callback(false, null, report)
+                    }
+                }
+
+                override fun onPermissionRationaleShouldBeShown(
+                    permissions: MutableList<PermissionRequest>?,
+                    token: PermissionToken?,
+                ) {
+                    token?.continuePermissionRequest()
                 }
             }
 
-            override fun onPermissionRationaleShouldBeShown(
-                permissions: MutableList<PermissionRequest>?,
-                token: PermissionToken?
-            ) {
-                token?.continuePermissionRequest()
+        val errorListener =
+            PermissionRequestErrorListener {
+                callback(false, Error(it.toString()), null)
             }
-        }
-
-        val errorListener = PermissionRequestErrorListener {
-            callback(false, Error(it.toString()), null)
-        }
 
         Dexter.withActivity(activity)
             .withPermissions(permissions)

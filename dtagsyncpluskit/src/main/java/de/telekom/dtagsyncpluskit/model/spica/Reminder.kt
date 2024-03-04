@@ -20,11 +20,15 @@
 package de.telekom.dtagsyncpluskit.model.spica
 
 import android.os.Parcelable
-import kotlinx.android.parcel.Parcelize
+import kotlinx.parcelize.Parcelize
 
 @Suppress("unused")
 enum class Action {
-    EMAIL, SMS, DISPLAY, AUDIO, PROCEDURE
+    EMAIL,
+    SMS,
+    DISPLAY,
+    AUDIO,
+    PROCEDURE,
 }
 
 @Parcelize
@@ -34,5 +38,5 @@ data class Reminder(
     var hours: Int? = null,
     var minutes: Int? = null,
     var seconds: Int? = null,
-    var weeks: Int? = null
+    var weeks: Int? = null,
 ) : Parcelable

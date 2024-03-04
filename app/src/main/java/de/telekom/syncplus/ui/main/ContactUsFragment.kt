@@ -23,8 +23,6 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
-import android.os.Parcelable
-import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
@@ -35,19 +33,18 @@ import com.google.android.material.button.MaterialButton
 import de.telekom.dtagsyncpluskit.ui.BaseFragment
 import de.telekom.dtagsyncpluskit.ui.BaseListAdapter
 import de.telekom.syncplus.R
-import kotlinx.android.parcel.Parcelize
-import kotlinx.android.synthetic.main.fragment_listview.view.*
+import de.telekom.syncplus.databinding.FragmentListviewBinding
+import de.telekom.syncplus.util.viewbinding.viewBinding
 
-@Parcelize
 data class ContactModel(
     @DrawableRes val icon: Int,
     @StringRes val title: Int,
     @StringRes val text: Int,
     @StringRes val linkText: Int?,
-    @StringRes val disclaimer: Int?
-) : Parcelable
+    @StringRes val disclaimer: Int?,
+)
 
-class ContactUsFragment : BaseFragment() {
+class ContactUsFragment : BaseFragment(R.layout.fragment_listview) {
     override val TAG: String
         get() = "CONTACT_US_FRAGMENT"
 
@@ -55,21 +52,23 @@ class ContactUsFragment : BaseFragment() {
         fun newInstance() = ContactUsFragment()
     }
 
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View? {
-        val v = inflater.inflate(R.layout.fragment_listview, container, false)
+    private val binding by viewBinding(FragmentListviewBinding::bind)
 
-        val models = listOf(
-            ContactModel(
-                R.drawable.ic_chat_outline,
-                R.string.contact_title_row0,
-                R.string.contact_text_row0,
-                R.string.contact_linktext_row0,
-                null
-            ),
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?,
+    ) {
+        super.onViewCreated(view, savedInstanceState)
+
+        val models =
+            listOf(
+                ContactModel(
+                    R.drawable.ic_chat_outline,
+                    R.string.contact_title_row0,
+                    R.string.contact_text_row0,
+                    R.string.contact_linktext_row0,
+                    null,
+                ),
             /*ContactModel(
                 R.drawable.ic_help_accent,
                 R.string.contact_title_row1,
@@ -77,37 +76,36 @@ class ContactUsFragment : BaseFragment() {
                 R.string.contact_linktext_row1,
                 null
             ),*/
-            ContactModel(
-                R.drawable.ic_phone_outline,
-                R.string.contact_title_row2,
-                R.string.contact_text_row2,
-                null,
-                R.string.contact_disclaimer_row2
+                ContactModel(
+                    R.drawable.ic_phone_outline,
+                    R.string.contact_title_row2,
+                    R.string.contact_text_row2,
+                    null,
+                    R.string.contact_disclaimer_row2,
+                ),
             )
-        )
 
-        v.list.adapter = ContactAdapter(requireContext(), models) { position ->
-            when (position) {
-                0, 1 -> {
-                    startActivity(
-                        Intent(
-                            Intent.ACTION_VIEW,
-                            Uri.parse("https://telekomhilft.telekom.de")
+        binding.list.adapter =
+            ContactAdapter(requireContext(), models) { position ->
+                when (position) {
+                    0, 1 -> {
+                        startActivity(
+                            Intent(
+                                Intent.ACTION_VIEW,
+                                Uri.parse("https://telekomhilft.telekom.de"),
+                            ),
                         )
-                    )
+                    }
                 }
             }
-        }
-        return v
     }
 }
 
 private class ContactAdapter(
     context: Context,
     dataSource: List<ContactModel>,
-    private val onButtonClick: (position: Int) -> Unit
+    private val onButtonClick: (position: Int) -> Unit,
 ) : BaseListAdapter<ContactModel>(context, dataSource) {
-
     private class ViewHolder(view: View?) {
         val title = view?.findViewById<TextView>(R.id.title)
         val text = view?.findViewById<TextView>(R.id.text)
@@ -116,7 +114,11 @@ private class ContactAdapter(
         val disclaimer = view?.findViewById<TextView>(R.id.disclaimer)
     }
 
-    override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+    override fun getView(
+        position: Int,
+        convertView: View?,
+        parent: ViewGroup,
+    ): View {
         val viewHolder: ViewHolder?
         val rowView: View?
 

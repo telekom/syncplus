@@ -32,5 +32,5 @@ data class WellKnownInfo(
     @Json(name = "scopes_supported")
     val scopesSupported: List<String>?,
     @Json(name = "claims_supported")
-    val claimsSupported: List<String>?
+    val claimsSupported: List<String>?,
 )

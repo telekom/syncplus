@@ -13,21 +13,25 @@ import de.telekom.syncplus.ui.main.contacts.AddressBookContract.SelectableGroup
 
 class AddressBookAdapter(
     private val onClicked: (group: SelectableGroup) -> Unit,
-    private val onSelectionChanged: (group: SelectableGroup) -> Unit
+    private val onSelectionChanged: (group: SelectableGroup) -> Unit,
 ) : ListAdapter<SelectableGroup, AddressBookAdapter.GroupViewHolder>(GroupDiffCallback) {
-
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): GroupViewHolder {
+    override fun onCreateViewHolder(
+        parent: ViewGroup,
+        viewType: Int,
+    ): GroupViewHolder {
         return GroupViewHolder(ContactsListItemBinding.inflate(parent.inflater, parent, false))
     }
 
-    override fun onBindViewHolder(holder: GroupViewHolder, position: Int) {
+    override fun onBindViewHolder(
+        holder: GroupViewHolder,
+        position: Int,
+    ) {
         holder.bind(getItem(position))
     }
 
     inner class GroupViewHolder(
-        private val binding: ContactsListItemBinding
+        private val binding: ContactsListItemBinding,
     ) : RecyclerView.ViewHolder(binding.root) {
-
         @SuppressLint("SetTextI18n")
         fun bind(item: SelectableGroup) {
             with(binding) {
@@ -36,11 +40,12 @@ class AddressBookAdapter(
                 contactCheckbox.setOnCheckedChangeListener(null)
                 contactCheckbox.isChecked = item.isSelected
 
-                text.typeface = if (bindingAdapterPosition == 0) {
-                    ResourcesCompat.getFont(text.context, R.font.telegrotesknext_bold)
-                } else {
-                    ResourcesCompat.getFont(text.context, R.font.telegrotesknext_regular)
-                }
+                text.typeface =
+                    if (bindingAdapterPosition == 0) {
+                        ResourcesCompat.getFont(text.context, R.font.telegrotesknext_bold)
+                    } else {
+                        ResourcesCompat.getFont(text.context, R.font.telegrotesknext_regular)
+                    }
 
                 arrowButton.setOnClickListener { onClicked(item) }
                 contactCheckbox.setOnCheckedChangeListener { _, _ -> onSelectionChanged(item) }
@@ -53,7 +58,7 @@ class AddressBookAdapter(
         object GroupDiffCallback : DiffUtil.ItemCallback<SelectableGroup>() {
             override fun areItemsTheSame(
                 oldItem: SelectableGroup,
-                newItem: SelectableGroup
+                newItem: SelectableGroup,
             ): Boolean {
                 // Considering that groups are the same if they have the same name.
                 // Such way we will combine the same groups from several accounts into single.
@@ -63,7 +68,7 @@ class AddressBookAdapter(
 
             override fun areContentsTheSame(
                 oldItem: SelectableGroup,
-                newItem: SelectableGroup
+                newItem: SelectableGroup,
             ): Boolean {
                 return oldItem == newItem
             }

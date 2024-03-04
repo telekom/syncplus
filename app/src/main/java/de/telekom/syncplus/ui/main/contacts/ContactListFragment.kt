@@ -22,24 +22,24 @@ package de.telekom.syncplus.ui.main.contacts
 import android.content.Context
 import android.os.Bundle
 import android.os.Parcelable
-import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ListView
 import android.widget.TextView
 import de.telekom.dtagsyncpluskit.extraNotNull
 import de.telekom.dtagsyncpluskit.model.spica.Contact
 import de.telekom.dtagsyncpluskit.ui.BaseFragment
 import de.telekom.dtagsyncpluskit.ui.BaseListAdapter
 import de.telekom.syncplus.R
-import kotlinx.android.parcel.Parcelize
-import kotlinx.android.synthetic.main.fragment_contactslist.view.*
+import de.telekom.syncplus.databinding.FragmentContactslistBinding
+import de.telekom.syncplus.util.viewbinding.viewBinding
+import kotlinx.parcelize.Parcelize
 
-class ContactListFragment : BaseFragment() {
+class ContactListFragment : BaseFragment(R.layout.fragment_contactslist) {
     override val TAG = "CONTACT_LIST_FRAGMENT"
 
     companion object {
         private const val ARG_CONTACTS = "ARG_CONTACTS"
+
         fun newInstance(contacts: List<Contact>): ContactListFragment {
             val args = Bundle()
             args.putParcelableArrayList(ARG_CONTACTS, ArrayList(contacts))
@@ -51,19 +51,18 @@ class ContactListFragment : BaseFragment() {
 
     @Parcelize
     data class RowItem(
-        var text: String
+        var text: String,
     ) : Parcelable
 
-    private lateinit var mListView: ListView
     private val mContacts by extraNotNull<List<Contact>>(ARG_CONTACTS)
+    private val binding by viewBinding(FragmentContactslistBinding::bind)
 
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View? {
-        val v = inflater.inflate(R.layout.fragment_contactslist, container, false)
-        v.bottomBackButton.setOnClickListener { finish() }
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?,
+    ) {
+        super.onViewCreated(view, savedInstanceState)
+        binding.bottomBackButton.setOnClickListener { finish() }
 
         val rows = ArrayList<RowItem>()
         for (contact in mContacts) {
@@ -71,10 +70,7 @@ class ContactListFragment : BaseFragment() {
         }
 
         val adapter = ContactsAdapter(requireContext(), rows)
-        mListView = v.findViewById(R.id.list)
-        mListView.adapter = adapter
-
-        return v
+        binding.list.adapter = adapter
     }
 
     class ViewHolder(view: View?) {
@@ -83,10 +79,13 @@ class ContactListFragment : BaseFragment() {
 
     inner class ContactsAdapter(
         context: Context,
-        dataSource: List<RowItem>
+        dataSource: List<RowItem>,
     ) : BaseListAdapter<RowItem>(context, dataSource) {
-
-        override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+        override fun getView(
+            position: Int,
+            convertView: View?,
+            parent: ViewGroup,
+        ): View {
             val viewHolder: ViewHolder?
             val rowView: View?
 

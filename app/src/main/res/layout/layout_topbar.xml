@@ -1,5 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!--
+<?xml version="1.0" encoding="utf-8"?><!--
     This file is part of SyncPlus.
 
     Copyright (C) 2020  Deutsche Telekom AG
@@ -17,15 +16,15 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 -->
-<de.telekom.syncplus.ui.main.TopBar xmlns:android="http://schemas.android.com/apk/res/android"
+<merge xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/topbar"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:background="@drawable/header_bottom_decorator"
     android:minHeight="@dimen/topBarHeight"
     android:orientation="vertical"
-    android:paddingBottom="72dp">
+    android:paddingBottom="72dp"
+    tools:parentTag="androidx.appcompat.widget.LinearLayoutCompat">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -224,4 +223,4 @@
         </LinearLayout>
     </LinearLayout>
 
-</de.telekom.syncplus.ui.main.TopBar>
+</merge>

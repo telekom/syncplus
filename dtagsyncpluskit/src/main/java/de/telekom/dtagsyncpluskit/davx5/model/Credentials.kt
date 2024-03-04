@@ -38,13 +38,12 @@ import de.telekom.dtagsyncpluskit.utils.IDMAccountManager
 class Credentials(
     context: Context,
     private val account: Account,
-    serviceEnvironments: ServiceEnvironments
+    serviceEnvironments: ServiceEnvironments,
 ) {
     private val accountManager = AccountManager.get(context)
 
     val spicaEnv = serviceEnvironments.spicaEnv
     val idmEnv = serviceEnvironments.idmEnv
-    val redirectUri = serviceEnvironments.redirectUri
 
     var accessToken: String?
         get() {

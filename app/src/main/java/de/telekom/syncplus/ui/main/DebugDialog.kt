@@ -21,92 +21,83 @@ package de.telekom.syncplus.ui.main
 
 import android.annotation.SuppressLint
 import android.app.Dialog
-import android.content.Context
 import android.os.Bundle
 import android.view.Window
 import android.widget.Toast
 import androidx.fragment.app.DialogFragment
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import de.telekom.dtagsyncpluskit.davx5.log.Logger
 import de.telekom.dtagsyncpluskit.davx5.settings.AccountSettings
 import de.telekom.dtagsyncpluskit.utils.IDMAccountManager
-import de.telekom.syncplus.App
-import de.telekom.syncplus.R
-import de.telekom.syncplus.dav.DavNotificationUtils
+import de.telekom.syncplus.databinding.DialogDebugBinding
 import de.telekom.syncplus.util.Prefs
-import kotlinx.android.synthetic.main.dialog_debug.view.*
 import java.util.logging.Level
 
-class DebugDialog(private val context1: Context) : DialogFragment() {
-
+class DebugDialog : DialogFragment() {
     @SuppressLint("InflateParams")
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-        val view = layoutInflater.inflate(R.layout.dialog_debug, null)
+        val binding = DialogDebugBinding.inflate(layoutInflater, null, false)
 
-        val prefs = Prefs(context1)
-        view.loggingSwitch.isChecked = prefs.loggingEnabled
-        view.loggingSwitch.setOnCheckedChangeListener { _, isChecked ->
+        val prefs = Prefs(requireContext())
+        binding.loggingSwitch.isChecked = prefs.loggingEnabled
+        binding.loggingSwitch.setOnCheckedChangeListener { _, isChecked ->
             prefs.loggingEnabled = isChecked
             Toast.makeText(
-                context1,
-                "Logging ${if (isChecked) {
-                    "enabled"
-                } else {
-                    "disabled"
-                }}",
-                Toast.LENGTH_SHORT
+                requireContext(),
+                "Logging ${
+                    if (isChecked) {
+                        "enabled"
+                    } else {
+                        "disabled"
+                    }
+                }",
+                Toast.LENGTH_SHORT,
             ).show()
-
         }
 
+        val accountManager = IDMAccountManager(requireContext())
 
-        val serviceEnvironments = App.serviceEnvironments(context1)
-        val onUnauthorized = DavNotificationUtils.reloginCallback(context1, "authority")
-        val accountManager = IDMAccountManager(context1, onUnauthorized)
-
-        view.resetAccessTokenButton.setOnClickListener {
+        binding.resetAccessTokenButton.setOnClickListener {
             accountManager.getAccounts().forEach {
-                val accountSettings =
-                    AccountSettings(context1, serviceEnvironments, it, onUnauthorized)
+                val accountSettings = AccountSettings(requireContext(), it)
                 Logger.log.info("Reset AccessToken for ${it.name}")
                 val credentials = accountSettings.getCredentials()
                 credentials.accessToken = "ACCESSTOKENRESET"
             }
-            Toast.makeText(context1, "Access Token Reset", Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), "Access Token Reset", Toast.LENGTH_SHORT).show()
         }
 
-        view.resetRefreshTokenButton.isEnabled = false
-        view.resetRefreshTokenButton.setOnClickListener {
+        binding.resetRefreshTokenButton.isEnabled = false
+        binding.resetRefreshTokenButton.setOnClickListener {
             accountManager.getAccounts().forEach {
-                val accountSettings =
-                    AccountSettings(context1, serviceEnvironments, it, onUnauthorized)
+                val accountSettings = AccountSettings(requireContext(), it)
                 Logger.log.info("Reset RefreshToken for ${it.name}")
                 val credentials = accountSettings.getCredentials()
                 credentials.setRefreshToken("REFRESHTOKENRESET")
             }
 
-            Toast.makeText(context1, "Refresh Token Reset", Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), "Refresh Token Reset", Toast.LENGTH_SHORT).show()
         }
 
-        view.syncEverythingForAllAccounts.setOnClickListener {
+        binding.syncEverythingForAllAccounts.setOnClickListener {
             accountManager.getAccounts().forEach {
-                val accountSettings =
-                    AccountSettings(context1, serviceEnvironments, it, onUnauthorized)
+                val accountSettings = AccountSettings(requireContext(), it)
                 accountSettings.resyncCalendars(true)
                 Toast.makeText(
-                    context1,
+                    requireContext(),
                     "Sync started for ${it.name} for Calendar",
-                    Toast.LENGTH_SHORT
+                    Toast.LENGTH_SHORT,
                 ).show()
                 accountSettings.resyncContacts(true)
                 Toast.makeText(
-                    context1,
+                    requireContext(),
                     "Sync started for ${it.name} for Contacts",
-                    Toast.LENGTH_SHORT
+                    Toast.LENGTH_SHORT,
                 ).show()
             }
         }
 
-        view.loggerSpinner.setItems(
+        binding.loggerSpinner.setItems(
             "ALL",
             "FINEST",
             "FINER",
@@ -115,20 +106,20 @@ class DebugDialog(private val context1: Context) : DialogFragment() {
             "INFO",
             "WARNING",
             "SEVERE",
-            "OFF"
+            "OFF",
         )
         when (Logger.log.level) {
-            Level.ALL -> view.loggerSpinner.selectedIndex = 0
-            Level.FINEST -> view.loggerSpinner.selectedIndex = 1
-            Level.FINER -> view.loggerSpinner.selectedIndex = 2
-            Level.FINE -> view.loggerSpinner.selectedIndex = 3
-            Level.CONFIG -> view.loggerSpinner.selectedIndex = 4
-            Level.INFO -> view.loggerSpinner.selectedIndex = 5
-            Level.WARNING -> view.loggerSpinner.selectedIndex = 6
-            Level.SEVERE -> view.loggerSpinner.selectedIndex = 7
-            Level.OFF -> view.loggerSpinner.selectedIndex = 8
+            Level.ALL -> binding.loggerSpinner.selectedIndex = 0
+            Level.FINEST -> binding.loggerSpinner.selectedIndex = 1
+            Level.FINER -> binding.loggerSpinner.selectedIndex = 2
+            Level.FINE -> binding.loggerSpinner.selectedIndex = 3
+            Level.CONFIG -> binding.loggerSpinner.selectedIndex = 4
+            Level.INFO -> binding.loggerSpinner.selectedIndex = 5
+            Level.WARNING -> binding.loggerSpinner.selectedIndex = 6
+            Level.SEVERE -> binding.loggerSpinner.selectedIndex = 7
+            Level.OFF -> binding.loggerSpinner.selectedIndex = 8
         }
-        view.loggerSpinner.setOnItemSelectedListener { _, position, _, _ ->
+        binding.loggerSpinner.setOnItemSelectedListener { _, position, _, _ ->
             when (position) {
                 0 -> Logger.log.level = Level.ALL
                 1 -> Logger.log.level = Level.FINEST
@@ -159,15 +150,17 @@ class DebugDialog(private val context1: Context) : DialogFragment() {
                 3 -> loggerLevel = HttpLoggingInterceptor.Level.BODY
             }
         }
-        */
+         */
 
-        val dialog = object : Dialog(requireContext(), theme) {
-            //override fun onBackPressed() {}
-        }
+        val dialog =
+            MaterialAlertDialogBuilder(requireContext(), theme)
+                .setCancelable(true)
+                .setView(binding.root)
+                .create()
+        // override fun onBackPressed() {}
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
         dialog.setCanceledOnTouchOutside(false)
-        //dialog.setCancelable(true) // make it canceable, since no dismiss button is present
-        dialog.setContentView(view)
+        // dialog.setCancelable(true) // make it canceable, since no dismiss button is present
         return dialog
     }
 }

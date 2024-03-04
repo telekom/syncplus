@@ -22,5 +22,5 @@ package de.telekom.dtagsyncpluskit.model.spica
 data class WellKnownInfo(
     val profilePageEndpoint: String,
     val profileEndpoint: String,
-    val encryptionKey: EncryptionKey
+    val encryptionKey: EncryptionKey,
 )

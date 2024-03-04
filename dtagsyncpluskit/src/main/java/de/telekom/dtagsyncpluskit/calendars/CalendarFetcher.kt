@@ -24,7 +24,7 @@ import android.content.Context
 import android.os.Parcelable
 import android.provider.CalendarContract
 import androidx.annotation.RequiresPermission
-import kotlinx.android.parcel.Parcelize
+import kotlinx.parcelize.Parcelize
 
 @Suppress("unused")
 class CalendarFetcher(context: Context) {
@@ -34,25 +34,27 @@ class CalendarFetcher(context: Context) {
     data class Calendar(
         val id: Long,
         val name: String,
-        val protected: Boolean
+        val protected: Boolean,
     ) : Parcelable
 
     @RequiresPermission(value = android.Manifest.permission.READ_CALENDAR)
     fun allCalendars(): List<Calendar> {
-        val projection = arrayOf(
-            CalendarContract.Calendars._ID, // 0
-            CalendarContract.Calendars.CALENDAR_DISPLAY_NAME, // 1
-            CalendarContract.Calendars.CALENDAR_ACCESS_LEVEL // 2
-        )
+        val projection =
+            arrayOf(
+                CalendarContract.Calendars._ID, // 0
+                CalendarContract.Calendars.CALENDAR_DISPLAY_NAME, // 1
+                CalendarContract.Calendars.CALENDAR_ACCESS_LEVEL, // 2
+            )
         val selection = "((${CalendarContract.Calendars.VISIBLE} = ?))"
         val selectionArgs = arrayOf("1")
-        val cursor = contentResolver.query(
-            CalendarContract.Calendars.CONTENT_URI,
-            projection,
-            selection,
-            selectionArgs,
-            null
-        )
+        val cursor =
+            contentResolver.query(
+                CalendarContract.Calendars.CONTENT_URI,
+                projection,
+                selection,
+                selectionArgs,
+                null,
+            )
 
         val calendars = ArrayList<Calendar>()
         while (cursor?.moveToNext() == true) {
@@ -71,7 +73,8 @@ class CalendarFetcher(context: Context) {
             CalendarContract.Calendars.CAL_ACCESS_OWNER,
             CalendarContract.Calendars.CAL_ACCESS_EDITOR,
             CalendarContract.Calendars.CAL_ACCESS_CONTRIBUTOR,
-            CalendarContract.Calendars.CAL_ACCESS_ROOT -> false
+            CalendarContract.Calendars.CAL_ACCESS_ROOT,
+            -> false
             else -> true
         }
     }

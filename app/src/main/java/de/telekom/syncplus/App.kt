@@ -27,7 +27,6 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.drawable.BitmapDrawable
-import android.net.Uri
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -55,24 +54,24 @@ import java.util.logging.LogRecord
 
 @Suppress("unused")
 class App : MultiDexApplication() {
-
     companion object {
-        fun serviceEnvironments(context: Context) = ServiceEnvironments.fromBuildConfig(
-            Uri.parse(context.getString(R.string.REDIRECT_URI)),
-            BuildConfig.ENVIRON[BuildConfig.FLAVOR]!!
-        )
+        fun serviceEnvironments(): ServiceEnvironments {
+            return ServiceEnvironments.fromBuildConfig(
+                BuildConfig.ENVIRON[BuildConfig.FLAVOR]!!
+            )
+        }
 
         fun getLauncherBitmap(context: Context): Bitmap? {
             val drawableLogo = AppCompatResources.getDrawable(context, R.mipmap.ic_launcher)
-            return if (drawableLogo is BitmapDrawable)
+            return if (drawableLogo is BitmapDrawable) {
                 drawableLogo.bitmap
-            else
+            } else {
                 null
+            }
         }
 
         fun getAccounts(ctx: Context): Array<Account> {
-            val onUnauthorized = DavNotificationUtils.reloginCallback(ctx, "authority")
-            val accountManager = IDMAccountManager(ctx, onUnauthorized)
+            val accountManager = IDMAccountManager(ctx)
             return accountManager.getAccounts()
         }
 
@@ -90,6 +89,7 @@ class App : MultiDexApplication() {
     }
 
     private var _wellKnownInfo: WellKnownInfo? = null
+
     suspend fun getWellKnownInfo(): WellKnownInfo {
         if (_wellKnownInfo != null) {
             return _wellKnownInfo!!
@@ -142,13 +142,14 @@ class App : MultiDexApplication() {
         super.onCreate()
         // Initialize countly as early as possible.
         val deviceId = getAccounts(this).firstOrNull()?.name?.sha256()
-        val config = CountlyWrapper.Config(
-            isDebug = BuildConfig.DEBUG,
-            versionName = BuildConfig.VERSION_NAME,
-            versionCode = BuildConfig.VERSION_CODE,
-            deviceId = deviceId,
-            isEnabled = Prefs(this).analyticalToolsEnabled
-        )
+        val config =
+            CountlyWrapper.Config(
+                isDebug = BuildConfig.DEBUG,
+                versionName = BuildConfig.VERSION_NAME,
+                versionCode = BuildConfig.VERSION_CODE,
+                deviceId = deviceId,
+                isEnabled = Prefs(this).analyticalToolsEnabled,
+            )
         CountlyWrapper.setCountlyEnabled(this, config)
 
         // Always log finest.
@@ -157,19 +158,22 @@ class App : MultiDexApplication() {
         }
 
         // Add the countly logger.
-        Logger.log.addHandler(object : Handler() {
-            init {
-                formatter = PlainTextFormatter.LOGCAT
-            }
+        Logger.log.addHandler(
+            object : Handler() {
+                init {
+                    formatter = PlainTextFormatter.LOGCAT
+                }
 
-            override fun publish(record: LogRecord?) {
-                val text = formatter.format(record)
-                CountlyWrapper.addCrashBreadcrumb(text)
-            }
+                override fun publish(record: LogRecord?) {
+                    val text = formatter.format(record)
+                    CountlyWrapper.addCrashBreadcrumb(text)
+                }
 
-            override fun flush() {}
-            override fun close() {}
-        })
+                override fun flush() {}
+
+                override fun close() {}
+            },
+        )
         val environ = BuildConfig.ENVIRON[BuildConfig.FLAVOR]!!
         val appid = environ[10]
 
@@ -185,7 +189,8 @@ class App : MultiDexApplication() {
                     _usabillaInitialized = true
                     Usabilla.preloadFeedbackForms(listOf("61f00d93a4af1614f06adc25"))
                 }
-            })
+            },
+        )
 
         DavNotificationUtils.createChannels(this)
 
@@ -211,7 +216,7 @@ class App : MultiDexApplication() {
             //accountSettings.resyncContacts(true)
         }
         // !!! DEBUG !!!
-        */
+         */
 
         /*
         thread {
@@ -262,7 +267,6 @@ class App : MultiDexApplication() {
                     )
                 )
                 .setOngoing(true)
-
 
             // add "Share" action
             val logFileUri = FileProvider.getUriForFile(

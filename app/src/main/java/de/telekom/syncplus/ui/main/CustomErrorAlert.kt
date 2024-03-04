@@ -31,7 +31,7 @@ class CustomErrorAlert(
     private val errorTitle: String,
     private val errorDescription: String?,
     private val detailedDescription: String? = null,
-    private val callback: ((Boolean) -> Unit)? = null
+    private val callback: ((Boolean) -> Unit)? = null,
 ) : CustomAlertDialog() {
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
         val dialog = super.onCreateDialog(savedInstanceState)

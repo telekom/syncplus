@@ -20,8 +20,8 @@
 package de.telekom.dtagsyncpluskit.model.spica
 
 import android.os.Parcelable
-import kotlinx.android.parcel.Parcelize
-import kotlinx.android.parcel.WriteWith
+import kotlinx.parcelize.Parcelize
+import kotlinx.parcelize.WriteWith
 
 @Suppress("unused")
 enum class TelephoneType {
@@ -33,11 +33,11 @@ enum class TelephoneType {
     BUSINESS_FAX,
     PRIVATE_VOIP,
     BUSINESS_VOIP,
-    UNKNOWN
+    UNKNOWN,
 }
 
 @Parcelize
 data class TelephoneNumber(
     var number: @WriteWith<UTF8StringParceler100> String? = null,
-    var telephoneType: TelephoneType? = null
+    var telephoneType: TelephoneType? = null,
 ) : Parcelable

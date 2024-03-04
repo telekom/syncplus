@@ -9,7 +9,7 @@ fun getPendingIntentActivity(
     context: Context,
     requestCode: Int,
     intent: Intent,
-    flags: Int
+    flags: Int,
 ): PendingIntent {
     return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         PendingIntent.getActivity(
@@ -32,7 +32,7 @@ fun getPendingIntentService(
     context: Context,
     requestCode: Int,
     intent: Intent,
-    flags: Int
+    flags: Int,
 ): PendingIntent {
     return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         PendingIntent.getService(

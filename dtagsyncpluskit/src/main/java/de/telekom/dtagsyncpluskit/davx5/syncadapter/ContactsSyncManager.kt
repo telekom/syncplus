@@ -28,39 +28,51 @@
 package de.telekom.dtagsyncpluskit.davx5.syncadapter
 
 import android.accounts.Account
-import android.app.Application
 import android.content.ContentProviderClient
-import android.content.ContentResolver
-import android.content.ContentUris
+import android.content.Context
 import android.content.SyncResult
-import android.os.Build
 import android.os.Bundle
-import android.provider.ContactsContract.Groups
 import at.bitfire.dav4jvm.DavAddressBook
 import at.bitfire.dav4jvm.MultiResponseCallback
 import at.bitfire.dav4jvm.Response
 import at.bitfire.dav4jvm.exception.DavException
-import at.bitfire.dav4jvm.property.*
-import at.bitfire.vcard4android.BatchOperation
+import at.bitfire.dav4jvm.property.AddressData
+import at.bitfire.dav4jvm.property.GetCTag
+import at.bitfire.dav4jvm.property.GetContentType
+import at.bitfire.dav4jvm.property.GetETag
+import at.bitfire.dav4jvm.property.MaxVCardSize
+import at.bitfire.dav4jvm.property.ResourceType
+import at.bitfire.dav4jvm.property.SupportedAddressData
+import at.bitfire.dav4jvm.property.SupportedReportSet
+import at.bitfire.dav4jvm.property.SyncToken
 import at.bitfire.vcard4android.Contact
 import at.bitfire.vcard4android.GroupMethod
 import de.telekom.dtagsyncpluskit.R
-import de.telekom.dtagsyncpluskit.api.ServiceEnvironments
 import de.telekom.dtagsyncpluskit.davx5.DavUtils
+import de.telekom.dtagsyncpluskit.davx5.DavUtils.sameTypeAs
 import de.telekom.dtagsyncpluskit.davx5.HttpClient
 import de.telekom.dtagsyncpluskit.davx5.log.Logger
 import de.telekom.dtagsyncpluskit.davx5.model.SyncState
-import de.telekom.dtagsyncpluskit.davx5.resource.*
+import de.telekom.dtagsyncpluskit.davx5.resource.LocalAddress
+import de.telekom.dtagsyncpluskit.davx5.resource.LocalAddressBook
+import de.telekom.dtagsyncpluskit.davx5.resource.LocalContact
+import de.telekom.dtagsyncpluskit.davx5.resource.LocalGroup
+import de.telekom.dtagsyncpluskit.davx5.resource.LocalResource
 import de.telekom.dtagsyncpluskit.davx5.settings.AccountSettings
-import de.telekom.dtagsyncpluskit.utils.CountlyWrapper
+import de.telekom.dtagsyncpluskit.davx5.syncadapter.groups.CategoriesStrategy
+import de.telekom.dtagsyncpluskit.davx5.syncadapter.groups.VCard4Strategy
 import ezvcard.VCardVersion
 import ezvcard.io.CannotParseException
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import okhttp3.MediaType
 import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
-import java.io.*
+import java.io.ByteArrayOutputStream
+import java.io.IOException
+import java.io.Reader
+import java.io.StringReader
 import java.util.logging.Level
 
 /**
@@ -99,8 +111,7 @@ import java.util.logging.Level
  *   these "pending memberships" are assigned to the actual contacts and then cleaned up.
  */
 class ContactsSyncManager(
-    app: Application,
-    serviceEnvironments: ServiceEnvironments,
+    context: Context,
     account: Account,
     accountSettings: AccountSettings,
     extras: Bundle,
@@ -108,10 +119,16 @@ class ContactsSyncManager(
     syncResult: SyncResult,
     val provider: ContentProviderClient,
     localAddressBook: LocalAddressBook,
-    unauthorizedCallback: (account: Account) -> Unit
-): SyncManager<LocalAddress, LocalAddressBook, DavAddressBook>(app, serviceEnvironments, account, accountSettings, extras, authority, syncResult, localAddressBook) {
-
-    private val mUnauthorizedCallback = unauthorizedCallback
+    private val unauthorizedCallback: (account: Account) -> Unit,
+) : SyncManager<LocalAddress, LocalAddressBook, DavAddressBook>(
+    context,
+    account,
+    accountSettings,
+    extras,
+    authority,
+    syncResult,
+    localAddressBook
+) {
 
     companion object {
         infix fun <T> Set<T>.disjunct(other: Set<T>) = (this - other) union (other - this)
@@ -120,174 +137,155 @@ class ContactsSyncManager(
     private val readOnly = localAddressBook.readOnly
 
     private var hasVCard4 = false
-    private val groupMethod = accountSettings.getGroupMethod()
+    private var hasJCard = false
+    private val groupStrategy = when (accountSettings.getGroupMethod()) {
+        GroupMethod.GROUP_VCARDS -> VCard4Strategy(localAddressBook)
+        GroupMethod.CATEGORIES -> CategoriesStrategy(localAddressBook)
+    }
 
     /**
      * Used to download images which are referenced by URL
      */
     private lateinit var resourceDownloader: ResourceDownloader
 
-
     override fun prepare(): Boolean {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-            // workaround for Android 7 which sets DIRTY flag when only meta-data is changed
-            val reallyDirty = localCollection.verifyDirty()
-            val deleted = localCollection.findDeleted().size
-            if (extras.containsKey(ContentResolver.SYNC_EXTRAS_UPLOAD) && reallyDirty == 0 && deleted == 0) {
-                Logger.log.info("This sync was called to up-sync dirty/deleted contacts, but no contacts have been changed")
-                return false
-            }
-        }
-
         collectionURL = localCollection.url.toHttpUrlOrNull() ?: return false
         davCollection = DavAddressBook(httpClient.okHttpClient, collectionURL)
 
         resourceDownloader = ResourceDownloader(davCollection.location)
 
+        Logger.log.info("Contact group strategy: ${groupStrategy::class.java.simpleName}")
         return true
     }
 
     override fun queryCapabilities(): SyncState? {
-        Logger.log.info("Contact group method: $groupMethod")
-        // in case of GROUP_VCARDs, treat groups as contacts in the local address book
-        localCollection.includeGroups = groupMethod == GroupMethod.GROUP_VCARDS
-
         return remoteExceptionContext {
             var syncState: SyncState? = null
-            it.propfind(0, SupportedAddressData.NAME, SupportedReportSet.NAME, GetCTag.NAME, SyncToken.NAME) { response, relation ->
+            it.propfind(
+                0,
+                MaxVCardSize.NAME,
+                SupportedAddressData.NAME,
+                SupportedReportSet.NAME,
+                GetCTag.NAME,
+                SyncToken.NAME
+            ) { response, relation ->
                 if (relation == Response.HrefRelation.SELF) {
                     response[SupportedAddressData::class.java]?.let { supported ->
                         hasVCard4 = supported.hasVCard4()
+
+                        // temporarily disable jCard because of https://github.com/nextcloud/server/issues/29693
+                        // hasJCard = supported.hasJCard()
                     }
                     response[SupportedReportSet::class.java]?.let { supported ->
-                        hasCollectionSync = supported.reports.contains(SupportedReportSet.SYNC_COLLECTION)
+                        hasCollectionSync =
+                            supported.reports.contains(SupportedReportSet.SYNC_COLLECTION)
                     }
                     syncState = syncState(response)
                 }
             }
 
-            Logger.log.info("Server supports vCard/4: $hasVCard4")
-            Logger.log.info("Server supports Collection Sync: $hasCollectionSync")
+            // Logger.log.info("Server supports jCard: $hasJCard")
+            Logger.log.info("Address book supports vCard4: $hasVCard4")
+            Logger.log.info("Address book supports Collection Sync: $hasCollectionSync")
 
             syncState
         }
     }
 
-    override fun syncAlgorithm() = if (hasCollectionSync)
-        SyncAlgorithm.COLLECTION_SYNC
-    else
-        SyncAlgorithm.PROPFIND_REPORT
+    override fun syncAlgorithm() =
+        if (hasCollectionSync)
+            SyncAlgorithm.COLLECTION_SYNC
+        else
+            SyncAlgorithm.PROPFIND_REPORT
 
     override fun processLocallyDeleted() =
         if (readOnly) {
+            var modified = false
             for (group in localCollection.findDeletedGroups()) {
                 Logger.log.warning("Restoring locally deleted group (read-only address book!)")
                 localExceptionContext(group) { it.resetDeleted() }
+                modified = true
             }
 
             for (contact in localCollection.findDeletedContacts()) {
                 Logger.log.warning("Restoring locally deleted contact (read-only address book!)")
                 localExceptionContext(contact) { it.resetDeleted() }
+                modified = true
             }
 
-            false
+            /* This is unfortunately dirty: When a contact has been inserted to a read-only address book
+               that supports Collection Sync, it's not enough to force synchronization (by returning true),
+               but we also need to make sure all contacts are downloaded again. */
+            if (modified)
+                localCollection.lastSyncState = null
+
+            modified
         } else
         // mirror deletions to remote collection (DELETE)
             super.processLocallyDeleted()
 
     override fun uploadDirty(): Boolean {
+        var modified = false
+
         if (readOnly) {
             for (group in localCollection.findDirtyGroups()) {
                 Logger.log.warning("Resetting locally modified group to ETag=null (read-only address book!)")
                 localExceptionContext(group) { it.clearDirty(null, null) }
+                modified = true
             }
 
             for (contact in localCollection.findDirtyContacts()) {
                 Logger.log.warning("Resetting locally modified contact to ETag=null (read-only address book!)")
                 localExceptionContext(contact) { it.clearDirty(null, null) }
+                modified = true
             }
 
-        } else {
-            if (groupMethod == GroupMethod.CATEGORIES) {
-                /* groups memberships are represented as contact CATEGORIES */
+            // see same position in processLocallyDeleted
+            if (modified)
+                localCollection.lastSyncState = null
 
-                // groups with DELETED=1: set all members to dirty, then remove group
-                for (group in localCollection.findDeletedGroups()) {
-                    Logger.log.fine("Finally removing group $group")
-                    // useless because Android deletes group memberships as soon as a group is set to DELETED:
-                    // group.markMembersDirty()
-                    localExceptionContext(group) { it.delete() }
-                }
-
-                // groups with DIRTY=1: mark all memberships as dirty, then clean DIRTY flag of group
-                for (group in localCollection.findDirtyGroups()) {
-                    Logger.log.fine("Marking members of modified group $group as dirty")
-                    localExceptionContext(group) {
-                        it.markMembersDirty()
-                        it.clearDirty(null, null)
-                    }
-                }
-            } else {
-                /* groups as separate VCards: there are group contacts and individual contacts */
-
-                // mark groups with changed members as dirty
-                val batch = BatchOperation(localCollection.provider!!)
-                for (contact in localCollection.findDirtyContacts())
-                    try {
-                        Logger.log.fine("Looking for changed group memberships of contact ${contact.fileName}")
-                        val cachedGroups = contact.getCachedGroupMemberships()
-                        val currentGroups = contact.getGroupMemberships()
-                        for (groupID in cachedGroups disjunct currentGroups) {
-                            Logger.log.fine("Marking group as dirty: $groupID")
-                            batch.enqueue(BatchOperation.CpoBuilder
-                                .newUpdate(localCollection.syncAdapterURI(ContentUris.withAppendedId(Groups.CONTENT_URI, groupID)))
-                                .withValue(Groups.DIRTY, 1))
-                        }
-                    } catch(e: FileNotFoundException) {
-                    }
-                batch.commit()
-            }
-        }
+        } else
+        // we only need to handle changes in groups when the address book is read/write
+            groupStrategy.beforeUploadDirty()
 
         // generate UID/file name for newly created contacts
-        return super.uploadDirty()
+        val superModified = super.uploadDirty()
+
+        // return true when any operation returned true
+        return modified or superModified
     }
 
-    override fun generateUpload(resource: LocalAddress): RequestBody = localExceptionContext(resource) {
-        val contact: Contact
-        if (resource is LocalContact) {
-            contact = resource.getContact()
+    override fun generateUpload(resource: LocalAddress): RequestBody =
+        localExceptionContext(resource) {
+            val contact: Contact = when (resource) {
+                is LocalContact -> resource.getContact()
+                is LocalGroup -> resource.getContact()
+                else -> throw IllegalArgumentException("resource must be LocalContact or LocalGroup")
+            }
 
-            if (groupMethod == GroupMethod.CATEGORIES) {
-                // add groups as CATEGORIES
-                for (groupID in resource.getGroupMemberships()) {
-                    provider.query(
-                        localCollection.syncAdapterURI(ContentUris.withAppendedId(Groups.CONTENT_URI, groupID)),
-                        arrayOf(Groups.TITLE), null, null, null
-                    )?.use { cursor ->
-                        if (cursor.moveToNext()) {
-                            val title = cursor.getString(0)
-                            if (!title.isNullOrEmpty())
-                                contact.categories.add(title)
-                        }
-                    }
+            Logger.log.log(Level.FINE, "Preparing upload of vCard ${resource.fileName}", contact)
+
+            val os = ByteArrayOutputStream()
+            val mimeType: MediaType
+            when {
+                hasJCard -> {
+                    mimeType = DavAddressBook.MIME_JCARD
+                    contact.writeJCard(os)
+                }
+
+                hasVCard4 -> {
+                    mimeType = DavAddressBook.MIME_VCARD4
+                    contact.writeVCard(VCardVersion.V4_0, os)
+                }
+
+                else -> {
+                    mimeType = DavAddressBook.MIME_VCARD3_UTF8
+                    contact.writeVCard(VCardVersion.V3_0, os)
                 }
             }
-        } else if (resource is LocalGroup)
-            contact = resource.getContact()
-        else
-            throw IllegalArgumentException("resource must be LocalContact or LocalGroup")
 
-        Logger.log.log(Level.FINE, "Preparing upload of VCard ${resource.fileName}", contact)
-
-        val os = ByteArrayOutputStream()
-        // contact.write(if (hasVCard4) VCardVersion.V4_0 else VCardVersion.V3_0, groupMethod, os)
-        contact.writeVCard(if (hasVCard4) VCardVersion.V4_0 else VCardVersion.V3_0, os)
-
-        os.toByteArray().toRequestBody(
-            if (hasVCard4) DavAddressBook.MIME_VCARD4 else DavAddressBook.MIME_VCARD3_UTF8
-        )
-    }
+            return@localExceptionContext (os.toByteArray().toRequestBody(mimeType))
+        }
 
     override fun listAllRemote(callback: MultiResponseCallback) =
         remoteExceptionContext {
@@ -297,7 +295,25 @@ class ContactsSyncManager(
     override fun downloadRemote(bunch: List<HttpUrl>) {
         Logger.log.info("Downloading ${bunch.size} vCard(s): $bunch")
         remoteExceptionContext {
-            val (contentType, version) = if (hasVCard4) "text/vcard" to "4.0" else null to null
+            val contentType: String?
+            val version: String?
+            when {
+                hasJCard -> {
+                    contentType = DavUtils.MEDIA_TYPE_JCARD.toString()
+                    version = VCardVersion.V4_0.version
+                }
+
+                hasVCard4 -> {
+                    contentType = DavUtils.MEDIA_TYPE_VCARD.toString()
+                    version = VCardVersion.V4_0.version
+                }
+
+                else -> {
+                    contentType = DavUtils.MEDIA_TYPE_VCARD.toString()
+                    // 3.0 is the default version; don't request 3.0 explicitly because maybe some vCard3-only servers don't understand it
+                    version = null
+                }
+            }
             it.multiget(bunch, contentType, version) { response, _ ->
                 responseExceptionContext(response) {
                     if (!response.isSuccess()) {
@@ -308,45 +324,47 @@ class ContactsSyncManager(
                     val eTag = response[GetETag::class.java]?.eTag
                         ?: throw DavException("Received multi-get response without ETag")
 
+                    // assume that server has sent what we have requested (we ask for jCard only when the server advertises it)
+                    var isJCard = hasJCard
+                    response[GetContentType::class.java]?.type?.let { type ->
+                        isJCard = type.sameTypeAs(DavUtils.MEDIA_TYPE_JCARD)
+                    }
+
                     val addressData = response[AddressData::class.java]
-                    val vCard = addressData?.card
+                    val card = addressData?.card
                         ?: throw DavException("Received multi-get response without address data")
 
-                    processVCard(DavUtils.lastSegmentOfUrl(response.href), eTag, StringReader(vCard), resourceDownloader)
+                    processCard(
+                        DavUtils.lastSegmentOfUrl(response.href),
+                        eTag,
+                        StringReader(card),
+                        isJCard,
+                        resourceDownloader
+                    )
                 }
             }
         }
     }
 
     override fun postProcess() {
-        if (groupMethod == GroupMethod.CATEGORIES) {
-            /* VCard3 group handling: groups memberships are represented as contact CATEGORIES */
-
-            // remove empty groups
-            Logger.log.info("Removing empty groups")
-            localCollection.removeEmptyGroups()
-
-        } else {
-            /* VCard4 group handling: there are group contacts and individual contacts */
-            Logger.log.info("Assigning memberships of downloaded contact groups")
-            LocalGroup.applyPendingMemberships(localCollection)
-        }
+        groupStrategy.postProcess()
     }
 
 
     // helpers
 
-    private fun processVCard(
-        fileName: String, eTag: String,
+    private fun processCard(
+        fileName: String,
+        eTag: String,
         reader: Reader,
+        jCard: Boolean,
         downloader: Contact.Downloader
     ) {
         Logger.log.info("Processing CardDAV resource $fileName")
 
         val contacts = try {
-            Contact.fromReader(reader, false, downloader)
+            Contact.fromReader(reader, jCard, downloader)
         } catch (e: CannotParseException) {
-            CountlyWrapper.recordHandledException(e)
             Logger.log.log(Level.SEVERE, "Received invalid vCard, ignoring", e)
             notifyInvalidResource(e, fileName)
             return
@@ -359,11 +377,7 @@ class ContactsSyncManager(
             Logger.log.warning("Received multiple vCards, using first one")
 
         val newData = contacts.first()
-
-        if (groupMethod == GroupMethod.CATEGORIES && newData.group) {
-            Logger.log.warning("Received group vCard although group method is CATEGORIES. Saving as regular contact")
-            newData.group = false
-        }
+        groupStrategy.verifyContactBeforeSaving(newData)
 
         // update local contact, if it exists
         localExceptionContext(localCollection.findByName(fileName)) {
@@ -386,7 +400,7 @@ class ContactsSyncManager(
                     syncResult.stats.numUpdates++
 
                 } else {
-                    // group has become an individual contact or vice versa
+                    // group has become an individual contact or vice versa, delete and create with new type
                     local.delete()
                     local = null
                 }
@@ -395,42 +409,35 @@ class ContactsSyncManager(
             if (local == null) {
                 if (newData.group) {
                     Logger.log.log(Level.INFO, "Creating local group", newData)
-                    localExceptionContext(LocalGroup(localCollection, newData, fileName, eTag, LocalResource.FLAG_REMOTELY_PRESENT)) { group ->
+                    localExceptionContext(
+                        LocalGroup(
+                            localCollection,
+                            newData,
+                            fileName,
+                            eTag,
+                            LocalResource.FLAG_REMOTELY_PRESENT
+                        )
+                    ) { group ->
                         group.add()
                         local = group
                     }
                 } else {
                     Logger.log.log(Level.INFO, "Creating local contact", newData)
-                    localExceptionContext(LocalContact(localCollection, newData, fileName, eTag, LocalResource.FLAG_REMOTELY_PRESENT)) { contact ->
+                    localExceptionContext(
+                        LocalContact(
+                            localCollection,
+                            newData,
+                            fileName,
+                            eTag,
+                            LocalResource.FLAG_REMOTELY_PRESENT
+                        )
+                    ) { contact ->
                         contact.add()
                         local = contact
                     }
                 }
                 syncResult.stats.numInserts++
             }
-
-            if (groupMethod == GroupMethod.CATEGORIES)
-                (local as? LocalContact)?.let { localContact ->
-                    // VCard3: update group memberships from CATEGORIES
-                    val batch = BatchOperation(provider)
-                    Logger.log.log(Level.FINE, "Removing contact group memberships")
-                    localContact.removeGroupMemberships(batch)
-
-                    for (category in localContact.getContact().categories) {
-                        val groupID = localCollection.findOrCreateGroup(category)
-                        Logger.log.log(
-                            Level.FINE,
-                            "Adding membership in group $category ($groupID)"
-                        )
-                        localContact.addToGroup(batch, groupID)
-                    }
-
-                    batch.commit()
-                }
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && Build.VERSION.SDK_INT < Build.VERSION_CODES.O)
-            // workaround for Android 7 which sets DIRTY flag when only meta-data is changed
-                (local as? LocalContact)?.updateHashCode(null)
         }
     }
 
@@ -439,7 +446,7 @@ class ContactsSyncManager(
 
     private inner class ResourceDownloader(
         val baseUrl: HttpUrl
-    ): Contact.Downloader {
+    ) : Contact.Downloader {
 
         override fun download(url: String, accepts: String): ByteArray? {
             val httpUrl = url.toHttpUrlOrNull()
@@ -449,23 +456,23 @@ class ContactsSyncManager(
             }
 
             // authenticate only against a certain host, and only upon request
-            val builder = HttpClient.Builder(app, accountSettings)
+            val client = HttpClient.Builder(context, accountSettings, Logger.log)
+                .followRedirects(true)      // allow redirects
+                .build()
 
-            // allow redirects
-            builder.followRedirects(true)
-
-            val client = builder.build()
             try {
-                val response = client.okHttpClient.newCall(Request.Builder()
-                    .get()
-                    .url(httpUrl)
-                    .build()).execute()
+                val response = client.okHttpClient.newCall(
+                    Request.Builder()
+                        .get()
+                        .url(httpUrl)
+                        .build()
+                ).execute()
 
                 if (response.isSuccessful)
                     return response.body?.bytes()
                 else
                     Logger.log.warning("Couldn't download external resource")
-            } catch(e: IOException) {
+            } catch (e: IOException) {
                 Logger.log.log(Level.SEVERE, "Couldn't download external resource", e)
             } finally {
                 client.close()
@@ -478,6 +485,6 @@ class ContactsSyncManager(
         context.getString(R.string.sync_invalid_contact)
 
     override fun onUnauthorized(account: Account) {
-        mUnauthorizedCallback(account)
+        unauthorizedCallback(account)
     }
 }

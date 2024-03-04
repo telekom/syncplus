@@ -25,7 +25,7 @@ import de.telekom.dtagsyncpluskit.api.ServiceEnvironments
 import de.telekom.dtagsyncpluskit.api.TokenStore
 import de.telekom.dtagsyncpluskit.davx5.model.Credentials
 import de.telekom.dtagsyncpluskit.utils.IDMAccountManager
-import kotlinx.android.parcel.Parcelize
+import kotlinx.parcelize.Parcelize
 
 @Parcelize
 data class AuthHolder(
@@ -36,12 +36,11 @@ data class AuthHolder(
     var addressBookEnabled: Boolean = true,
     var currentStep: Int = 1,
     var maxSteps: Int = 4,
-    var selectedGroups: List<Group>? = null
+    var selectedGroups: List<Group>? = null,
 ) : Parcelable {
-
     suspend fun createAccount(
         app: Application,
-        serviceEnvironments: ServiceEnvironments
+        serviceEnvironments: ServiceEnvironments,
     ): Credentials? {
         val alias = tokenStore.getAlias() ?: return null
         val idToken = tokenStore.getIdToken()
@@ -49,16 +48,15 @@ data class AuthHolder(
         val refreshToken = tokenStore.getRefreshToken()
 
         // The unauthorized case can not happen.
-        val am = IDMAccountManager(app.applicationContext, null)
+        val am = IDMAccountManager(app.applicationContext)
         return am.createAccount(
-            app = app,
             serviceEnvironments = serviceEnvironments,
             email = alias,
             password = refreshToken,
             loginHint = idToken,
             authToken = accessToken,
             calEnabled = calEnabled,
-            cardEnabled = addressBookEnabled
+            cardEnabled = addressBookEnabled,
         )
     }
 

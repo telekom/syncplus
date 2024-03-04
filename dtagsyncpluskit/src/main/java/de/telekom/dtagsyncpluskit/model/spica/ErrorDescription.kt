@@ -23,5 +23,5 @@ data class ErrorDescription(
     val errorId: String?,
     val message: String?,
     val stackTrace: String?,
-    val statusCode: Int?
+    val statusCode: Int?,
 )

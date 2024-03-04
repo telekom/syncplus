@@ -32,11 +32,11 @@ import android.content.ContentResolver
 import android.content.SyncResult
 import android.os.Bundle
 import android.provider.CalendarContract
-import de.telekom.dtagsyncpluskit.davx5.model.Collection
 import at.bitfire.ical4android.AndroidCalendar
 import de.telekom.dtagsyncpluskit.api.ServiceEnvironments
 import de.telekom.dtagsyncpluskit.davx5.log.Logger
 import de.telekom.dtagsyncpluskit.davx5.model.AppDatabase
+import de.telekom.dtagsyncpluskit.davx5.model.Collection
 import de.telekom.dtagsyncpluskit.davx5.model.Service
 import de.telekom.dtagsyncpluskit.davx5.resource.LocalCalendar
 import de.telekom.dtagsyncpluskit.davx5.settings.AccountSettings
@@ -44,59 +44,62 @@ import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import java.util.logging.Level
 
-abstract class CalendarsSyncAdapterService: SyncAdapterService() {
-
+abstract class CalendarsSyncAdapterService : SyncAdapterService() {
     override fun syncAdapter() = CalendarsSyncAdapter(this)
 
-
     class CalendarsSyncAdapter(
-        private val service: SyncAdapterService
-    ): SyncAdapter(service) {
-
-        override fun sync(serviceEnvironments: ServiceEnvironments, account: Account, extras: Bundle, authority: String, provider: ContentProviderClient, syncResult: SyncResult) {
+        private val service: SyncAdapterService,
+    ) : SyncAdapter(service) {
+        override fun sync(
+            serviceEnvironments: ServiceEnvironments,
+            account: Account,
+            extras: Bundle,
+            authority: String,
+            provider: ContentProviderClient,
+            syncResult: SyncResult,
+        ) {
             try {
-                val accountSettings = AccountSettings(context, serviceEnvironments, account) {
-                    service.onLoginException(authority, it)
-                }
+                val accountSettings = AccountSettings(context, account)
 
                 /* don't run sync if
                    - sync conditions (e.g. "sync only in WiFi") are not met AND
                    - this is is an automatic sync (i.e. manual syncs are run regardless of sync conditions)
                  */
-                if (!extras.containsKey(ContentResolver.SYNC_EXTRAS_MANUAL) && !checkSyncConditions(accountSettings))
+                if (!extras.containsKey(ContentResolver.SYNC_EXTRAS_MANUAL) && !checkSyncConditions(accountSettings)) {
                     return
+                }
                 syncWillRun(serviceEnvironments, account, extras, authority, provider, syncResult)
 
-                if (accountSettings.getEventColors())
+                if (accountSettings.getEventColors()) {
                     AndroidCalendar.insertColors(provider, account)
-                else
+                } else {
                     AndroidCalendar.removeColors(provider, account)
+                }
 
                 updateLocalCalendars(provider, account, accountSettings)
 
                 val priorityCalendars = priorityCollections(extras)
-                val calendars = AndroidCalendar
-                    .find(account, provider, LocalCalendar.Factory, "${CalendarContract.Calendars.SYNC_EVENTS}!=0", null)
-                    .sortedByDescending { priorityCalendars.contains(it.id) }
+                val calendars =
+                    AndroidCalendar
+                        .find(account, provider, LocalCalendar.Factory, "${CalendarContract.Calendars.SYNC_EVENTS}!=0", null)
+                        .sortedByDescending { priorityCalendars.contains(it.id) }
                 for (calendar in calendars) {
                     Logger.log.info("Synchronizing calendar #${calendar.id}, URL: ${calendar.name}")
                     CalendarSyncManager(
-                        service.application,
-                        serviceEnvironments,
+                        service,
                         account,
                         accountSettings,
                         extras,
                         authority,
                         syncResult,
-                        calendar
+                        calendar,
                     ) {
                         loginExceptionOccurred(authority, it)
                     }.use {
                         it.performSync()
                     }
                 }
-
-            } catch(e: Exception) {
+            } catch (e: Exception) {
                 Logger.log.log(Level.SEVERE, "Couldn't sync calendars", e)
             }
 
@@ -104,15 +107,20 @@ abstract class CalendarsSyncAdapterService: SyncAdapterService() {
             Logger.log.info("Calendar sync complete")
         }
 
-        private fun updateLocalCalendars(provider: ContentProviderClient, account: Account, settings: AccountSettings) {
+        private fun updateLocalCalendars(
+            provider: ContentProviderClient,
+            account: Account,
+            settings: AccountSettings,
+        ) {
             val db = AppDatabase.getInstance(context)
             val service = db.serviceDao().getByAccountAndType(account.name, Service.TYPE_CALDAV)
 
             val remoteCalendars = mutableMapOf<HttpUrl, Collection>()
-            if (service != null)
+            if (service != null) {
                 for (collection in db.collectionDao().getSyncCalendars(service.id)) {
                     remoteCalendars[collection.url] = collection
                 }
+            }
 
             // delete/update local calendars
             val updateColors = settings.getManageCalendarColors()
@@ -138,7 +146,5 @@ abstract class CalendarsSyncAdapterService: SyncAdapterService() {
                 LocalCalendar.create(account, provider, info)
             }
         }
-
     }
-
 }

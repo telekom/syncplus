@@ -24,8 +24,9 @@ import android.os.Build
 
 @Suppress("DEPRECATION")
 fun ContentProviderClient.closeCompat() {
-    if (Build.VERSION.SDK_INT >= 24)
+    if (Build.VERSION.SDK_INT >= 24) {
         close()
-    else
+    } else {
         release()
+    }
 }

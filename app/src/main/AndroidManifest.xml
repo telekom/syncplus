@@ -18,7 +18,6 @@
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    package="de.telekom.syncplus"
     android:installLocation="internalOnly">
 
     <!-- normal permissions -->
@@ -110,10 +109,6 @@
             android:screenOrientation="portrait" />
         <activity android:name=".WebViewActivity" />
 
-        <activity
-            android:name="net.openid.appauth.AuthorizationManagementActivity"
-            android:configChanges="orientation|keyboardHidden|screenSize|smallestScreenSize|screenLayout" />
-
         <!-- Account Authenticator Service -->
         <service
             android:name=".auth.AccountAuthService"
@@ -152,26 +147,6 @@
                 android:resource="@xml/sync_calendars" />
         </service>
 
-        <!-- AddressBook Sync Adapter -->
-        <provider
-            android:name=".dav.AddressBookProvider"
-            android:authorities="@string/address_books_authority"
-            android:exported="false"
-            android:label="@string/address_books_authority_title"
-            android:multiprocess="false" />
-
-        <service
-            android:name=".dav.AddressBooksSyncAdapterService"
-            android:exported="true"
-            tools:ignore="ExportedService">
-            <intent-filter>
-                <action android:name="android.content.SyncAdapter" />
-            </intent-filter>
-
-            <meta-data
-                android:name="android.content.SyncAdapter"
-                android:resource="@xml/sync_address_books" />
-        </service>
         <service
             android:name=".dav.ContactsSyncAdapterService"
             android:exported="true"
@@ -200,8 +175,17 @@
         </activity>
 
         <!-- OAuth2 -->
+        <!-- Workaraound for Android 14. See https://github.com/openid/AppAuth-Android/issues/977 -->
+        <activity
+            android:name="net.openid.appauth.AuthorizationManagementActivity"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|keyboard|keyboardHidden"
+            android:exported="false"
+            android:launchMode="singleInstance"
+            tools:node="replace" />
+
         <activity
             android:name="net.openid.appauth.RedirectUriReceiverActivity"
+            android:excludeFromRecents="true"
             android:exported="true"
             tools:node="replace">
             <intent-filter>

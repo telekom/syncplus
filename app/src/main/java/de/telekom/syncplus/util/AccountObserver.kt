@@ -5,5 +5,6 @@ import androidx.fragment.app.Fragment
 
 interface AccountObserver {
     fun init(fragment: Fragment)
-    fun getAddedAccounts() : Set<Account>
+
+    fun getAddedAccounts(): Set<Account>
 }

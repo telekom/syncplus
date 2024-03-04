@@ -20,10 +20,10 @@
 package de.telekom.dtagsyncpluskit.model.spica
 
 import android.os.Parcelable
-import kotlinx.android.parcel.Parcelize
+import kotlinx.parcelize.Parcelize
 
 @Parcelize
 data class ImportContactData(
     var contactList: ContactList? = null,
-    var groupId: String? = null
+    var groupId: String? = null,
 ) : Parcelable

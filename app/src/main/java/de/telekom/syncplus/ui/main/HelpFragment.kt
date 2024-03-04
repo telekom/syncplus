@@ -24,7 +24,6 @@ import android.content.Context
 import android.net.Uri
 import android.os.Bundle
 import android.os.Parcelable
-import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
@@ -35,14 +34,15 @@ import de.telekom.dtagsyncpluskit.davx5.log.Logger
 import de.telekom.dtagsyncpluskit.ui.BaseFragment
 import de.telekom.dtagsyncpluskit.ui.BaseListAdapter
 import de.telekom.syncplus.R
-import kotlinx.android.parcel.Parcelize
-import kotlinx.android.synthetic.main.fragment_listview.view.*
+import de.telekom.syncplus.databinding.FragmentListviewBinding
+import de.telekom.syncplus.util.viewbinding.viewBinding
+import kotlinx.parcelize.Parcelize
 
 @Parcelize
 data class HelpModel(
     val type: Int,
     val icon: Int? = null,
-    val text: String? = null
+    val text: String? = null,
 ) : Parcelable {
     companion object {
         const val SECTION = 0
@@ -51,7 +51,7 @@ data class HelpModel(
     }
 }
 
-class HelpFragment : BaseFragment() {
+class HelpFragment : BaseFragment(R.layout.fragment_listview) {
     override val TAG: String
         get() = "HELP_FRAGMENT"
 
@@ -65,6 +65,7 @@ class HelpFragment : BaseFragment() {
     }
 
     private var mTitleView: TextView? = null
+    private val binding by viewBinding(FragmentListviewBinding::bind)
 
     @SuppressLint("SetTextI18n")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -78,43 +79,46 @@ class HelpFragment : BaseFragment() {
         super.onDestroy()
     }
 
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View? {
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?,
+    ) {
+        super.onViewCreated(view, savedInstanceState)
         mTitleView = activity?.findViewById(R.id.topbarTitle)
-        val v = inflater.inflate(R.layout.fragment_listview, container, false)
-        v.list.dividerHeight = 0
-        v.list.divider = AppCompatResources.getDrawable(
-            requireContext(),
-            android.R.color.transparent
-        )
+        binding.list.dividerHeight = 0
+        binding.list.divider =
+            AppCompatResources.getDrawable(
+                requireContext(),
+                android.R.color.transparent,
+            )
 
         fun helpSection(text: String) = HelpModel(HelpModel.SECTION, null, text)
-        fun helpItem(icon: Int, text: String) = HelpModel(HelpModel.ITEM, icon, text)
+
+        fun helpItem(
+            icon: Int,
+            text: String,
+        ) = HelpModel(HelpModel.ITEM, icon, text)
+
         fun info() = HelpModel(HelpModel.INFO, null, null)
 
+        val model =
+            listOf(
+                helpSection(getString(R.string.help_and_answers)),
+                helpItem(R.drawable.ic_help_accent, getString(R.string.help_for_syncplus)),
+                helpItem(R.drawable.ic_chat_outline, getString(R.string.reach_us)),
+                helpItem(R.drawable.ic_feedback, getString(R.string.feedback)),
+                helpSection(getString(R.string.disclaimer)),
+                helpItem(R.drawable.ic_data_privacy_outline, getString(R.string.datasecurity)),
+                helpItem(R.drawable.ic_privacy_settings, getString(R.string.datasecurity_settings)),
+                helpItem(R.drawable.ic_external_link_outline, getString(R.string.imprint)),
+                helpItem(R.drawable.ic_contract_outline, getString(R.string.legal)),
+                helpItem(R.drawable.ic_information_icon, getString(R.string.licenses)),
+                info(),
+            )
 
-        val model = listOf(
-            helpSection(getString(R.string.help_and_answers)),
-            helpItem(R.drawable.ic_help_accent, getString(R.string.help_for_syncplus)),
-            helpItem(R.drawable.ic_chat_outline, getString(R.string.reach_us)),
-            helpItem(R.drawable.ic_feedback, getString(R.string.feedback)),
-
-            helpSection(getString(R.string.disclaimer)),
-            helpItem(R.drawable.ic_data_privacy_outline, getString(R.string.datasecurity)),
-            helpItem(R.drawable.ic_privacy_settings, getString(R.string.datasecurity_settings)),
-            helpItem(R.drawable.ic_external_link_outline, getString(R.string.imprint)),
-            helpItem(R.drawable.ic_contract_outline, getString(R.string.legal)),
-            helpItem(R.drawable.ic_information_icon, getString(R.string.licenses)),
-
-            info()
-        )
-
-        v.list.adapter = HelpAdapter(requireContext(), model, parentFragmentManager)
-        v.list.setOnItemClickListener { _, _, position, _ ->
-            val item = (v.list.adapter as HelpAdapter).getItem(position)
+        binding.list.adapter = HelpAdapter(requireContext(), model, parentFragmentManager)
+        binding.list.setOnItemClickListener { _, _, position, _ ->
+            val item = (binding.list.adapter as HelpAdapter).getItem(position)
             if (item.type == HelpModel.ITEM) {
                 when (position) {
                     1 -> {
@@ -125,34 +129,33 @@ class HelpFragment : BaseFragment() {
                         push(R.id.container, WebViewFragment.newInstance(url, this))
                     }
                     2 -> {
-                        /* So erreichen Sie uns */
+                        // So erreichen Sie uns
                         mTitleView?.text = getString(R.string.contact)
-                        //mTitleView?.text = getString(R.string.contact)
+                        // mTitleView?.text = getString(R.string.contact)
                         push(R.id.container, ContactUsFragment.newInstance())
                     }
                     3 -> {
-                        /* Feedback */
+                        // Feedback
                         // mTitleView?.text = getString(R.string.feedback)
                         mTitleView?.text = getString(R.string.feedback)
                         push(R.id.container, FeedbackFragment.newInstance())
                     }
                     5 -> {
-                        /* Datenschutz */
+                        // Datenschutz
                         val url =
                             Uri.parse("https://kommunikationsdienste.t-online.de/redirect/syncplus-aos/dataprivacy")
                         mTitleView?.text = getString(R.string.datasecurity)
                         push(R.id.container, WebViewFragment.newInstance(url, this))
                     }
                     6 -> {
-                        /* Datenschutz-Einstellungen */
+                        // Datenschutz-Einstellungen
                         startActivity(
                             DataPrivacyDialogActivity.newIntent(requireActivity())
-                                .putExtra("comeFromDeepLink", true)
+                                .putExtra("comeFromDeepLink", true),
                         )
-
                     }
                     7 -> {
-                        /* Impressum */
+                        // Impressum
                         val url =
                             Uri.parse("https://kommunikationsdienste.t-online.de/redirect/syncplus/imprint")
 
@@ -161,14 +164,14 @@ class HelpFragment : BaseFragment() {
                         push(R.id.container, WebViewFragment.newInstance(url, this))
                     }
                     8 -> {
-                        /* Rechtliches */
+                        // Rechtliches
                         val url =
                             Uri.parse("https://kommunikationsdienste.t-online.de/redirect/syncplus/legal")
                         mTitleView?.text = getString(R.string.legal)
                         push(R.id.container, WebViewFragment.newInstance(url, this))
                     }
                     9 -> {
-                        /* Lizenzen */
+                        // Lizenzen
                         val url = Uri.parse("file:///android_asset/osdf-git.html")
                         mTitleView?.text = getString(R.string.licenses)
                         push(R.id.container, WebViewFragment.newInstance(url, this))
@@ -176,8 +179,6 @@ class HelpFragment : BaseFragment() {
                 }
             }
         }
-
-        return v
     }
 
     override fun onStart() {
@@ -189,9 +190,8 @@ class HelpFragment : BaseFragment() {
 class HelpAdapter(
     context: Context,
     dataSource: List<HelpModel>,
-    private val fragmentManager: FragmentManager
+    private val fragmentManager: FragmentManager,
 ) : BaseListAdapter<HelpModel>(context, dataSource) {
-
     private class ViewHolder(view: View?, val viewType: Int) {
         val title = view?.findViewById<TextView>(R.id.title)
         val version = view?.findViewById<TextView>(R.id.version)
@@ -199,17 +199,22 @@ class HelpAdapter(
         val hiddenButton = view?.findViewById<ImageView>(R.id.hiddenButton)
     }
 
-    override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+    override fun getView(
+        position: Int,
+        convertView: View?,
+        parent: ViewGroup,
+    ): View {
         val viewHolder: ViewHolder?
         val rowView: View?
 
         val viewType = getItemViewType(position)
-        val layout = when (viewType) {
-            0 -> R.layout.help_list_header
-            1 -> R.layout.help_list_item
-            2 -> R.layout.help_info_row
-            else -> throw IllegalStateException("Unsupported viewType")
-        }
+        val layout =
+            when (viewType) {
+                0 -> R.layout.help_list_header
+                1 -> R.layout.help_list_item
+                2 -> R.layout.help_info_row
+                else -> throw IllegalStateException("Unsupported viewType")
+            }
 
         if (convertView == null) {
             rowView = inflater.inflate(layout, parent, false)
@@ -241,7 +246,7 @@ class HelpAdapter(
                     clicked += 1
                     if (clicked > 4) {
                         clicked = 0
-                        val dialog = DebugDialog(context)
+                        val dialog = DebugDialog()
                         dialog.show(fragmentManager, null)
                     }
                 }

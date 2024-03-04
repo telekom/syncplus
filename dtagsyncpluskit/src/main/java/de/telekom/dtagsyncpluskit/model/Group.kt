@@ -20,7 +20,7 @@
 package de.telekom.dtagsyncpluskit.model
 
 import android.os.Parcelable
-import kotlinx.android.parcel.Parcelize
+import kotlinx.parcelize.Parcelize
 
 @Parcelize
 data class Group(
@@ -29,8 +29,7 @@ data class Group(
     val numberOfContacts: Int? = null,
     val isSelected: Boolean = true,
 ) : Parcelable {
-    fun same(group: Group): Boolean =
-        group.groupId == groupId && group.name == name && group.numberOfContacts == numberOfContacts
+    fun same(group: Group): Boolean = group.groupId == groupId && group.name == name && group.numberOfContacts == numberOfContacts
 
     companion object {
         const val ALL_CONTACTS_GROUP_ID = -1L

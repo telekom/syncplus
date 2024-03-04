@@ -23,9 +23,7 @@ import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.os.Bundle
-import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup
 import androidx.constraintlayout.widget.ConstraintLayout
 import de.telekom.dtagsyncpluskit.extraNotNull
 import de.telekom.dtagsyncpluskit.ui.BaseFragment
@@ -33,16 +31,18 @@ import de.telekom.dtagsyncpluskit.utils.IDMAccountManager
 import de.telekom.syncplus.IntroActivity
 import de.telekom.syncplus.LoginActivity
 import de.telekom.syncplus.R
+import de.telekom.syncplus.databinding.FragmentWelcomeBinding
 import de.telekom.syncplus.dav.DavNotificationUtils
 import de.telekom.syncplus.util.Prefs
-import kotlinx.android.synthetic.main.fragment_welcome.view.*
+import de.telekom.syncplus.util.viewbinding.viewBinding
 
-class WelcomeFragment : BaseFragment() {
+class WelcomeFragment : BaseFragment(R.layout.fragment_welcome) {
     override val TAG: String
         get() = "WELCOME_FRAGMENT"
 
     companion object {
         private const val ARG_ACCOUNTS_DELETED = "ARG_ACCOUNTS_DELETED"
+
         fun newInstance(accountsDeleted: Boolean = false): WelcomeFragment {
             val args = Bundle(1)
             args.putBoolean(ARG_ACCOUNTS_DELETED, accountsDeleted)
@@ -52,33 +52,34 @@ class WelcomeFragment : BaseFragment() {
         }
     }
 
+    private val binding by viewBinding(FragmentWelcomeBinding::bind)
     private val mAccountDeleted by extraNotNull(ARG_ACCOUNTS_DELETED, false)
 
     @SuppressLint("SourceLockedOrientationActivity")
-    override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
-    ): View {
-        val v = inflater.inflate(R.layout.fragment_welcome, container, false)
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?,
+    ) {
+        super.onViewCreated(view, savedInstanceState)
         val prefs = Prefs(requireContext())
         activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-        val hasAccounts = IDMAccountManager(
-            requireContext(),
-            DavNotificationUtils.reloginCallback(requireContext(), "authority")
-        ).getAccounts().isNotEmpty()
+        val hasAccounts = IDMAccountManager(requireContext())
+            .getAccounts()
+            .isNotEmpty()
         if (hasAccounts) {
-            val lp = v.title.layoutParams as ConstraintLayout.LayoutParams
+            val lp = binding.title.layoutParams as ConstraintLayout.LayoutParams
             lp.verticalBias = 0.3f
-            v.title.layoutParams = lp
-            v.title.text = getString(R.string.welcome_new_account)
-            v.message.text = getString(R.string.message_new_account)
-            v.button2.visibility = View.VISIBLE
-            v.button2.setOnClickListener { finishActivity() }
+            binding.title.layoutParams = lp
+            binding.title.text = getString(R.string.welcome_new_account)
+            binding.message.text = getString(R.string.message_new_account)
+            binding.button2.visibility = View.VISIBLE
+            binding.button2.setOnClickListener { finishActivity() }
         } else {
-            v.title.text = getString(R.string.welcome_title)
-            v.button2.visibility = View.GONE
+            binding.title.text = getString(R.string.welcome_title)
+            binding.button2.visibility = View.GONE
         }
 
-        v.button1.setOnClickListener {
+        binding.button1.setOnClickListener {
             if (!prefs.allTypesPrevSynced) {
                 startActivity(Intent(context, IntroActivity::class.java))
             } else {
@@ -89,11 +90,9 @@ class WelcomeFragment : BaseFragment() {
         if (mAccountDeleted) {
             AccountDeletedDialog.instantiate().show(
                 childFragmentManager,
-                "AccountDeleted"
+                "AccountDeleted",
             )
         }
-
-        return v
     }
 
     private fun startSetup() {

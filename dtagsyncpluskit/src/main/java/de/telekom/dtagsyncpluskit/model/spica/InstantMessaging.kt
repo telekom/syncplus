@@ -20,11 +20,11 @@
 package de.telekom.dtagsyncpluskit.model.spica
 
 import android.os.Parcelable
-import kotlinx.android.parcel.Parcelize
-import kotlinx.android.parcel.WriteWith
+import kotlinx.parcelize.Parcelize
+import kotlinx.parcelize.WriteWith
 
 @Parcelize
 data class InstantMessaging(
     var provider: @WriteWith<UTF8StringParceler4000> String? = null,
-    var userId: @WriteWith<UTF8StringParceler4000> String? = null
+    var userId: @WriteWith<UTF8StringParceler4000> String? = null,
 ) : Parcelable

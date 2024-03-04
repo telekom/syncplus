@@ -38,7 +38,6 @@ import de.telekom.syncplus.R
 import de.telekom.syncplus.extensions.isPermissionGranted
 
 object DavNotificationUtils {
-
     private const val CHANNEL_SYNC = "sync"
     private const val CHANNEL_SYNC_ERRORS = NotificationUtils.CHANNEL_SYNC_ERRORS
     private const val CHANNEL_SYNC_WARNINGS = NotificationUtils.CHANNEL_SYNC_WARNINGS
@@ -73,7 +72,7 @@ object DavNotificationUtils {
             PendingIntent.getService(context, 0, retryIntent, PendingIntent.FLAG_UPDATE_CURRENT)
         )
     }
-    */
+     */
 
     /*
     fun buildSyncErrorNotification(
@@ -106,31 +105,30 @@ object DavNotificationUtils {
 
         return builder.build()
     }
-    */
+     */
 
     // Requires the notification to be send with:
     //   NotificationUtils.NOTIFY_PERMISSIONS
     @SuppressLint("UnspecifiedImmutableFlag")
-    fun buildMissingPermissionNotification(
-        context: Context
-    ): Notification {
+    fun buildMissingPermissionNotification(context: Context): Notification {
         Logger.log.finest("BUILD MISSING PERMISSION NOTIFICATION")
         val intent = AccountsActivity.newIntent(context, false)
-        val builder = newBuilder(context)
-            .setSmallIcon(R.drawable.ic_sync_problem_notify)
-            .setContentTitle(context.getString(R.string.sync_error_permissions))
-            .setContentText(context.getString(R.string.sync_error_permissions_text))
-            .setContentIntent(
-                getPendingIntentActivity(
-                    context,
-                    0,
-                    intent,
-                    PendingIntent.FLAG_UPDATE_CURRENT
+        val builder =
+            newBuilder(context)
+                .setSmallIcon(R.drawable.ic_sync_problem_notify)
+                .setContentTitle(context.getString(R.string.sync_error_permissions))
+                .setContentText(context.getString(R.string.sync_error_permissions_text))
+                .setContentIntent(
+                    getPendingIntentActivity(
+                        context,
+                        0,
+                        intent,
+                        PendingIntent.FLAG_UPDATE_CURRENT,
+                    ),
                 )
-            )
-            .setCategory(NotificationCompat.CATEGORY_ERROR)
-            .setAutoCancel(true)
-            .setOnlyAlertOnce(true)
+                .setCategory(NotificationCompat.CATEGORY_ERROR)
+                .setAutoCancel(true)
+                .setOnlyAlertOnce(true)
 
         val notif = builder.build()
         notif.flags = notif.flags or Notification.FLAG_ONLY_ALERT_ONCE
@@ -140,7 +138,10 @@ object DavNotificationUtils {
     // Requires the notification to be send with:
     //   NotificationUtils.NOTIFY_SYNC_ERROR
     @SuppressLint("UnspecifiedImmutableFlag")
-    fun buildReloginNotification(context: Context, account: Account): Notification {
+    fun buildReloginNotification(
+        context: Context,
+        account: Account,
+    ): Notification {
         Logger.log.finest("BUILD RELOGIN NOTIFICATION")
         val message = context.getString(R.string.sync_error_authentication_failed)
         val contentIntent = LoginActivity.newIntent(context, true, account)
@@ -159,8 +160,8 @@ object DavNotificationUtils {
                     context,
                     0,
                     contentIntent,
-                    PendingIntent.FLAG_UPDATE_CURRENT
-                )
+                    PendingIntent.FLAG_UPDATE_CURRENT,
+                ),
             )
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setCategory(NotificationCompat.CATEGORY_ERROR)
@@ -171,7 +172,11 @@ object DavNotificationUtils {
     }
 
     @SuppressLint("MissingPermission")
-    fun showReloginNotification(context: Context, authority: String, account: Account) {
+    fun showReloginNotification(
+        context: Context,
+        authority: String,
+        account: Account,
+    ) {
         Logger.log.finest("SHOW RELOGIN NOTIFICATION")
         val notificationManager = NotificationManagerCompat.from(context)
 
@@ -179,15 +184,10 @@ object DavNotificationUtils {
             notificationManager.notify(
                 NotificationUtils.notificationTag(authority, account),
                 NotificationUtils.NOTIFY_SYNC_ERROR,
-                buildReloginNotification(context, account)
+                buildReloginNotification(context, account),
             )
         }
     }
-
-    fun reloginCallback(context: Context, authority: String): (account: Account) -> Unit {
-        return { showReloginNotification(context, authority, it) }
-    }
-
 
     fun energySavingNotification(context: Context): Notification {
         Logger.log.finest("BUILD ENERGY SAVING NOTIFICATION")
@@ -208,8 +208,8 @@ object DavNotificationUtils {
                     context,
                     0,
                     contentIntent,
-                    PendingIntent.FLAG_UPDATE_CURRENT
-                )
+                    PendingIntent.FLAG_UPDATE_CURRENT,
+                ),
             )
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setCategory(NotificationCompat.CATEGORY_ERROR)
@@ -225,62 +225,62 @@ object DavNotificationUtils {
         nm.createNotificationChannelGroup(
             NotificationChannelGroup(
                 CHANNEL_SYNC,
-                context.getString(R.string.notification_channel_sync)
-            )
+                context.getString(R.string.notification_channel_sync),
+            ),
         )
 
-        nm.createNotificationChannels(listOf(
-            NotificationChannel(
-                CHANNEL_DEBUG,
-                context.getString(R.string.notification_channel_debugging),
-                NotificationManager.IMPORTANCE_HIGH
+        nm.createNotificationChannels(
+            listOf(
+                NotificationChannel(
+                    CHANNEL_DEBUG,
+                    context.getString(R.string.notification_channel_debugging),
+                    NotificationManager.IMPORTANCE_HIGH,
+                ),
+                NotificationChannel(
+                    CHANNEL_GENERAL,
+                    context.getString(R.string.notification_channel_general),
+                    NotificationManager.IMPORTANCE_DEFAULT,
+                ),
+                NotificationChannel(
+                    CHANNEL_SYNC_ERRORS,
+                    context.getString(R.string.notification_channel_sync_errors),
+                    NotificationManager.IMPORTANCE_DEFAULT,
+                ).apply {
+                    description = context.getString(R.string.notification_channel_sync_errors_desc)
+                    group = CHANNEL_SYNC
+                },
+                NotificationChannel(
+                    CHANNEL_SYNC_WARNINGS,
+                    context.getString(R.string.notification_channel_sync_warnings),
+                    NotificationManager.IMPORTANCE_LOW,
+                ).apply {
+                    description =
+                        context.getString(R.string.notification_channel_sync_warnings_desc)
+                    group = CHANNEL_SYNC
+                },
+                NotificationChannel(
+                    CHANNEL_SYNC_IO_ERRORS,
+                    context.getString(R.string.notification_channel_sync_io_errors),
+                    NotificationManager.IMPORTANCE_MIN,
+                ).apply {
+                    description =
+                        context.getString(R.string.notification_channel_sync_io_errors_desc)
+                    group = CHANNEL_SYNC
+                },
             ),
-            NotificationChannel(
-                CHANNEL_GENERAL,
-                context.getString(R.string.notification_channel_general),
-                NotificationManager.IMPORTANCE_DEFAULT
-            ),
-
-            NotificationChannel(
-                CHANNEL_SYNC_ERRORS,
-                context.getString(R.string.notification_channel_sync_errors),
-                NotificationManager.IMPORTANCE_DEFAULT
-            ).apply {
-                description = context.getString(R.string.notification_channel_sync_errors_desc)
-                group = CHANNEL_SYNC
-            },
-            NotificationChannel(
-                CHANNEL_SYNC_WARNINGS,
-                context.getString(R.string.notification_channel_sync_warnings),
-                NotificationManager.IMPORTANCE_LOW
-            ).apply {
-                description =
-                    context.getString(R.string.notification_channel_sync_warnings_desc)
-                group = CHANNEL_SYNC
-            },
-            NotificationChannel(
-                CHANNEL_SYNC_IO_ERRORS,
-                context.getString(R.string.notification_channel_sync_io_errors),
-                NotificationManager.IMPORTANCE_MIN
-            ).apply {
-                description =
-                    context.getString(R.string.notification_channel_sync_io_errors_desc)
-                group = CHANNEL_SYNC
-            }
-        ))
+        )
     }
 
     private fun newBuilder(
         context: Context,
         channel: String = NotificationUtils.CHANNEL_SYNC_ERRORS,
     ): NotificationCompat.Builder {
-
         return NotificationCompat.Builder(context, channel)
             .setColor(
                 ContextCompat.getColor(
                     context,
-                    R.color.colorPrimary
-                )
+                    R.color.colorPrimary,
+                ),
             )
     }
 }

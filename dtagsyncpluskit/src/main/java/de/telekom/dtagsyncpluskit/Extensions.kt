@@ -56,22 +56,34 @@ fun CoroutineScope.runOnMain(block: suspend CoroutineScope.() -> Unit): Job {
     return launch(Dispatchers.Main, CoroutineStart.DEFAULT, block)
 }
 
-inline fun <reified T : Any> Activity.extra(key: String, default: T? = null) = lazy {
+inline fun <reified T : Any> Activity.extra(
+    key: String,
+    default: T? = null,
+) = lazy {
     val value = intent?.extras?.get(key)
     if (value is T) value else default
 }
 
-inline fun <reified T : Any> Activity.extraNotNull(key: String, default: T? = null) = lazy {
+inline fun <reified T : Any> Activity.extraNotNull(
+    key: String,
+    default: T? = null,
+) = lazy {
     val value = intent?.extras?.get(key)
     requireNotNull(if (value is T) value else default) { key }
 }
 
-inline fun <reified T : Any> Fragment.extra(key: String, default: T? = null) = lazy {
+inline fun <reified T : Any> Fragment.extra(
+    key: String,
+    default: T? = null,
+) = lazy {
     val value = arguments?.get(key)
     if (value is T) value else default
 }
 
-inline fun <reified T : Any> Fragment.extraNotNull(key: String, default: T? = null) = lazy {
+inline fun <reified T : Any> Fragment.extraNotNull(
+    key: String,
+    default: T? = null,
+) = lazy {
     val value = arguments?.get(key)
     requireNotNull(if (value is T) value else default) { key }
 }
@@ -82,25 +94,34 @@ suspend fun <T> Call<T>.awaitResponse(): ResultExt<Response<T>, ApiError> =
             continuation.invokeOnCancellation {
                 this@awaitResponse.cancel() // cancel Call enqueuing
             }
-            enqueue(object : Callback<T> {
-                override fun onResponse(call: Call<T>, response: Response<T>) {
-                    if (response.isSuccessful) {
-                        continuation.resume(Ok(response))
-                        return
+            enqueue(
+                object : Callback<T> {
+                    override fun onResponse(
+                        call: Call<T>,
+                        response: Response<T>,
+                    ) {
+                        if (response.isSuccessful) {
+                            continuation.resume(Ok(response))
+                            return
+                        }
+
+                        continuation.resume(Err(exposeError(response)))
                     }
 
-                    continuation.resume(Err(exposeError(call, response)))
-                }
-
-                override fun onFailure(call: Call<T>, t: Throwable) {
-                    val error = when (t) {
-                        is SocketTimeoutException -> ApiError.TimeoutException
-                        is UnknownHostException -> ApiError.UnknownHostException
-                        else -> ApiError.NoResponse
+                    override fun onFailure(
+                        call: Call<T>,
+                        t: Throwable,
+                    ) {
+                        val error =
+                            when (t) {
+                                is SocketTimeoutException -> ApiError.TimeoutException
+                                is UnknownHostException -> ApiError.UnknownHostException
+                                else -> ApiError.NoResponse
+                            }
+                        continuation.resume(Err(error))
                     }
-                    continuation.resume(Err(error))
-                }
-            })
+                },
+            )
         }
     }
 
@@ -110,31 +131,39 @@ suspend fun <T> Call<T>.await(): ResultExt<T, ApiError> =
             continuation.invokeOnCancellation {
                 this@await.cancel() // cancel Call enqueuing
             }
-            enqueue(object : Callback<T> {
-                override fun onResponse(call: Call<T>, response: Response<T>) {
-                    if (response.isSuccessful) {
-                        response.body()?.let {
-                            continuation.resume(Ok(it))
-                        } ?: continuation.resume(Err(ApiError.ResponseBodyNull))
-                    } else {
-                        continuation.resume(Err(exposeError(call, response)))
+            enqueue(
+                object : Callback<T> {
+                    override fun onResponse(
+                        call: Call<T>,
+                        response: Response<T>,
+                    ) {
+                        if (response.isSuccessful) {
+                            response.body()?.let {
+                                continuation.resume(Ok(it))
+                            } ?: continuation.resume(Err(ApiError.ResponseBodyNull))
+                        } else {
+                            continuation.resume(Err(exposeError(response)))
+                        }
                     }
-                }
 
-                override fun onFailure(call: Call<T>, t: Throwable) {
-                    val error = when (t) {
-                        is SocketTimeoutException -> ApiError.TimeoutException
-                        is UnknownHostException -> ApiError.UnknownHostException
-                        else -> ApiError.NoResponse
+                    override fun onFailure(
+                        call: Call<T>,
+                        t: Throwable,
+                    ) {
+                        val error =
+                            when (t) {
+                                is SocketTimeoutException -> ApiError.TimeoutException
+                                is UnknownHostException -> ApiError.UnknownHostException
+                                else -> ApiError.NoResponse
+                            }
+                        continuation.resume(Err(error))
                     }
-                    continuation.resume(Err(error))
-                }
-            })
+                },
+            )
         }
     }
 
-
-private fun <T> exposeError(call: Call<T>, response: Response<T>): ApiError {
+private fun <T> exposeError(response: Response<T>): ApiError {
     val message =
         "Request is failed. Code: ${response.code()}. Error: ${response.errorBody()?.string()}"
     Logger.log.warning(message)

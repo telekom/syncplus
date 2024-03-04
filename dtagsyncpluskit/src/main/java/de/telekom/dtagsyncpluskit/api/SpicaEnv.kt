@@ -20,13 +20,13 @@
 package de.telekom.dtagsyncpluskit.api
 
 import android.os.Parcelable
-import kotlinx.android.parcel.Parcelize
+import kotlinx.parcelize.Parcelize
 
 @Parcelize
 data class SpicaEnv(
     val baseUrl: String,
     val appId: String,
-    val appSecret: String
+    val appSecret: String,
 ) : Parcelable {
     companion object {
         fun fromBuildConfig(environ: Array<String>): SpicaEnv {

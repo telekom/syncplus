@@ -1,13 +1,12 @@
 package de.telekom.syncplus.ui.main
 
-import android.annotation.SuppressLint
 import android.app.Dialog
 import android.os.Bundle
 import android.view.Window
 import androidx.fragment.app.DialogFragment
-import de.telekom.syncplus.R
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import de.telekom.syncplus.databinding.DialogEnergysaverBinding
 import de.telekom.syncplus.util.Prefs
-import kotlinx.android.synthetic.main.dialog_energysaver.view.*
 
 class EnergySaverDialog : DialogFragment() {
     companion object {
@@ -16,14 +15,19 @@ class EnergySaverDialog : DialogFragment() {
         }
     }
 
-    @SuppressLint("InflateParams")
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-        val view = layoutInflater.inflate(R.layout.dialog_energysaver, null)
-        val dialog = object : Dialog(requireContext(), theme) {
-            override fun onBackPressed() {}
-        }
+        val binding = DialogEnergysaverBinding.inflate(layoutInflater, null, false)
+        val dialog =
+            MaterialAlertDialogBuilder(requireContext(), theme)
+                .setCancelable(false)
+                .setView(binding.root)
+                .create()
+                .apply {
+                    requestWindowFeature(Window.FEATURE_NO_TITLE)
+                    setCanceledOnTouchOutside(false)
+                }
 
-        view.button.setOnClickListener {
+        binding.button.setOnClickListener {
             requireActivity().let {
                 val prefs = Prefs(it)
                 prefs.energySavingDialogShown = true
@@ -31,10 +35,6 @@ class EnergySaverDialog : DialogFragment() {
             }
         }
 
-        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
-        dialog.setCanceledOnTouchOutside(false)
-        dialog.setCancelable(false)
-        dialog.setContentView(view)
         return dialog
     }
 }

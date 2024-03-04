@@ -324,7 +324,7 @@
                         android:textColor="@color/textColor"
                         android:textSize="@dimen/fontSizeSmall" />
 
-                    <Button
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/moreSettingsButton"
                         style="@style/TextButton"
                         android:layout_width="match_parent"

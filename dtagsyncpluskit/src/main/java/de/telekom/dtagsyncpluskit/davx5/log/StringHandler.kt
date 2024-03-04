@@ -22,8 +22,7 @@ package de.telekom.dtagsyncpluskit.davx5.log
 import java.util.logging.Handler
 import java.util.logging.LogRecord
 
-class StringHandler: Handler() {
-
+class StringHandler : Handler() {
     val builder = StringBuilder()
 
     init {
@@ -35,8 +34,8 @@ class StringHandler: Handler() {
     }
 
     override fun flush() {}
+
     override fun close() {}
 
     override fun toString() = builder.toString()
-
 }

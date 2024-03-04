@@ -20,18 +20,17 @@
 package de.telekom.syncplus.ui.main
 
 import android.os.Bundle
-import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup
 import androidx.fragment.app.FragmentActivity
 import de.telekom.dtagsyncpluskit.model.spica.Duplicate
 import de.telekom.dtagsyncpluskit.ui.BaseFragment
 import de.telekom.syncplus.App
 import de.telekom.syncplus.DuplicatedContactsActivity
 import de.telekom.syncplus.R
-import kotlinx.android.synthetic.main.fragment_duplicates_found.view.*
+import de.telekom.syncplus.databinding.FragmentDuplicatesFoundBinding
+import de.telekom.syncplus.util.viewbinding.viewBinding
 
-class DuplicatesFoundFragment : BaseFragment() {
+class DuplicatesFoundFragment : BaseFragment(R.layout.fragment_duplicates_found) {
     override val TAG: String
         get() = "COPY_DUPLICATES_FOUND_FRAGMENT"
 
@@ -43,7 +42,10 @@ class DuplicatesFoundFragment : BaseFragment() {
             return fragment
         }
 
-        fun showSkipDialog(activity: FragmentActivity, skip: () -> Unit) {
+        fun showSkipDialog(
+            activity: FragmentActivity,
+            skip: () -> Unit,
+        ) {
             val dialog = CustomAlertDialog()
             dialog.title = activity.getString(R.string.dialog_contacts_not_merged)
             dialog.text = activity.getString(R.string.dialog_contacts_not_merged_description)
@@ -59,31 +61,32 @@ class DuplicatesFoundFragment : BaseFragment() {
     private val mDuplicates: List<Duplicate>
         get() = (requireActivity().application as App).duplicates ?: emptyList()
 
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View? {
-        val v = inflater.inflate(R.layout.fragment_duplicates_found, container, false)
-        v.mergeButton.setOnClickListener {
+    private val binding by viewBinding(FragmentDuplicatesFoundBinding::bind)
+
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?,
+    ) {
+        super.onViewCreated(view, savedInstanceState)
+        binding.mergeButton.setOnClickListener {
             push(R.id.container, DuplicateProgressFragment.newInstance())
         }
-        v.doNotMergeButton.setOnClickListener {
+        binding.doNotMergeButton.setOnClickListener {
             showSkipDialog(requireActivity()) {
                 push(R.id.container, CopySuccessFragment.newInstance())
             }
         }
-        return v
     }
 
     override fun onStart() {
         super.onStart()
         val topBar = (activity as? TopBarActivity)?.topBar
-        topBar?.description = if (mDuplicates.count() > 1) {
-            getString(R.string.duplicates_found_title_multiple, mDuplicates.count())
-        } else {
-            getString(R.string.duplicates_found_title_single, mDuplicates.count())
-        }
+        topBar?.description =
+            if (mDuplicates.count() > 1) {
+                getString(R.string.duplicates_found_title_multiple, mDuplicates.count())
+            } else {
+                getString(R.string.duplicates_found_title_single, mDuplicates.count())
+            }
         topBar?.large = true
         topBar?.extraDrawable = 0
         topBar?.extraDrawableSmall = R.drawable.ic_contact_users_icon

@@ -12,7 +12,7 @@
         android:layout_below="@+id/topbar"
         android:layout_centerInParent="true" />
 
-    <Button
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/disclaimer_button_dismiss"
         style="@style/OutlineButton"
         android:layout_width="wrap_content"

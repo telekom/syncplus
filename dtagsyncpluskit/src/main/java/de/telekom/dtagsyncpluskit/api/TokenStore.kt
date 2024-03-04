@@ -21,22 +21,24 @@ package de.telekom.dtagsyncpluskit.api
 
 import android.os.Parcelable
 import com.auth0.android.jwt.JWT
-import kotlinx.android.parcel.IgnoredOnParcel
-import kotlinx.android.parcel.Parcelize
+import kotlinx.parcelize.IgnoredOnParcel
+import kotlinx.parcelize.Parcelize
 import java.lang.IllegalStateException
 
 @Parcelize
 class TokenStore(
     private var accessToken: String?,
     private var idToken: String?,
-    private var refreshToken: String?
+    private var refreshToken: String?,
 ) : Parcelable {
-
     @IgnoredOnParcel
     private val mJWT by lazy {
         try {
-            if (idToken != null) JWT(idToken!!)
-            else null
+            if (idToken != null) {
+                JWT(idToken!!)
+            } else {
+                null
+            }
         } catch (e: Exception) {
             null
         }

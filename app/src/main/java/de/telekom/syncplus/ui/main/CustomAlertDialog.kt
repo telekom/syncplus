@@ -27,6 +27,7 @@ import android.view.Window
 import android.widget.TextView
 import androidx.fragment.app.DialogFragment
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import de.telekom.syncplus.R
 
 @Suppress("unused")
@@ -115,17 +116,17 @@ open class CustomAlertDialog : DialogFragment() {
         mSuccessButton?.visibility = if (hasSuccessButton) View.VISIBLE else View.INVISIBLE
         mSuccessButton?.setOnClickListener(mOnSuccessListener)
 
+        val dialog = MaterialAlertDialogBuilder(requireContext(), theme)
+            .setView(view)
+            .setCancelable(false)
+            .create()
+            .apply {
+                requestWindowFeature(Window.FEATURE_NO_TITLE)
+                setCanceledOnTouchOutside(false)
+            }
 
-        val dialog = object : Dialog(requireContext(), theme) {
-            override fun onBackPressed() {}
-        }
-        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
-        dialog.setCanceledOnTouchOutside(false)
-        dialog.setCancelable(false)
-        dialog.setContentView(view)
         return dialog
     }
-
 
     fun setOnCancelListener(l: View.OnClickListener?) {
         mOnCancelListener = l

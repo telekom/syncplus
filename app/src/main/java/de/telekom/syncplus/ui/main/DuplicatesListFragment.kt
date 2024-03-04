@@ -21,7 +21,6 @@ package de.telekom.syncplus.ui.main
 
 import android.content.Context
 import android.os.Bundle
-import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
@@ -31,9 +30,10 @@ import de.telekom.dtagsyncpluskit.ui.BaseListAdapter
 import de.telekom.syncplus.App
 import de.telekom.syncplus.DuplicatedContactsActivity
 import de.telekom.syncplus.R
-import kotlinx.android.synthetic.main.fragment_duplicate_contacts_list.view.*
+import de.telekom.syncplus.databinding.FragmentDuplicateContactsListBinding
+import de.telekom.syncplus.util.viewbinding.viewBinding
 
-class DuplicatesListFragment : BaseFragment() {
+class DuplicatesListFragment : BaseFragment(R.layout.fragment_duplicate_contacts_list) {
     override val TAG: String
         get() = "DUPLICATES_LIST_FRAGMENT"
 
@@ -49,27 +49,29 @@ class DuplicatesListFragment : BaseFragment() {
     private val mDuplicates: List<Duplicate>
         get() = (requireActivity().application as App).duplicates ?: emptyList()
 
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View? {
-        val v = inflater.inflate(R.layout.fragment_duplicate_contacts_list, container, false)
-        v.backButton.setOnClickListener {
-            finishActivity()
-        }
-        v.acceptButton.setOnClickListener {
-            // TODO: Finish with results?
-            finishActivity()
-        }
-        v.list.adapter = DuplicatedContactsAdapter(requireContext(), mDuplicates)
-        v.list.setOnItemClickListener { _, _, position, _ ->
-            val duplicate = v.list.adapter.getItem(position) as? Duplicate
-            if (duplicate != null) {
-                push(R.id.container, DuplicatesDetailsFragment.newInstance(duplicate))
+    private val binding by viewBinding(FragmentDuplicateContactsListBinding::bind)
+
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?,
+    ) {
+        super.onViewCreated(view, savedInstanceState)
+        with(binding) {
+            backButton.setOnClickListener {
+                finishActivity()
+            }
+            acceptButton.setOnClickListener {
+                // TODO: Finish with results?
+                finishActivity()
+            }
+            list.adapter = DuplicatedContactsAdapter(requireContext(), mDuplicates)
+            list.setOnItemClickListener { _, _, position, _ ->
+                val duplicate = list.adapter.getItem(position) as? Duplicate
+                if (duplicate != null) {
+                    push(R.id.container, DuplicatesDetailsFragment.newInstance(duplicate))
+                }
             }
         }
-        return v
     }
 
     override fun onStart() {
@@ -80,15 +82,18 @@ class DuplicatesListFragment : BaseFragment() {
 
     class DuplicatedContactsAdapter(
         context: Context,
-        dataSource: List<Duplicate>
+        dataSource: List<Duplicate>,
     ) : BaseListAdapter<Duplicate>(context, dataSource) {
-
         private class ViewHolder(view: View?) {
             val nameView = view?.findViewById<TextView>(R.id.title)
             val companyView = view?.findViewById<TextView>(R.id.subtitle)
         }
 
-        override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+        override fun getView(
+            position: Int,
+            convertView: View?,
+            parent: ViewGroup,
+        ): View {
             val viewHolder: ViewHolder?
             val rowView: View?
 

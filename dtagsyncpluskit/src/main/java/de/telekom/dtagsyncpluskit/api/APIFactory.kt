@@ -39,14 +39,15 @@ import kotlin.math.min
 
 object APIFactory {
     private fun httpClientBuilder(): OkHttpClient.Builder {
-        val connectionSpec = ConnectionSpec.Builder(ConnectionSpec.MODERN_TLS)
-            .tlsVersions(TlsVersion.TLS_1_2)
-            .cipherSuites(
-                CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
-                CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
-                CipherSuite.TLS_DHE_RSA_WITH_AES_128_GCM_SHA256
-            )
-            .build()
+        val connectionSpec =
+            ConnectionSpec.Builder(ConnectionSpec.MODERN_TLS)
+                .tlsVersions(TlsVersion.TLS_1_2)
+                .cipherSuites(
+                    CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+                    CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+                    CipherSuite.TLS_DHE_RSA_WITH_AES_128_GCM_SHA256,
+                )
+                .build()
         val builder = OkHttpClient().newBuilder()
         builder
             .connectTimeout(30, TimeUnit.SECONDS)
@@ -54,37 +55,39 @@ object APIFactory {
             .writeTimeout(60, TimeUnit.SECONDS)
             .connectionSpecs(Collections.singletonList(connectionSpec))
 
-        /* Add custom UserAgent */
+        // Add custom UserAgent
         val userAgent = "${BuildConfig.userAgent}/${BuildConfig.VERSION_NAME} AOS REST"
         builder.addNetworkInterceptor { chain ->
-            val req = chain.request().newBuilder()
-                .header("User-Agent", userAgent)
-                .build()
+            val req =
+                chain.request().newBuilder()
+                    .header("User-Agent", userAgent)
+                    .build()
             chain.proceed(req)
         }
 
-        /* Add the logging interceptor last. */
+        // Add the logging interceptor last.
         if (BuildConfig.DEBUG) {
             val logger: java.util.logging.Logger = Logger.log
-            val loggingInterceptor = HttpLoggingInterceptor { message ->
-                // Split by line, then ensure each line can fit into Log's maximum length.
-                var i = 0
-                val length = message.length
-                while (i < length) {
-                    var newline = message.indexOf('\n', i)
-                    newline = if (newline != -1) newline else length
-                    do {
-                        val end = min(newline, i + 3000)
-                        val part = message.substring(i, end)
-                        logger.finest(part)
-                        i = end
-                    } while (i < newline)
-                    i++
+            val loggingInterceptor =
+                HttpLoggingInterceptor { message ->
+                    // Split by line, then ensure each line can fit into Log's maximum length.
+                    var i = 0
+                    val length = message.length
+                    while (i < length) {
+                        var newline = message.indexOf('\n', i)
+                        newline = if (newline != -1) newline else length
+                        do {
+                            val end = min(newline, i + 3000)
+                            val part = message.substring(i, end)
+                            logger.finest(part)
+                            i = end
+                        } while (i < newline)
+                        i++
+                    }
                 }
-            }
             // Temporary, log all headers.
-            //loggingInterceptor.redactHeader("Authorization")
-            //loggingInterceptor.redactHeader("Cookie")
+            // loggingInterceptor.redactHeader("Authorization")
+            // loggingInterceptor.redactHeader("Cookie")
             loggingInterceptor.level = HttpLoggingInterceptor.Level.BODY
             builder.addInterceptor(loggingInterceptor)
         }
@@ -94,11 +97,12 @@ object APIFactory {
 
     private fun retrofitClient(
         baseUrl: String,
-        httpClient: OkHttpClient
+        httpClient: OkHttpClient,
     ): Retrofit {
-        val moshi = Moshi.Builder()
-            .add(KotlinJsonAdapterFactory())
-            .build()
+        val moshi =
+            Moshi.Builder()
+                .add(KotlinJsonAdapterFactory())
+                .build()
         return Retrofit.Builder()
             .client(httpClient)
             .baseUrl(baseUrl)
@@ -109,13 +113,13 @@ object APIFactory {
 
     fun spicaAPI(
         app: Application,
-        credentials: Credentials
+        credentials: Credentials,
     ): SpicaAPI {
         val builder = httpClientBuilder()
         builder.addInterceptor(BearerAuthInterceptor(app, credentials))
         return retrofitClient(
             credentials.spicaEnv.baseUrl,
-            builder.build()
+            builder.build(),
         ).create(SpicaAPI::class.java)
     }
 

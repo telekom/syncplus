@@ -21,12 +21,16 @@ package de.telekom.dtagsyncpluskit.model.spica
 
 import android.os.Parcelable
 import de.telekom.dtagsyncpluskit.model.Group
-import kotlinx.android.parcel.Parcelize
-import kotlinx.android.parcel.WriteWith
+import kotlinx.parcelize.Parcelize
+import kotlinx.parcelize.WriteWith
 
 @Suppress("unused")
 enum class Flag {
-    PROFILE, FAVORITE, PRIVATE, BUSINESS, EXCLUDED_FROM_SYNCHRONIZATION
+    PROFILE,
+    FAVORITE,
+    PRIVATE,
+    BUSINESS,
+    EXCLUDED_FROM_SYNCHRONIZATION,
 }
 
 @Parcelize
@@ -49,12 +53,12 @@ data class Contact(
     var last: @WriteWith<UTF8StringParceler100> String? = null,
     var modifiedDate: String? = null,
     var notes: @WriteWith<UTF8StringParceler6000> String? = null,
-    var picture: @WriteWith<ByteBase64StringParceler> String? = null, /* base64 */
+    var picture: @WriteWith<ByteBase64StringParceler> String? = null, // base64
     var prefix: @WriteWith<UTF8StringParceler20> String? = null,
     var telephoneNumbers: List<TelephoneNumber>? = null,
     var title: @WriteWith<UTF8StringParceler40> String? = null,
     var version: String? = null,
-    var groups: List<Group>? = null
+    var groups: List<Group>? = null,
 ) : Parcelable {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -81,10 +85,17 @@ data class Contact(
             first != null && last != null -> {
                 return "$first $last"
             }
+
             first != null -> first!!
             last != null -> last!!
             !emails.isNullOrEmpty() && emails!![0].email != null -> emails!![0].email!!
-            else -> defaultName
+            else -> buildNameFromNumber() ?: defaultName
         }
+    }
+
+    private fun buildNameFromNumber(): String? {
+        return telephoneNumbers?.find {
+            it.telephoneType == TelephoneType.PRIVATE || it.telephoneType == TelephoneType.PRIVATE_MOBILE
+        }?.number
     }
 }

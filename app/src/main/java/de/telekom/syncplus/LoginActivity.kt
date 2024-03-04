@@ -24,7 +24,6 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
-import android.util.Log
 import android.view.View
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
@@ -36,18 +35,20 @@ import de.telekom.dtagsyncpluskit.extra
 import de.telekom.dtagsyncpluskit.extraNotNull
 import de.telekom.dtagsyncpluskit.model.AuthHolder
 import de.telekom.dtagsyncpluskit.ui.BaseActivity
+import de.telekom.syncplus.databinding.ActivityLoginBinding
 import de.telekom.syncplus.ui.main.CustomAlertDialog
-import kotlinx.android.synthetic.main.layout_small_topbar.*
+import de.telekom.syncplus.util.viewbinding.viewBinding
 import kotlinx.coroutines.launch
 
-class LoginActivity : BaseActivity() {
+class LoginActivity : BaseActivity(R.layout.activity_login) {
     companion object {
         private const val EXTRA_RELOGIN = "EXTRA_RELOGIN"
         private const val EXTRA_ACCOUNT = "EXTRA_ACCOUNT"
+
         fun newIntent(
             context: Context,
             relogin: Boolean = false,
-            account: Account? = null
+            account: Account? = null,
         ): Intent {
             val intent = Intent(context, LoginActivity::class.java)
             intent.putExtra(EXTRA_RELOGIN, relogin)
@@ -60,18 +61,19 @@ class LoginActivity : BaseActivity() {
     private val mAccount by extra<Account>(EXTRA_ACCOUNT, null)
 
     private val viewModel by viewModels<LoginViewModel>()
+    private val binding by viewBinding(R.id.root) { ActivityLoginBinding.bind(it) }
 
-    private val authLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) {
-        viewModel.processAuthResult(it)
-    }
+    private val authLauncher =
+        registerForActivityResult(
+            ActivityResultContracts.StartActivityForResult(),
+        ) {
+            viewModel.processAuthResult(it)
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_login)
-        topbarTitle.text = getString(R.string.activity_login_title)
-        backButtonSmall.visibility = View.GONE
+        binding.layoutSmallTopbar.topbarTitle.text = getString(R.string.activity_login_title)
+        binding.layoutSmallTopbar.backButtonSmall.visibility = View.GONE
 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {

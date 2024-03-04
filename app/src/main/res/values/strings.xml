@@ -89,7 +89,7 @@
     <string name="topbar_title_email">E-Mail einrichten</string>
 
     <!-- Email Setup -->
-    <string name="setup_email_description">Laden Sie die Telekom Mail App herunter und loggen Sie sich mit Ihrer E-Mail-Adresse und Ihrem E-Mail-Passwort ein.</string>
+    <string name="setup_email_description">Laden Sie die Telekom Mail App herunter und loggen Sie sich mit Ihrer E-Mail-Adresse und Ihrem Passwort ein.</string>
     <string name="setup_email_download_mailapp">Telekom Mail App herunterladen</string>
     <string name="setup_email_redirect_playstore">Sie werden zu Google Play Store weitergeleitet</string>
     <string name="setup_email_preinstalled">Vorinstallierte E-Mail App</string>
@@ -269,4 +269,8 @@ vom Handy: 2202</string>
     <string name="notification_permission_dialog_rationale_message">Zum Anzeigen von Benachrichtigungen benötigen wir Ihre Erlaubnis.</string>
     <string name="notification_permission_dialog_rationale_negative_action">Abbrechen</string>
     <string name="notification_permission_dialog_rationale_positive_action">Ok</string>
+
+    <string name="network_error_dialog_title">Keine Internetverbindung</string>
+    <string name="network_error_dialog_message">Sie benötigen eine Internetverbindung, um diese Aktion auszuführen.</string>
+    <string name="network_error_dialog_action">Schließen</string>
 </resources>

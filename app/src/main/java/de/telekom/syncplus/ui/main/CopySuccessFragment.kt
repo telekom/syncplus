@@ -23,9 +23,8 @@ import android.accounts.Account
 import android.app.Activity
 import android.net.Uri
 import android.os.Bundle
-import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup
+import androidx.core.os.bundleOf
 import androidx.lifecycle.lifecycleScope
 import de.telekom.dtagsyncpluskit.api.APIFactory
 import de.telekom.dtagsyncpluskit.api.ServiceEnvironments
@@ -42,46 +41,46 @@ import de.telekom.dtagsyncpluskit.utils.ResultExt
 import de.telekom.dtagsyncpluskit.utils.isErr
 import de.telekom.dtagsyncpluskit.utils.isOk
 import de.telekom.syncplus.*
-import kotlinx.android.synthetic.main.fragment_copy_success.view.*
+import de.telekom.syncplus.databinding.FragmentCopySuccessBinding
+import de.telekom.syncplus.util.viewbinding.viewBinding
 import kotlinx.coroutines.launch
 import retrofit2.Response
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
-class CopySuccessFragment constructor(
-    val importContacts: Boolean
-) : BaseFragment() {
+class CopySuccessFragment : BaseFragment(R.layout.fragment_copy_success) {
+
     override val TAG: String
         get() = "COPY_SUCCESS_FRAGMENT"
 
     companion object {
+        private const val EXTRA_IMPORT_CONTACTS = "EXTRA_IMPORT_CONTACTS"
+
         fun newInstance(importContacts: Boolean = false) =
-            CopySuccessFragment(importContacts = importContacts)
+            CopySuccessFragment().apply {
+                arguments = bundleOf(EXTRA_IMPORT_CONTACTS to importContacts)
+            }
     }
 
     private val mOriginals: List<Contact>
         get() = (requireActivity().application as App).originals ?: emptyList()
+    private val binding by viewBinding(FragmentCopySuccessBinding::bind)
 
-
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View? {
-        val v = inflater.inflate(R.layout.fragment_copy_success, container, false)
-        v.nextButton.visibility = View.GONE
-        return v
-    }
-
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?,
+    ) {
         super.onViewCreated(view, savedInstanceState)
+        binding.nextButton.visibility = View.GONE
+        val importContacts = arguments?.getBoolean(EXTRA_IMPORT_CONTACTS) ?: false
         when {
             importContacts -> {
-                onImportContacts(view)
+                onImportContacts()
             }
+
             else -> {
-                view.nextButton.visibility = View.VISIBLE
-                view.nextButton.setOnClickListener {
+                binding.nextButton.visibility = View.VISIBLE
+                binding.nextButton.setOnClickListener {
                     finishWithResult(Activity.RESULT_OK, null)
                 }
             }
@@ -103,13 +102,12 @@ class CopySuccessFragment constructor(
         }
     }
 
-    private fun onImportContacts(view: View) {
+    private fun onImportContacts() {
         lifecycleScope.launch {
             val authHolder = (activity as? ContactsCopyActivity)?.authHolder
                 ?: throw IllegalStateException("Missing AuthHolder")
-            val redirectUri = Uri.parse(getString(R.string.REDIRECT_URI))
             val environ = BuildConfig.ENVIRON[BuildConfig.FLAVOR]!!
-            val serviceEnvironments = ServiceEnvironments.fromBuildConfig(redirectUri, environ)
+            val serviceEnvironments = ServiceEnvironments.fromBuildConfig(environ)
             val account = Account(authHolder.accountName, getString(R.string.account_type))
             val credentials = Credentials(requireContext(), account, serviceEnvironments)
             val spicaAPI = APIFactory.spicaAPI(requireActivity().application, credentials)
@@ -122,12 +120,13 @@ class CopySuccessFragment constructor(
                 response = spicaAPI.importContacts(contactData).awaitResponse()
                 when {
                     response.isOk() -> {
-                        view.nextButton.visibility = View.VISIBLE
-                        view.nextButton.setOnClickListener {
+                        binding.nextButton.visibility = View.VISIBLE
+                        binding.nextButton.setOnClickListener {
                             finishWithResult(Activity.RESULT_OK, null)
                         }
                         break
                     }
+
                     response.isErr() -> {
                         Logger.log.severe("Error: Importing Contacts: $response")
                         retry = showRetryDialog()
@@ -142,7 +141,7 @@ class CopySuccessFragment constructor(
             val dialog = CustomErrorAlert(
                 getString(R.string.dialog_sync_error_title),
                 getString(R.string.dialog_sync_error_text),
-                errorDescription
+                errorDescription,
             ) { retry -> cont.resume(retry) }
             dialog.show(parentFragmentManager, "DIALOG")
         }

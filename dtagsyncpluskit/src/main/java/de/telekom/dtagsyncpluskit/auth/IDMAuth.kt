@@ -33,6 +33,7 @@ import de.telekom.dtagsyncpluskit.utils.CountlyWrapper
 import net.openid.appauth.*
 import okhttp3.internal.notifyAll
 import okhttp3.internal.wait
+import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.concurrent.TimeUnit
@@ -56,36 +57,39 @@ class IDMAuth(private val context: Context) {
 
     companion object {
         const val RC_AUTH = 100
-        private val CLAIMS = arrayOf(
-            ":alia",
-            ":f136",
-            ":mainEmail",
-            ":additionalEmail"
-        )
-        private val SCOPES = arrayOf(
-            "openid",
-            "offline_access"
-        )
+        private val CLAIMS =
+            arrayOf(
+                ":alia",
+                ":f136",
+                ":mainEmail",
+                ":additionalEmail",
+            )
+        private val SCOPES =
+            arrayOf(
+                "openid",
+                "offline_access",
+            )
 
         private fun getScopes() = SCOPES.joinToString(separator = " ")
-        private fun getClaims(): String =
-            CLAIMS.joinToString(",") { "\"urn:telekom.com${it}\":{\"required\":true}" }
+
+        private fun getClaims(): String = CLAIMS.joinToString(",") { "\"urn:telekom.com${it}\":{\"required\":true}" }
     }
 
     private var mAuthState: AuthState? = null
     private val mAuthService: AuthorizationService by lazy {
         Logger.log.fine("--> Building AuthService")
-        val config = AppAuthConfiguration.Builder()
-            .setConnectionBuilder { uri ->
-                val userAgent = "${BuildConfig.userAgent}/${BuildConfig.VERSION_NAME} AOS"
-                val conn = URL(uri.toString()).openConnection() as HttpURLConnection
-                conn.connectTimeout = TimeUnit.SECONDS.toMillis(15L).toInt()
-                conn.readTimeout = TimeUnit.SECONDS.toMillis(10L).toInt()
-                conn.instanceFollowRedirects = false
-                conn.setRequestProperty("User-Agent", userAgent)
-                conn
-            }
-            .build()
+        val config =
+            AppAuthConfiguration.Builder()
+                .setConnectionBuilder { uri ->
+                    val userAgent = "${BuildConfig.userAgent}/${BuildConfig.VERSION_NAME} AOS"
+                    val conn = URL(uri.toString()).openConnection() as HttpURLConnection
+                    conn.connectTimeout = TimeUnit.SECONDS.toMillis(15L).toInt()
+                    conn.readTimeout = TimeUnit.SECONDS.toMillis(10L).toInt()
+                    conn.instanceFollowRedirects = false
+                    conn.setRequestProperty("User-Agent", userAgent)
+                    conn
+                }
+                .build()
         AuthorizationService(context, config)
     }
 
@@ -104,7 +108,7 @@ class IDMAuth(private val context: Context) {
         fragment: Fragment,
         redirectUri: Uri,
         loginHint: String?,
-        env: IDMEnv
+        env: IDMEnv,
     ) {
         val intent = getLoginProcessIntent(redirectUri, loginHint, env)
         fragment.startActivityForResult(intent, RC_AUTH)
@@ -114,29 +118,30 @@ class IDMAuth(private val context: Context) {
         activity: Activity,
         redirectUri: Uri,
         loginHint: String?,
-        env: IDMEnv
+        env: IDMEnv,
     ) {
         val intent = getLoginProcessIntent(redirectUri, loginHint, env)
         activity.startActivityForResult(intent, RC_AUTH)
     }
 
-    suspend fun getLoginProcessIntent(redirectUri: Uri, loginHint: String?, env: IDMEnv): Intent {
+    suspend fun getLoginProcessIntent(
+        redirectUri: Uri,
+        loginHint: String?,
+        env: IDMEnv,
+    ): Intent {
         val serviceConfiguration = fetchFromIssuer(env.baseUrl)
-        val authRequest = AuthorizationRequest.Builder(
-            serviceConfiguration,
-            env.clientId,
-            ResponseTypeValues.CODE,
-            redirectUri
-        )
-            .setScope(getScopes())
-            .setPrompt("x-no-sso")
-            .setLoginHint(loginHint)
-            .setAdditionalParameters(
-                hashMapOf(
-                    "claims" to "{\"id_token\":{${getClaims()}}}"
-                )
+        val authRequest =
+            AuthorizationRequest.Builder(
+                serviceConfiguration,
+                env.clientId,
+                ResponseTypeValues.CODE,
+                redirectUri,
             )
-            .build()
+                .setScope(getScopes())
+                .setPrompt("x-no-sso")
+                .setLoginHint(loginHint)
+                .setClaims(JSONObject("{\"id_token\":{${getClaims()}}}"))
+                .build()
 
         mAuthState = AuthState(serviceConfiguration)
         return mAuthService.getAuthorizationRequestIntent(authRequest)
@@ -144,11 +149,11 @@ class IDMAuth(private val context: Context) {
 
     private suspend fun fetchFromIssuer(baseUrl: String): AuthorizationServiceConfiguration =
         suspendCoroutine { cont ->
-            val configurationUri = Uri.parse("${baseUrl}/.well-known/openid-configuration")
+            val configurationUri = Uri.parse("$baseUrl/.well-known/openid-configuration")
             AuthorizationServiceConfiguration.fetchFromUrl(configurationUri) { config, exc ->
                 if (exc != null || config == null) {
                     cont.resumeWithException(
-                        exc ?: IllegalStateException("ServiceConfiguration is null")
+                        exc ?: IllegalStateException("ServiceConfiguration is null"),
                     )
                 } else {
                     cont.resume(config)
@@ -182,15 +187,16 @@ class IDMAuth(private val context: Context) {
     private fun updateRefreshToken(response: TokenResponse) {
         val idToken = response.idToken ?: throw IllegalStateException("idToken is null")
         val lastRequest = response.request
-        val tokenRequest = TokenRequest.Builder(lastRequest.configuration, lastRequest.clientId)
-            .setAuthorizationCode(lastRequest.authorizationCode)
-            .setGrantType(GrantTypeValues.REFRESH_TOKEN)
-            .setRedirectUri(lastRequest.redirectUri)
-            .setScope("spica")
-            .setCodeVerifier(lastRequest.codeVerifier)
-            .setRefreshToken(response.refreshToken)
-            .setAdditionalParameters(HashMap())
-            .build()
+        val tokenRequest =
+            TokenRequest.Builder(lastRequest.configuration, lastRequest.clientId)
+                .setAuthorizationCode(lastRequest.authorizationCode)
+                .setGrantType(GrantTypeValues.REFRESH_TOKEN)
+                .setRedirectUri(lastRequest.redirectUri)
+                .setScope("spica")
+                .setCodeVerifier(lastRequest.codeVerifier)
+                .setRefreshToken(response.refreshToken)
+                .setAdditionalParameters(HashMap())
+                .build()
 
         mAuthService.performTokenRequest(tokenRequest) { resp, ex ->
             when {
@@ -217,7 +223,11 @@ class IDMAuth(private val context: Context) {
         }
     }
 
-    fun getAccessTokenSync1(env: IDMEnv, refreshToken: String, lock: Any): Pair<String, String>? {
+    fun getAccessTokenSync1(
+        env: IDMEnv,
+        refreshToken: String,
+        lock: Any,
+    ): Pair<String, String>? {
         var ready = false
         var result: Pair<String, String>? = null
 
@@ -232,11 +242,12 @@ class IDMAuth(private val context: Context) {
                 }
             } else {
                 mAuthState = mAuthState ?: AuthState(config)
-                val req = TokenRequest.Builder(config, env.clientId)
-                    .setGrantType(GrantTypeValues.REFRESH_TOKEN)
-                    .setRefreshToken(refreshToken)
-                    .setScope("spica")
-                    .build()
+                val req =
+                    TokenRequest.Builder(config, env.clientId)
+                        .setGrantType(GrantTypeValues.REFRESH_TOKEN)
+                        .setRefreshToken(refreshToken)
+                        .setScope("spica")
+                        .build()
 
                 mAuthService.performTokenRequest(req) { resp, ex ->
                     when {
@@ -332,7 +343,7 @@ class IDMAuth(private val context: Context) {
     fun onActivityResult(
         requestCode: Int,
         @Suppress("UNUSED_PARAMETER") resultCode: Int,
-        data: Intent?
+        data: Intent?,
     ): Boolean {
         if (requestCode == RC_AUTH && data != null) {
             val response = AuthorizationResponse.fromIntent(data)

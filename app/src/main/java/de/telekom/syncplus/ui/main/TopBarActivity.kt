@@ -23,14 +23,19 @@ import android.annotation.SuppressLint
 import android.os.Bundle
 import de.telekom.dtagsyncpluskit.ui.BaseActivity
 import de.telekom.syncplus.R
+import de.telekom.syncplus.databinding.MainActivityBinding
+import de.telekom.syncplus.util.viewbinding.viewBinding
 
 @SuppressLint("Registered")
-open class TopBarActivity : BaseActivity() {
+open class TopBarActivity : BaseActivity(R.layout.main_activity) {
+    // TODO Refactor in favor of using the Fragment Result API
     lateinit var topBar: TopBar
+        private set
+
+    private val binding by viewBinding(R.id.root) { MainActivityBinding.bind(it) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.main_activity)
-        topBar = findViewById(R.id.topbar)
+        topBar = binding.topbar
     }
 }

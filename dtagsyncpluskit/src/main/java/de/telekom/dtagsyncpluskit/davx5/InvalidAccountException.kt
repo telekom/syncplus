@@ -29,4 +29,4 @@ package de.telekom.dtagsyncpluskit.davx5
 
 import android.accounts.Account
 
-class InvalidAccountException(account: Account): Exception("Invalid account: $account")
+class InvalidAccountException(account: Account) : Exception("Invalid account: $account")

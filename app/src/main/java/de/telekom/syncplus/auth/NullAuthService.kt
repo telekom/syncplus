@@ -29,11 +29,8 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.core.os.bundleOf
 import de.telekom.syncplus.AccountsActivity
-import de.telekom.syncplus.util.EmailAccountFlagController
-import de.telekom.syncplus.util.Prefs
 
 class NullAuthService : Service() {
-
     private lateinit var accountAuthenticator: AccountAuthenticator
 
     override fun onCreate() {
@@ -44,56 +41,60 @@ class NullAuthService : Service() {
         accountAuthenticator.iBinder.takeIf { intent?.action == AccountManager.ACTION_AUTHENTICATOR_INTENT }
 
     private class AccountAuthenticator(
-        val context: Context
+        val context: Context,
     ) : AbstractAccountAuthenticator(context) {
-
         override fun addAccount(
             response: AccountAuthenticatorResponse?,
             accountType: String?,
             authTokenType: String?,
             requiredFeatures: Array<String>?,
-            options: Bundle?
+            options: Bundle?,
         ): Bundle {
-            return if (EmailAccountFlagController.isAddAccountStarted) {
-                EmailAccountFlagController.isAddAccountStarted = false
-                EmailAccountFlagController.isInternalAccountSelected = true
-
-                bundleOf()
-            } else {
-                val intent = Intent(context, AccountsActivity::class.java)
+            // TODO: Remove commented code after successful tests
+//            return if (EmailAccountFlagController.isAddAccountStarted) {
+//                EmailAccountFlagController.isAddAccountStarted = false
+//                EmailAccountFlagController.isInternalAccountSelected = true
+//
+//                bundleOf()
+//            } else {
+            val intent =
+                Intent(context, AccountsActivity::class.java)
                     .putExtra(AccountManager.KEY_ACCOUNT_AUTHENTICATOR_RESPONSE, response)
-                bundleOf(AccountManager.KEY_INTENT to intent)
-            }
+            return bundleOf(AccountManager.KEY_INTENT to intent)
+//            }
         }
 
-        override fun editProperties(response: AccountAuthenticatorResponse?, accountType: String?) =
-            null
+        override fun editProperties(
+            response: AccountAuthenticatorResponse?,
+            accountType: String?,
+        ) = null
 
         override fun getAuthTokenLabel(p0: String?) = null
+
         override fun confirmCredentials(
             p0: AccountAuthenticatorResponse?,
             p1: Account?,
-            p2: Bundle?
+            p2: Bundle?,
         ) = null
 
         override fun updateCredentials(
             p0: AccountAuthenticatorResponse?,
             p1: Account?,
             p2: String?,
-            p3: Bundle?
+            p3: Bundle?,
         ) = null
 
         override fun getAuthToken(
             p0: AccountAuthenticatorResponse?,
             p1: Account?,
             p2: String?,
-            p3: Bundle?
+            p3: Bundle?,
         ) = null
 
         override fun hasFeatures(
             p0: AccountAuthenticatorResponse?,
             p1: Account?,
-            p2: Array<out String>?
+            p2: Array<out String>?,
         ) = null
     }
 }

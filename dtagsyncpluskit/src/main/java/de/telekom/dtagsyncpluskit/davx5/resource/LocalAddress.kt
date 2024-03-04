@@ -29,8 +29,6 @@ package de.telekom.dtagsyncpluskit.davx5.resource
 
 import at.bitfire.vcard4android.Contact
 
-interface LocalAddress: LocalResource<Contact> {
-
+interface LocalAddress : LocalResource<Contact> {
     fun resetDeleted()
-
 }

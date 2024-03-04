@@ -25,5 +25,5 @@ data class ContactImportResult(
     val duplicatedContactIds: List<String>?,
     val error: ErrorDescription?,
     val importedContactIds: List<String>?,
-    val updatedContactIds: List<String>?
+    val updatedContactIds: List<String>?,
 )

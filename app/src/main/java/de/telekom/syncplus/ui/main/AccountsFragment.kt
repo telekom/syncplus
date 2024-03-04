@@ -22,16 +22,16 @@ package de.telekom.syncplus.ui.main
 import android.Manifest
 import android.accounts.Account
 import android.annotation.SuppressLint
-import android.app.Dialog
 import android.content.Context
 import android.content.pm.ActivityInfo
 import android.os.Bundle
-import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.Window
 import android.widget.ImageButton
 import android.widget.TextView
+import androidx.lifecycle.lifecycleScope
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import de.telekom.dtagsyncpluskit.davx5.log.Logger
 import de.telekom.dtagsyncpluskit.davx5.settings.AccountSettings
 import de.telekom.dtagsyncpluskit.extraNotNull
@@ -39,17 +39,19 @@ import de.telekom.dtagsyncpluskit.ui.BaseFragment
 import de.telekom.dtagsyncpluskit.ui.BaseListAdapter
 import de.telekom.dtagsyncpluskit.utils.IDMAccountManager
 import de.telekom.syncplus.*
-import de.telekom.syncplus.dav.DavNotificationUtils
+import de.telekom.syncplus.databinding.DialogDeleteAccountBinding
+import de.telekom.syncplus.databinding.FragmentAccountBinding
 import de.telekom.syncplus.util.Prefs
-import kotlinx.android.synthetic.main.dialog_delete_account.view.*
-import kotlinx.android.synthetic.main.fragment_account.view.*
+import de.telekom.syncplus.util.viewbinding.viewBinding
+import kotlinx.coroutines.launch
 
-class AccountsFragment : BaseFragment() {
+class AccountsFragment : BaseFragment(R.layout.fragment_account) {
     override val TAG: String
         get() = "SETUP_FINISHED_FRAGMENT"
 
     companion object {
         private const val ARG_NEW = "ARG_NEW"
+
         fun newInstance(newAccountCreated: Boolean): AccountsFragment {
             val args = Bundle(1)
             args.putBoolean(ARG_NEW, newAccountCreated)
@@ -62,13 +64,11 @@ class AccountsFragment : BaseFragment() {
     @Suppress("UNUSED")
     private val mNewAccountCreated by extraNotNull(ARG_NEW, false)
     private lateinit var accountManager: IDMAccountManager
+    private val binding by viewBinding(FragmentAccountBinding::bind)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        accountManager = IDMAccountManager(
-            requireContext(),
-            DavNotificationUtils.reloginCallback(requireContext(), "authority")
-        )
+        accountManager = IDMAccountManager(requireContext())
 
         val prefs = Prefs(requireContext())
         val currentVersionCode = BuildConfig.VERSION_CODE
@@ -79,31 +79,33 @@ class AccountsFragment : BaseFragment() {
         if (!prefs.energySavingDialogShown && accountManager.getAccounts().isNotEmpty()) {
             EnergySaverDialog.instantiate().show(
                 childFragmentManager,
-                "EnergySaver"
+                "EnergySaver",
             )
         }
     }
 
     @SuppressLint("SourceLockedOrientationActivity")
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View? {
-        val v = inflater.inflate(R.layout.fragment_account, container, false)
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?,
+    ) {
+        super.onViewCreated(view, savedInstanceState)
         activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-        v.list.adapter = AccountAdapter(requireContext(), getAccounts(), { position, adapter ->
+
+        binding.list.adapter = AccountAdapter(requireContext(), getAccounts(), { position, adapter ->
             val account = adapter.getItem(position)
             startActivity(AccountSettingsActivity.newIntent(requireActivity(), account))
         }, { position, adapter ->
             val account = adapter.getItem(position)
             showDeleteDialog(account.name) {
-                accountManager.removeAccount(account, requireActivity())
-                adapter.removeItemAt(position)
-                adapter.notifyDataSetChanged()
+                lifecycleScope.launch {
+                    accountManager.removeAccount(account)
+                    adapter.removeItemAt(position)
+                    adapter.notifyDataSetChanged()
+                }
             }
         })
-        v.button.setOnClickListener {
+        binding.button.setOnClickListener {
             startActivity(
                 WelcomeActivity.newIntent(
                     requireActivity(),
@@ -112,12 +114,7 @@ class AccountsFragment : BaseFragment() {
             )
         }
 
-        return v
-    }
-
-    override fun onStart() {
-        super.onStart()
-        val adapter = view?.list?.adapter as? AccountAdapter
+        val adapter = binding.list.adapter as? AccountAdapter
         val accounts = getAccounts()
         adapter?.dataSource = accounts
         adapter?.notifyDataSetChanged()
@@ -153,21 +150,17 @@ class AccountsFragment : BaseFragment() {
     }
 
     private fun hasAnySyncEnabled(accounts: List<Account>): Pair<Boolean, Boolean> {
-        val serviceEnvs = App.serviceEnvironments(requireContext())
         var hasCalendarSync = false
         var hasContactSync = false
         for (account in accounts) {
-            val accountSettings = AccountSettings(
-                requireContext(),
-                serviceEnvs,
-                account,
-                DavNotificationUtils.reloginCallback(requireContext(), "authority")
-            )
+            val accountSettings = AccountSettings(requireContext(), account)
 
-            if (accountSettings.isCalendarSyncEnabled())
+            if (accountSettings.isCalendarSyncEnabled()) {
                 hasCalendarSync = true
-            if (accountSettings.isContactSyncEnabled())
+            }
+            if (accountSettings.isContactSyncEnabled()) {
                 hasContactSync = true
+            }
         }
 
         return Pair(hasCalendarSync, hasContactSync)
@@ -181,28 +174,30 @@ class AccountsFragment : BaseFragment() {
         val prefs = Prefs(requireContext())
         prefs.consentDialogShown = false
         prefs.allTypesPrevSynced = false
-
     }
 
-    @SuppressLint("InflateParams")
-    private fun showDeleteDialog(accountName: String, onDelete: () -> Unit) {
-        val dialog = Dialog(requireContext())
-        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
-        val v = layoutInflater.inflate(R.layout.dialog_delete_account, null)
-        v.email.text = accountName
-        val lp = ViewGroup.LayoutParams(
-            ViewGroup.LayoutParams.WRAP_CONTENT,
-            ViewGroup.LayoutParams.WRAP_CONTENT
-        )
-        v.cancelButton.setOnClickListener { dialog.dismiss() }
-        v.acceptButton.setOnClickListener {
+    private fun showDeleteDialog(
+        accountName: String,
+        onDelete: () -> Unit,
+    ) {
+        val binding = DialogDeleteAccountBinding.inflate(layoutInflater, null, false)
+        val dialog =
+            MaterialAlertDialogBuilder(requireContext())
+                .setView(binding.root)
+                .setCancelable(false)
+                .create()
+                .apply {
+                    setCanceledOnTouchOutside(false)
+                    requestWindowFeature(Window.FEATURE_NO_TITLE)
+                }
+        binding.email.text = accountName
+
+        binding.cancelButton.setOnClickListener { dialog.dismiss() }
+        binding.acceptButton.setOnClickListener {
             dialog.dismiss()
             onDelete()
             deleteAppData()
         }
-        dialog.setCanceledOnTouchOutside(false)
-        dialog.setCancelable(false)
-        dialog.setContentView(v, lp)
         dialog.show()
     }
 
@@ -212,8 +207,7 @@ class AccountsFragment : BaseFragment() {
         private val onEdit: ((position: Int, adapter: AccountAdapter) -> Unit)? = null,
         private val onDelete: ((position: Int, adapter: AccountAdapter) -> Unit)? = null
     ) : BaseListAdapter<Account>(context, dataSource) {
-        private val accountManager =
-            IDMAccountManager(context, DavNotificationUtils.reloginCallback(context, "authority"))
+        private val accountManager = IDMAccountManager(context)
 
         private class ViewHolder(view: View?) {
             val title = view?.findViewById<TextView>(R.id.title)
@@ -222,7 +216,11 @@ class AccountsFragment : BaseFragment() {
             val deleteButton = view?.findViewById<ImageButton>(R.id.deleteButton)
         }
 
-        override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+        override fun getView(
+            position: Int,
+            convertView: View?,
+            parent: ViewGroup,
+        ): View {
             val viewHolder: ViewHolder?
             val rowView: View?
 

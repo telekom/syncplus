@@ -24,13 +24,17 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 
 class LoginViewModel(app: Application) : AndroidViewModel(app) {
-
     sealed interface Action {
         class StartLogIn(val intent: Intent) : Action
+
         class ShowLoginError(val message: String? = null) : Action
+
         object ShowLoginErrorWithBooking : Action
+
         object ShowLoginDuplicated : Action
+
         object Finish : Action
+
         class NavigateNext(val authHolder: AuthHolder) : Action
     }
 
@@ -44,7 +48,7 @@ class LoginViewModel(app: Application) : AndroidViewModel(app) {
             idmAuth.onActivityResult(
                 IDMAuth.RC_AUTH,
                 activityResult.resultCode,
-                activityResult.data
+                activityResult.data,
             )
         } catch (ex: Exception) {
             Logger.log.severe("Login Error 0: $ex")
@@ -53,7 +57,11 @@ class LoginViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun startLogin(account: Account?, isReloging: Boolean, loginHint: String?) {
+    fun startLogin(
+        account: Account?,
+        isReloging: Boolean,
+        loginHint: String?,
+    ) {
         idmAuth.setErrorHandler { ex ->
             Logger.log.severe("Login Error 1: $ex")
             Log.e("SyncPlus", "Login Error 1", ex)
@@ -89,7 +97,10 @@ class LoginViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    private fun reloginAccount(store: TokenStore, account: Account?) {
+    private fun reloginAccount(
+        store: TokenStore,
+        account: Account?,
+    ) {
         viewModelScope.launch(Dispatchers.IO) {
             // Logged in account differs from old account.
             if (account == null || account.name != store.getAlias()) {
@@ -97,9 +108,7 @@ class LoginViewModel(app: Application) : AndroidViewModel(app) {
                 return@launch
             }
 
-            val serviceEnvironments = App.serviceEnvironments(getApplication())
-            val accountSettings =
-                AccountSettings(getApplication(), serviceEnvironments, account, null)
+            val accountSettings = AccountSettings(getApplication(), account)
             val credentials = accountSettings.getCredentials()
             credentials.idToken = store.getIdToken()
             credentials.accessToken = store.getAccessToken()
@@ -117,8 +126,8 @@ class LoginViewModel(app: Application) : AndroidViewModel(app) {
                 return@launch
             }
 
-            val serviceEnvironments = App.serviceEnvironments(getApplication())
-            val accountManager = IDMAccountManager(getApplication(), null)
+            val serviceEnvironments = App.serviceEnvironments()
+            val accountManager = IDMAccountManager(getApplication())
             if (accountManager.getAccounts().find { it.name == accountName } != null) {
                 emitAction(Action.ShowLoginDuplicated)
                 return@launch

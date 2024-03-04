@@ -20,11 +20,11 @@
 package de.telekom.dtagsyncpluskit.model.spica
 
 import android.os.Parcelable
-import kotlinx.android.parcel.Parcelize
-import kotlinx.android.parcel.WriteWith
+import kotlinx.parcelize.Parcelize
+import kotlinx.parcelize.WriteWith
 
 @Parcelize
 data class EmailAddress(
     var addressType: AddressType? = null,
-    var email: @WriteWith<UTF8StringParceler200> String? = null
+    var email: @WriteWith<UTF8StringParceler200> String? = null,
 ) : Parcelable

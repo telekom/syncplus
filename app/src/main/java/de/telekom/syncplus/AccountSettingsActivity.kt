@@ -26,13 +26,18 @@ import android.content.Intent
 import android.os.Bundle
 import de.telekom.dtagsyncpluskit.extraNotNull
 import de.telekom.dtagsyncpluskit.ui.BaseActivity
+import de.telekom.syncplus.databinding.AccountsSettingsActivityBinding
 import de.telekom.syncplus.ui.main.AccountSettingsFragment
-import kotlinx.android.synthetic.main.layout_small_topbar.*
+import de.telekom.syncplus.util.viewbinding.viewBinding
 
-class AccountSettingsActivity : BaseActivity() {
+class AccountSettingsActivity : BaseActivity(R.layout.accounts_settings_activity) {
     companion object {
         private const val ARG_ACCOUNT = "ARG_ACCOUNT"
-        fun newIntent(activity: Activity, account: Account): Intent {
+
+        fun newIntent(
+            activity: Activity,
+            account: Account,
+        ): Intent {
             val intent = Intent(activity, AccountSettingsActivity::class.java)
             intent.putExtra(ARG_ACCOUNT, account)
             return intent
@@ -40,13 +45,13 @@ class AccountSettingsActivity : BaseActivity() {
     }
 
     private val mAccount by extraNotNull<Account>(ARG_ACCOUNT)
+    private val binding by viewBinding(R.id.root) { AccountsSettingsActivityBinding.bind(it) }
 
     @SuppressLint("CommitTransaction")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.accounts_settings_activity)
-        topbarTitle.text = getString(R.string.title_settings)
-        backButtonSmall.setOnClickListener { finish() }
+        binding.layoutSmallTopbar.topbarTitle.text = getString(R.string.title_settings)
+        binding.layoutSmallTopbar.backButtonSmall.setOnClickListener { finish() }
         if (savedInstanceState == null) {
             val fragment = AccountSettingsFragment.newInstance(mAccount)
             supportFragmentManager

@@ -20,12 +20,12 @@
 package de.telekom.dtagsyncpluskit.model.spica
 
 import android.os.Parcelable
-import kotlinx.android.parcel.Parcelize
+import kotlinx.parcelize.Parcelize
 
 @Parcelize
 data class ContactWithSimilarity(
     val contact: Contact?,
     val fromRequest: Boolean?,
     val requestIndex: Int?,
-    val similarity: Float?
+    val similarity: Float?,
 ) : Parcelable

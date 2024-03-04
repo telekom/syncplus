@@ -11,9 +11,9 @@ import de.telekom.syncplus.R
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
-class AddressBookViewModel(application: Application) : AndroidViewModel(application),
+class AddressBookViewModel(application: Application) :
+    AndroidViewModel(application),
     AddressBookContract.ViewModel {
-
     private val contactsFetcher by lazy { ContactsFetcher(getApplication()) }
 
     private val _state = MutableStateFlow(AddressBookContract.State())
@@ -24,18 +24,19 @@ class AddressBookViewModel(application: Application) : AndroidViewModel(applicat
 
     override fun fetchGroups(currentSelection: List<Group>) {
         viewModelScope.launch {
-            val fetchedGroups = contactsFetcher.allGroups()
-                .groupBy { it.name }
-                .map { (name, groupList) ->
-                    val contactsCount = groupList.sumOf { it.numberOfContacts ?: 0 }
+            val fetchedGroups =
+                contactsFetcher.allGroups()
+                    .groupBy { it.name }
+                    .map { (name, groupList) ->
+                        val contactsCount = groupList.sumOf { it.numberOfContacts ?: 0 }
 
-                    AddressBookContract.SelectableGroup(
-                        name = name,
-                        contactsCount = contactsCount,
-                        referenceGroups = groupList
-                    )
-                }
-                .toMutableList()
+                        AddressBookContract.SelectableGroup(
+                            name = name,
+                            contactsCount = contactsCount,
+                            referenceGroups = groupList,
+                        )
+                    }
+                    .toMutableList()
 
             val allContactsName = getApplication<App>().getString(R.string.all_contacts)
             val allContactsCount = contactsFetcher.allContacts().size
@@ -45,24 +46,27 @@ class AddressBookViewModel(application: Application) : AndroidViewModel(applicat
                 AddressBookContract.SelectableGroup(
                     name = allContactsName,
                     contactsCount = allContactsCount,
-                    referenceGroups = listOf(
-                        Group(
-                            ALL_CONTACTS_GROUP_ID,
-                            allContactsName,
-                            allContactsCount
-                        )
-                    )
-                )
+                    referenceGroups =
+                        listOf(
+                            Group(
+                                ALL_CONTACTS_GROUP_ID,
+                                allContactsName,
+                                allContactsCount,
+                            ),
+                        ),
+                ),
             )
 
-            val allGroups = fetchedGroups
-                .map {
-                    val groupSelection = currentSelection.find { selection ->
-                        selection.name == it.name && it.referenceGroups.contains(selection)
-                    }?.isSelected
+            val allGroups =
+                fetchedGroups
+                    .map {
+                        val groupSelection =
+                            currentSelection.find { selection ->
+                                selection.name == it.name && it.referenceGroups.contains(selection)
+                            }?.isSelected
 
-                    it.copy(isSelected = groupSelection ?: true)
-                }
+                        it.copy(isSelected = groupSelection ?: true)
+                    }
 
             mutateState {
                 copy(groupList = allGroups)
@@ -72,12 +76,15 @@ class AddressBookViewModel(application: Application) : AndroidViewModel(applicat
 
     override fun onGroupSelected(group: AddressBookContract.SelectableGroup) {
         viewModelScope.launch {
-            val groupList = _state.value.groupList
-                .map {
-                    if (it == group) {
-                        it.copy(isSelected = !group.isSelected)
-                    } else it
-                }
+            val groupList =
+                _state.value.groupList
+                    .map {
+                        if (it == group) {
+                            it.copy(isSelected = !group.isSelected)
+                        } else {
+                            it
+                        }
+                    }
 
             mutateState {
                 copy(groupList = groupList)
@@ -87,11 +94,12 @@ class AddressBookViewModel(application: Application) : AndroidViewModel(applicat
 
     override fun onGroupClicked(group: AddressBookContract.SelectableGroup) {
         viewModelScope.launch {
-            val contacts = _state.value.groupList
-                .filter { it == group }
-                .flatMap { selectableGroup -> selectableGroup.referenceGroups }
-                .map { group -> group.groupId }
-                .flatMap { groupId -> contactsFetcher.allContacts(groupId) }
+            val contacts =
+                _state.value.groupList
+                    .filter { it == group }
+                    .flatMap { selectableGroup -> selectableGroup.referenceGroups }
+                    .map { group -> group.groupId }
+                    .flatMap { groupId -> contactsFetcher.allContacts(groupId) }
 
             _action.emit(AddressBookContract.Action.NavigateToGroup(contacts))
         }
@@ -99,9 +107,10 @@ class AddressBookViewModel(application: Application) : AndroidViewModel(applicat
 
     override fun onAccepted() {
         viewModelScope.launch {
-            val selectedGroups = _state.value.groupList
-                .filter { it.isSelected }
-                .flatMap { it.referenceGroups }
+            val selectedGroups =
+                _state.value.groupList
+                    .filter { it.isSelected }
+                    .flatMap { it.referenceGroups }
 
             _action.emit(AddressBookContract.Action.FinishWithSelection(selectedGroups))
         }

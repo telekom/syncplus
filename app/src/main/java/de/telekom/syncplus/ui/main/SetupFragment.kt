@@ -24,13 +24,16 @@ import android.accounts.Account
 import android.app.Application
 import android.os.Bundle
 import android.util.Log
-import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup
 import android.widget.CompoundButton
 import androidx.appcompat.widget.SwitchCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.fragment.app.activityViewModels
-import androidx.lifecycle.*
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import androidx.lifecycle.viewModelScope
 import com.google.android.material.button.MaterialButton
 import com.karumi.dexter.MultiplePermissionsReport
 import de.telekom.dtagsyncpluskit.api.ServiceEnvironments
@@ -38,14 +41,15 @@ import de.telekom.dtagsyncpluskit.davx5.log.Logger
 import de.telekom.dtagsyncpluskit.davx5.model.AppDatabase
 import de.telekom.dtagsyncpluskit.davx5.model.Service
 import de.telekom.dtagsyncpluskit.davx5.settings.AccountSettings
+import de.telekom.dtagsyncpluskit.davx5.ui.NotificationUtils
 import de.telekom.dtagsyncpluskit.ui.BaseFragment
 import de.telekom.dtagsyncpluskit.utils.IDMAccountManager
 import de.telekom.syncplus.App
 import de.telekom.syncplus.HelpActivity
 import de.telekom.syncplus.R
 import de.telekom.syncplus.SetupActivity
-import de.telekom.syncplus.dav.DavNotificationUtils
-import kotlinx.android.synthetic.main.fragment_setup.view.*
+import de.telekom.syncplus.databinding.FragmentSetupBinding
+import de.telekom.syncplus.util.viewbinding.viewBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -55,7 +59,7 @@ import kotlinx.coroutines.launch
 class SetupViewModel(private val app: Application) : AndroidViewModel(app) {
     private val db = AppDatabase.getInstance(app)
     private val accountManager by lazy {
-        IDMAccountManager(app, DavNotificationUtils.reloginCallback(app, "authority"))
+        IDMAccountManager(app)
     }
 
     private val _showError = MutableSharedFlow<Unit>()
@@ -68,14 +72,14 @@ class SetupViewModel(private val app: Application) : AndroidViewModel(app) {
         accountSettings: AccountSettings,
         serviceEnvironments: ServiceEnvironments,
         calendarSyncEnabled: Boolean,
-        contactSyncEnabled: Boolean
+        contactSyncEnabled: Boolean,
     ) {
         viewModelScope.launch(Dispatchers.IO) {
             accountManager.discoverServicesConfiguration(
                 account,
                 serviceEnvironments,
                 calendarSyncEnabled,
-                contactSyncEnabled
+                contactSyncEnabled,
             )?.let {
                 setupSettings(accountSettings, calendarSyncEnabled, contactSyncEnabled)
             } ?: _showError.emit(Unit)
@@ -85,7 +89,7 @@ class SetupViewModel(private val app: Application) : AndroidViewModel(app) {
     fun setupAccount(
         accountSettings: AccountSettings,
         calendarEnabled: Boolean,
-        contactsEnabled: Boolean
+        contactsEnabled: Boolean,
     ) {
         viewModelScope.launch(Dispatchers.IO) {
             // Check whether services are discovered
@@ -107,9 +111,9 @@ class SetupViewModel(private val app: Application) : AndroidViewModel(app) {
     private suspend fun setupSettings(
         accountSettings: AccountSettings,
         calendarEnabled: Boolean,
-        contactsEnabled: Boolean
+        contactsEnabled: Boolean,
     ) {
-        /* Call setSyncAllCalendars/setSyncAllAddressBooks first! */
+        // Call setSyncAllCalendars/setSyncAllAddressBooks first!
         accountSettings.setSyncAllCalendars(calendarEnabled)
         accountSettings.setCalendarSyncEnabled(calendarEnabled)
         accountSettings.setSyncAllAddressBooks(contactsEnabled)
@@ -117,58 +121,53 @@ class SetupViewModel(private val app: Application) : AndroidViewModel(app) {
         _navigateToNextStep.emit(Unit)
     }
 
-    private fun isServicesDiscovered(accountName: String, serviceType: String): Boolean {
+    private fun isServicesDiscovered(
+        accountName: String,
+        serviceType: String,
+    ): Boolean {
         return db.serviceDao().getIdByAccountAndType(accountName, serviceType) != null
     }
 }
 
-class SetupFragment : BaseFragment() {
+class SetupFragment : BaseFragment(R.layout.fragment_setup) {
     override val TAG = "SETUP_FRAGMENT"
 
     companion object {
         fun newInstance() = SetupFragment()
     }
 
+    private val binding by viewBinding(FragmentSetupBinding::bind)
     private val viewModel by activityViewModels<SetupViewModel>()
     private lateinit var mToggleChangedListener: ToggleChanged
     private val mAuthHolder by lazy {
         (requireActivity() as SetupActivity).authHolder
     }
 
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View? {
-        val v = inflater.inflate(R.layout.fragment_setup, container, false)
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        setupTopBar()
+
         if (savedInstanceState != null) {
             (activity as SetupActivity).authHolder.currentStep = 2
         }
         mToggleChangedListener = ToggleChanged(
             requireActivity() as SetupActivity,
-            v.calendarSwitch,
-            v.emailSwitch,
-            v.addressBookSwitch,
-            v.nextButton
+            binding.calendarSwitch,
+            binding.emailSwitch,
+            binding.addressBookSwitch,
+            binding.nextButton
         )
 
-        v.calendarSwitch.setOnCheckedChangeListener { buttonView, isChecked ->
+        binding.calendarSwitch.setOnCheckedChangeListener { buttonView, isChecked ->
             mToggleChangedListener.onCheckedChanged(buttonView, isChecked)
         }
-        v.emailSwitch.setOnCheckedChangeListener(mToggleChangedListener)
-        v.addressBookSwitch.setOnCheckedChangeListener { buttonView, isChecked ->
+        binding.emailSwitch.setOnCheckedChangeListener(mToggleChangedListener)
+        binding.addressBookSwitch.setOnCheckedChangeListener { buttonView, isChecked ->
             mToggleChangedListener.onCheckedChanged(buttonView, isChecked)
         }
-        v.nextButton.setOnClickListener {
+        binding.nextButton.setOnClickListener {
             goNext()
         }
-
-        return v
-    }
-
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
-        setupTopBar()
 
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -179,8 +178,13 @@ class SetupFragment : BaseFragment() {
 
         childFragmentManager.setFragmentResultListener(
             ServiceDiscoveryErrorDialog.ACTION_RETRY_SERVICE_DISCOVERY,
-            viewLifecycleOwner
+            viewLifecycleOwner,
         ) { _, _ -> discoverServices() }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        cancelPermissionNotification()
     }
 
     private fun discoverServices() {
@@ -188,9 +192,9 @@ class SetupFragment : BaseFragment() {
         viewModel.discoverServices(
             account,
             getAccountSettings(account),
-            App.serviceEnvironments(requireContext()),
+            App.serviceEnvironments(),
             mAuthHolder.calEnabled,
-            mAuthHolder.addressBookEnabled
+            mAuthHolder.addressBookEnabled,
         )
     }
 
@@ -214,17 +218,22 @@ class SetupFragment : BaseFragment() {
                     Manifest.permission.READ_CONTACTS,
                     Manifest.permission.WRITE_CONTACTS,
                     Manifest.permission.READ_CALENDAR,
-                    Manifest.permission.WRITE_CALENDAR
+                    Manifest.permission.WRITE_CALENDAR,
                 )
             }
-            mAuthHolder.addressBookEnabled -> arrayOf(
-                Manifest.permission.READ_CONTACTS,
-                Manifest.permission.WRITE_CONTACTS
-            )
-            mAuthHolder.calEnabled -> arrayOf(
-                Manifest.permission.READ_CALENDAR,
-                Manifest.permission.WRITE_CALENDAR
-            )
+
+            mAuthHolder.addressBookEnabled ->
+                arrayOf(
+                    Manifest.permission.READ_CONTACTS,
+                    Manifest.permission.WRITE_CONTACTS,
+                )
+
+            mAuthHolder.calEnabled ->
+                arrayOf(
+                    Manifest.permission.READ_CALENDAR,
+                    Manifest.permission.WRITE_CALENDAR,
+                )
+
             else -> arrayOf()
         }
 
@@ -235,9 +244,11 @@ class SetupFragment : BaseFragment() {
                     Logger.log.severe("Error: Requesting Permission: ${error.message}")
                     showPermissionDeniedDialog(report)
                 }
+
                 granted -> {
                     setupAccount()
                 }
+
                 else -> {
                     showPermissionDeniedDialog(report)
                 }
@@ -246,21 +257,34 @@ class SetupFragment : BaseFragment() {
     }
 
     private fun navigateToNextStep() {
-        val fragment = when {
-            mAuthHolder.addressBookEnabled -> {
-                SetupContactsFragment.newInstance()
+        // Cancel notification if it's being disaplyed
+        cancelPermissionNotification()
+
+        val fragment =
+            when {
+                mAuthHolder.addressBookEnabled -> {
+                    SetupContactsFragment.newInstance()
+                }
+
+                mAuthHolder.calEnabled -> {
+                    SetupCalendarFragment.newInstance()
+                }
+
+                mAuthHolder.emailEnabled -> {
+                    SetupEmailFragment.newInstance()
+                }
+
+                else -> {
+                    return
+                }
             }
-            mAuthHolder.calEnabled -> {
-                SetupCalendarFragment.newInstance()
-            }
-            mAuthHolder.emailEnabled -> {
-                SetupEmailFragment.newInstance()
-            }
-            else -> {
-                return
-            }
-        }
         push(R.id.container, fragment)
+    }
+
+    // No need to display permission notification during account setup flow
+    private fun cancelPermissionNotification() {
+        NotificationManagerCompat.from(requireContext())
+            .cancel(NotificationUtils.NOTIFY_PERMISSIONS)
     }
 
     private fun showErrorDialog() {
@@ -273,12 +297,7 @@ class SetupFragment : BaseFragment() {
     }
 
     private fun getAccountSettings(account: Account): AccountSettings {
-        return AccountSettings(
-            requireContext(),
-            App.serviceEnvironments(requireContext()),
-            account,
-            DavNotificationUtils.reloginCallback(requireContext(), "authority")
-        )
+        return AccountSettings(requireContext(), account)
     }
 
     private fun setupAccount() {
@@ -287,11 +306,11 @@ class SetupFragment : BaseFragment() {
         viewModel.setupAccount(
             accountSettings,
             mAuthHolder.calEnabled,
-            mAuthHolder.addressBookEnabled
+            mAuthHolder.addressBookEnabled,
         )
         // Don't sync, yet. Sync will be initiated after each setup step.
-        //accountSettings.resyncCalendars(true)
-        //accountSettings.resyncContacts(true)
+        // accountSettings.resyncCalendars(true)
+        // accountSettings.resyncContacts(true)
     }
 
     private fun showPermissionDeniedDialog(report: MultiplePermissionsReport?) {
@@ -300,6 +319,7 @@ class SetupFragment : BaseFragment() {
                 getString(R.string.dialog_permission_required_title),
                 getString(R.string.dialog_permission_required_text)
             )
+
             else -> {
                 val denied = report.deniedPermissionResponses
                 val deniedAddressBook =
@@ -311,14 +331,17 @@ class SetupFragment : BaseFragment() {
                         getString(R.string.dialog_permission_required_title),
                         getString(R.string.dialog_permission_required_text)
                     )
+
                     deniedAddressBook -> Pair(
                         getString(R.string.dialog_contacts_permission_required_title),
                         getString(R.string.dialog_contacts_permission_required_text)
                     )
+
                     deniedCalendar -> Pair(
                         getString(R.string.dialog_calendar_permission_required_title),
                         getString(R.string.dialog_calendar_permission_required_text)
                     )
+
                     else -> Pair(
                         getString(R.string.dialog_permission_required_title),
                         getString(R.string.dialog_permission_required_text)
@@ -352,22 +375,25 @@ class SetupFragment : BaseFragment() {
             authHolder.emailEnabled = emailSwitch.isChecked
             authHolder.addressBookEnabled = addressBookSwitch.isChecked
             when {
-                (calendarSwitch.isChecked && !emailSwitch.isChecked && !addressBookSwitch.isChecked)
-                        || (!calendarSwitch.isChecked && emailSwitch.isChecked && !addressBookSwitch.isChecked)
-                        || (!calendarSwitch.isChecked && !emailSwitch.isChecked && addressBookSwitch.isChecked) -> {
+                (calendarSwitch.isChecked && !emailSwitch.isChecked && !addressBookSwitch.isChecked) ||
+                        (!calendarSwitch.isChecked && emailSwitch.isChecked && !addressBookSwitch.isChecked) ||
+                        (!calendarSwitch.isChecked && !emailSwitch.isChecked && addressBookSwitch.isChecked) -> {
                     authHolder.currentStep = 1
                     authHolder.maxSteps = 2
                 }
-                (calendarSwitch.isChecked && emailSwitch.isChecked && !addressBookSwitch.isChecked)
-                        || (!calendarSwitch.isChecked && emailSwitch.isChecked && addressBookSwitch.isChecked)
-                        || (calendarSwitch.isChecked && !emailSwitch.isChecked && addressBookSwitch.isChecked) -> {
+
+                (calendarSwitch.isChecked && emailSwitch.isChecked && !addressBookSwitch.isChecked) ||
+                        (!calendarSwitch.isChecked && emailSwitch.isChecked && addressBookSwitch.isChecked) ||
+                        (calendarSwitch.isChecked && !emailSwitch.isChecked && addressBookSwitch.isChecked) -> {
                     authHolder.currentStep = 1
                     authHolder.maxSteps = 3
                 }
+
                 !calendarSwitch.isChecked && !emailSwitch.isChecked && !addressBookSwitch.isChecked -> {
                     authHolder.currentStep = 0
                     authHolder.maxSteps = 0
                 }
+
                 else -> {
                     authHolder.currentStep = 1
                     authHolder.maxSteps = 4

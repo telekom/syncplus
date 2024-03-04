@@ -27,11 +27,10 @@
 package de.telekom.dtagsyncpluskit.davx5
 
 object Constants {
-
     // TODO: Change from DavDroid green to another color!
     const val CALENDAR_DEFAULT_COLOR = 0xFF8bc34a.toInt()
 
-    const val DEFAULT_SYNC_INTERVAL = 2 * 3600L    // 2 hours
+    const val DEFAULT_SYNC_INTERVAL = 2 * 3600L // 2 hours
 
     /**
      * Context label for [org.apache.commons.lang3.exception.ContextedException].
@@ -46,5 +45,4 @@ object Constants {
      * which is related to the exception cause.
      */
     const val EXCEPTION_CONTEXT_REMOTE_RESOURCE = "remoteResource"
-
 }

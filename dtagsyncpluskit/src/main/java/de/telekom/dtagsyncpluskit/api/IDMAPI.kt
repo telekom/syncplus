@@ -21,7 +21,6 @@ package de.telekom.dtagsyncpluskit.api
 
 import de.telekom.dtagsyncpluskit.model.idm.WellKnownInfo
 import retrofit2.Call
-import retrofit2.Response
 import retrofit2.http.GET
 
 interface IDMAPI {

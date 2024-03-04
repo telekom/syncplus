@@ -20,7 +20,6 @@
 package de.telekom.syncplus
 
 import android.Manifest
-import android.accounts.AccountManagerFuture
 import android.app.Activity
 import android.content.Intent
 import android.net.Uri
@@ -29,26 +28,39 @@ import android.os.Bundle
 import android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import com.google.android.material.R.style.MaterialAlertDialog_Material3
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import de.telekom.dtagsyncpluskit.davx5.log.Logger
 import de.telekom.dtagsyncpluskit.extraNotNull
 import de.telekom.dtagsyncpluskit.ui.BaseActivity
-import de.telekom.dtagsyncpluskit.utils.IDMAccountManager
-import de.telekom.syncplus.dav.DavNotificationUtils
 import de.telekom.syncplus.extensions.isPermissionGranted
 import de.telekom.syncplus.ui.main.WelcomeFragment
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 
-class WelcomeActivity : BaseActivity() {
-    private val scope = CoroutineScope(Dispatchers.IO)
+class WelcomeActivity : BaseActivity(R.layout.activity_container) {
+    companion object {
+        private const val ARG_OVERRIDE = "ARG_OVERRIDE"
+
+        fun newIntent(
+            activity: Activity,
+            noRedirect: Boolean = false,
+            clear: Boolean = false,
+        ): Intent {
+            val intent = Intent(activity, WelcomeActivity::class.java)
+            intent.putExtra(ARG_OVERRIDE, noRedirect)
+            if (clear) {
+                intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            return intent
+        }
+    }
 
     private val notificationPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
             if (!isGranted) {
-                if (Build.VERSION.SDK_INT >= 33) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     if (shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS)) {
                         showNotificationPermissionRationale()
                     } else {
@@ -60,29 +72,19 @@ class WelcomeActivity : BaseActivity() {
             }
         }
 
-    companion object {
-        private const val ARG_OVERRIDE = "ARG_OVERRIDE"
-        fun newIntent(
-            activity: Activity,
-            noRedirect: Boolean = false,
-            clear: Boolean = false
-        ): Intent {
-            val intent = Intent(activity, WelcomeActivity::class.java)
-            intent.putExtra(ARG_OVERRIDE, noRedirect)
-            if (clear)
-                intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_NEW_TASK
-            return intent
-        }
-    }
-
     private val viewModel by viewModels<WelcomeViewModel>()
 
-    private val mNoRedirect by extraNotNull(ARG_OVERRIDE, false)
+    private val noRedirect by extraNotNull(ARG_OVERRIDE, false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         setTheme(R.style.AppTheme)
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_container)
+
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                launch { viewModel.action.collect(::handleAction) }
+            }
+        }
     }
 
     override fun onResume() {
@@ -106,16 +108,37 @@ class WelcomeActivity : BaseActivity() {
         }
     }
 
-    override fun onDestroy() {
-        scope.cancel()
-        super.onDestroy()
+    private fun handleAction(action: WelcomeViewModel.Action) {
+        when (action) {
+            is WelcomeViewModel.Action.DisplayWelcomeFragment -> displayWelcomeFragment(action.wasAccountsDeleted)
+            is WelcomeViewModel.Action.StartAccountsActivity -> startAccountsActivity(action.wasAccountsDeleted)
+        }
+    }
+
+    private fun displayWelcomeFragment(wasAccountsDeleted: Boolean) {
+        val transact = supportFragmentManager.beginTransaction()
+        transact.replace(R.id.container, WelcomeFragment.newInstance(wasAccountsDeleted))
+        if (!supportFragmentManager.isDestroyed) {
+            transact.commitNow()
+        }
+    }
+
+    private fun startAccountsActivity(wasAccountsDeleted: Boolean) {
+        startActivity(
+            AccountsActivity.newIntent(
+                this,
+                newAccountCreated = false,
+                energySaving = false,
+                accountDeleted = wasAccountsDeleted,
+            ),
+        )
     }
 
     private fun showSettingDialog() {
         viewModel.wasPermissionsRequested = true
         MaterialAlertDialogBuilder(
             this,
-            com.google.android.material.R.style.MaterialAlertDialog_Material3
+            MaterialAlertDialog_Material3,
         )
             .setTitle(R.string.notification_permission_dialog_setting_title)
             .setMessage(R.string.notification_permission_dialog_setting_message)
@@ -133,7 +156,7 @@ class WelcomeActivity : BaseActivity() {
     private fun showNotificationPermissionRationale() {
         MaterialAlertDialogBuilder(
             this,
-            com.google.android.material.R.style.MaterialAlertDialog_Material3
+            MaterialAlertDialog_Material3,
         )
             .setMessage(R.string.notification_permission_dialog_rationale_message)
             .setPositiveButton(R.string.notification_permission_dialog_rationale_positive_action) { _, _ ->
@@ -148,42 +171,6 @@ class WelcomeActivity : BaseActivity() {
     }
 
     private fun continueWithApp() {
-        val accountManager =
-            IDMAccountManager(this, DavNotificationUtils.reloginCallback(this, "authority"))
-
-        // Verify that all accounts have been setup completely.
-        val futures = ArrayList<AccountManagerFuture<Bundle>>()
-        for (account in accountManager.getAccounts()) {
-            if (!accountManager.isSetupCompleted(account)) {
-                Logger.log.info("Account deleted: $account")
-                futures.add(accountManager.removeAccountAsync(account, this))
-            }
-        }
-
-        val accountsDeleted = futures.size > 0
-        val next = {
-            Logger.log.info("Accounts: ${accountManager.getAccounts().map { it.name }}")
-            if (!mNoRedirect && accountManager.getAccounts().isNotEmpty()) {
-                startActivity(
-                    AccountsActivity.newIntent(
-                        this,
-                        newAccountCreated = false,
-                        energySaving = false,
-                        accountDeleted = accountsDeleted
-                    )
-                )
-            } else {
-                val transact = supportFragmentManager.beginTransaction()
-                transact.replace(R.id.container, WelcomeFragment.newInstance(accountsDeleted))
-                if (!supportFragmentManager.isDestroyed)
-                    transact.commitNow()
-            }
-        }
-
-        scope.launch {
-            futures.forEach { it.result }
-            runOnUiThread(next)
-        }
+        viewModel.viewEvent(WelcomeViewModel.ViewEvent.TryContinueWithApp(noRedirect))
     }
-
 }

@@ -22,5 +22,5 @@ package de.telekom.dtagsyncpluskit.model.spica
 data class DuplicatesResponse(
     val count: Int?,
     val duplicates: List<Duplicate>?,
-    val error: ErrorDescription?
+    val error: ErrorDescription?,
 )

@@ -4,7 +4,6 @@ import android.app.Activity
 import android.app.Application
 import android.content.res.Configuration
 import android.os.Build
-import android.util.Log
 import de.telekom.dtagsyncpluskit.BuildConfig
 import de.telekom.dtagsyncpluskit.davx5.log.Logger
 import ly.count.android.sdk.Countly
@@ -17,19 +16,23 @@ object CountlyWrapper {
     @Volatile
     private var isCountlyInitialized = false
 
-   data  class Config(
+    data class Config(
         val isDebug: Boolean,
         val versionName: String,
         val versionCode: Long,
         val deviceId: String?,
-        val isEnabled: Boolean
+        val isEnabled: Boolean,
     )
 
-    private fun init(application: Application, config: Config) {
+    private fun init(
+        application: Application,
+        config: Config,
+    ) {
         Logger.log.info("CountlyInitialize | Enabled = $isCountlyEnabled | Initialized = $isCountlyInitialized")
 
-        if (isCountlyInitialized)
+        if (isCountlyInitialized) {
             return
+        }
 
         val environ = BuildConfig.ENVIRON[BuildConfig.FLAVOR]!!
         val serverUrl = environ[9]
@@ -51,8 +54,8 @@ object CountlyWrapper {
                 mapOf(
                     "isDebug" to config.isDebug,
                     "appVersion" to "${config.versionName} (${config.versionCode})",
-                    "androidVersion" to "$releaseOrCodename (${Build.VERSION.SDK_INT})"
-                )
+                    "androidVersion" to "$releaseOrCodename (${Build.VERSION.SDK_INT})",
+                ),
             )
         }.let {
             Countly.sharedInstance().init(it)
@@ -61,7 +64,10 @@ object CountlyWrapper {
         }
     }
 
-    fun setCountlyEnabled(application: Application, config: Config) {
+    fun setCountlyEnabled(
+        application: Application,
+        config: Config,
+    ) {
         Logger.log.info("setCountlyEnabled = ${config.isEnabled}")
 
         if (config.isEnabled) {
@@ -74,7 +80,7 @@ object CountlyWrapper {
     fun changeDeviceIdWithMerge(deviceId: String) {
         Logger.log.info("changeDeviceIdWithMerge")
         if (!isCountlyEnabled) return
-        Countly.sharedInstance().changeDeviceIdWithMerge(deviceId)
+        Countly.sharedInstance().deviceId().changeWithMerge(deviceId)
     }
 
     fun onStart(activity: Activity) {

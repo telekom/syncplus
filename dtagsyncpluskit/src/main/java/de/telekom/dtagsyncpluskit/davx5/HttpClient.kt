@@ -36,7 +36,15 @@ import de.telekom.dtagsyncpluskit.api.BearerAuthInterceptor
 import de.telekom.dtagsyncpluskit.davx5.log.Logger
 import de.telekom.dtagsyncpluskit.davx5.settings.AccountSettings
 import de.telekom.dtagsyncpluskit.utils.CountlyWrapper
-import okhttp3.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import okhttp3.Cache
+import okhttp3.CipherSuite
+import okhttp3.ConnectionSpec
+import okhttp3.Interceptor
+import okhttp3.OkHttpClient
+import okhttp3.Protocol
+import okhttp3.Response
+import okhttp3.TlsVersion
 import okhttp3.internal.tls.OkHostnameVerifier
 import okhttp3.logging.HttpLoggingInterceptor
 import java.io.File
@@ -44,63 +52,67 @@ import java.net.Socket
 import java.security.KeyStore
 import java.security.Principal
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Collections
+import java.util.Date
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 import java.util.logging.Level
-import javax.net.ssl.*
+import javax.net.ssl.KeyManager
+import javax.net.ssl.SSLContext
+import javax.net.ssl.TrustManagerFactory
+import javax.net.ssl.X509ExtendedKeyManager
+import javax.net.ssl.X509TrustManager
 
 class HttpClient private constructor(
     val okHttpClient: OkHttpClient,
-    private val certManager: CustomCertManager?
 ) : AutoCloseable {
-
     companion object {
         /** max. size of disk cache (10 MB) */
         const val DISK_CACHE_MAX_SIZE: Long = 10 * 1024 * 1024
 
-        private val connectionSpec = ConnectionSpec.Builder(ConnectionSpec.MODERN_TLS)
-            .tlsVersions(TlsVersion.TLS_1_2)
-            .cipherSuites(
-                CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
-                CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
-                CipherSuite.TLS_DHE_RSA_WITH_AES_128_GCM_SHA256
-            )
-            .build()
+        private val connectionSpec =
+            ConnectionSpec.Builder(ConnectionSpec.MODERN_TLS)
+                .tlsVersions(TlsVersion.TLS_1_2)
+                .cipherSuites(
+                    CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+                    CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+                    CipherSuite.TLS_DHE_RSA_WITH_AES_128_GCM_SHA256,
+                )
+                .build()
 
         /** [OkHttpClient] singleton to build all clients from */
-        val sharedClient: OkHttpClient = OkHttpClient.Builder()
-            // set timeouts
-            .connectTimeout(15, TimeUnit.SECONDS)
-            .writeTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(120, TimeUnit.SECONDS)
-            .connectionSpecs(Collections.singletonList(connectionSpec))
-
-            // don't allow redirects by default, because it would break PROPFIND handling
-            .followRedirects(false)
-
-            // add User-Agent to every request
-            .addNetworkInterceptor(UserAgentInterceptor)
-
-            .build()
+        val sharedClient: OkHttpClient =
+            OkHttpClient.Builder()
+                // set timeouts
+                .connectTimeout(15, TimeUnit.SECONDS)
+                .writeTimeout(30, TimeUnit.SECONDS)
+                .readTimeout(120, TimeUnit.SECONDS)
+                .connectionSpecs(Collections.singletonList(connectionSpec))
+                // don't allow redirects by default, because it would break PROPFIND handling
+                .followRedirects(false)
+                // add User-Agent to every request
+                .addNetworkInterceptor(UserAgentInterceptor)
+                .build()
     }
-
 
     override fun close() {
         okHttpClient.cache?.close()
-        certManager?.close()
     }
 
     class Builder(
         context: Context,
         accountSettings: AccountSettings? = null,
-        val logger: java.util.logging.Logger = Logger.log
+        val logger: java.util.logging.Logger = Logger.log,
     ) {
         private val context = context.applicationContext
         private var certManager: CustomCertManager? = null
         private var certificateAlias: String? = null
-        private var cache: Cache? = null
+
+        //        private var cache: Cache? = null
         private var authInterceptor: BearerAuthInterceptor? = null
         private var loggingInterceptor: HttpLoggingInterceptor? = null
+        private var appInForeground: MutableStateFlow<Boolean>? =
+            MutableStateFlow(false)
 
         private val orig = sharedClient.newBuilder()
 
@@ -132,16 +144,11 @@ class HttpClient private constructor(
                         } catch (e: Exception) {
                             Logger.log.log(Level.SEVERE, "Can't set proxy, ignoring", e)
                         }
-                        */
+                 */
 
-                //if (BuildConfig.customCerts)
-                val distrustSystemCertificates = false
-                customCertManager(
-                    CustomCertManager(
-                        context, true,
-                        !(distrustSystemCertificates)
-                    )
-                )
+                // if (BuildConfig.customCerts)
+//                val distrustSystemCertificates = false
+                customCertManager(CustomCertManager(context, true, appInForeground))
             }
 
             // use account settings for authentication
@@ -161,18 +168,19 @@ class HttpClient private constructor(
         }
 
         private fun addLoggingInterceptor() {
-            if (loggingInterceptor != null)
+            if (loggingInterceptor != null) {
                 return
+            }
 
             loggingInterceptor = HttpLoggingInterceptor { message -> logger.finest(message) }
             loggingInterceptor!!.level = HttpLoggingInterceptor.Level.BODY
             orig.addInterceptor(loggingInterceptor!!)
-
         }
 
         fun withDiskCache(): Builder {
-            val context = context
-                ?: throw IllegalArgumentException("Context is required to find the cache directory")
+            val context =
+                context
+                    ?: throw IllegalArgumentException("Context is required to find the cache directory")
             for (dir in arrayOf(context.externalCacheDir, context.cacheDir).filterNotNull()) {
                 if (dir.exists() && dir.canWrite()) {
                     val cacheDir = File(dir, "HttpClient")
@@ -181,8 +189,8 @@ class HttpClient private constructor(
                     orig.cache(
                         Cache(
                             cacheDir,
-                            DISK_CACHE_MAX_SIZE
-                        )
+                            DISK_CACHE_MAX_SIZE,
+                        ),
                     )
                     break
                 }
@@ -200,7 +208,7 @@ class HttpClient private constructor(
         }
 
         fun setForeground(foreground: Boolean): Builder {
-            certManager?.appInForeground = foreground
+            appInForeground?.value = foreground
             return this
         }
 
@@ -212,15 +220,17 @@ class HttpClient private constructor(
         }
 
         fun build(): HttpClient {
-            val trustManager = certManager ?: {
-                val factory =
-                    TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
-                factory.init(null as KeyStore?)
-                factory.trustManagers.first() as X509TrustManager
-            }()
+            val trustManager =
+                certManager ?: run {
+                    val factory =
+                        TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
+                    factory.init(null as KeyStore?)
+                    factory.trustManagers.first() as X509TrustManager
+                }
 
-            val hostnameVerifier = certManager?.hostnameVerifier(OkHostnameVerifier)
-                ?: OkHostnameVerifier
+            val hostnameVerifier =
+                certManager?.HostnameVerifier(OkHostnameVerifier)
+                    ?: OkHostnameVerifier
 
             var keyManager: KeyManager? = null
             certificateAlias?.let { alias ->
@@ -237,34 +247,36 @@ class HttpClient private constructor(
                     keyStore.load(null)
 
                     // create KeyManager
-                    keyManager = object : X509ExtendedKeyManager() {
-                        override fun getServerAliases(
-                            p0: String?,
-                            p1: Array<out Principal>?
-                        ): Array<String>? = null
+                    keyManager =
+                        object : X509ExtendedKeyManager() {
+                            override fun getServerAliases(
+                                p0: String?,
+                                p1: Array<out Principal>?,
+                            ): Array<String>? = null
 
-                        override fun chooseServerAlias(
-                            p0: String?,
-                            p1: Array<out Principal>?,
-                            p2: Socket?
-                        ) = null
+                            override fun chooseServerAlias(
+                                p0: String?,
+                                p1: Array<out Principal>?,
+                                p2: Socket?,
+                            ) = null
 
-                        override fun getClientAliases(p0: String?, p1: Array<out Principal>?) =
-                            arrayOf(alias)
+                            override fun getClientAliases(
+                                p0: String?,
+                                p1: Array<out Principal>?,
+                            ) = arrayOf(alias)
 
-                        override fun chooseClientAlias(
-                            p0: Array<out String>?,
-                            p1: Array<out Principal>?,
-                            p2: Socket?
-                        ) =
-                            alias
+                            override fun chooseClientAlias(
+                                p0: Array<out String>?,
+                                p1: Array<out Principal>?,
+                                p2: Socket?,
+                            ) = alias
 
-                        override fun getCertificateChain(forAlias: String?) =
-                            certs.takeIf { forAlias == alias }
+                            override fun getCertificateChain(forAlias: String?) =
+                                certs.takeIf { forAlias == alias }
 
-                        override fun getPrivateKey(forAlias: String?) =
-                            key.takeIf { forAlias == alias }
-                    }
+                            override fun getPrivateKey(forAlias: String?) =
+                                key.takeIf { forAlias == alias }
+                        }
 
                     // HTTP/2 doesn't support client certificates (yet)
                     // see https://tools.ietf.org/html/draft-ietf-httpbis-http2-secondary-certs-04
@@ -274,7 +286,7 @@ class HttpClient private constructor(
                     logger.log(
                         Level.SEVERE,
                         "Couldn't set up provider certificate authentication",
-                        e
+                        e,
                     )
                 }
             }
@@ -283,47 +295,42 @@ class HttpClient private constructor(
             sslContext.init(
                 if (keyManager != null) arrayOf(keyManager) else null,
                 arrayOf(trustManager),
-                null
+                null,
             )
             orig.sslSocketFactory(sslContext.socketFactory, trustManager)
             orig.hostnameVerifier(hostnameVerifier)
 
-            return HttpClient(
-                orig.build(),
-                certManager
-            )
+            return HttpClient(orig.build())
         }
-
     }
-
 
     private object UserAgentInterceptor : Interceptor {
         // use Locale.US because numbers may be encoded as non-ASCII characters in other locales
         private val userAgentDateFormat = SimpleDateFormat("yyyy/MM/dd", Locale.US)
-        private val userAgentDate = userAgentDateFormat.format(
-            Date(
-                BuildConfig.buildTime
+        private val userAgentDate =
+            userAgentDateFormat.format(
+                Date(
+                    BuildConfig.buildTime,
+                ),
             )
-        )
         private val userAgent =
             "${BuildConfig.userAgent}/${BuildConfig.VERSION_NAME} AOS XDAV ($userAgentDate; dav4jvm; " +
                     "okhttp/${BuildConfig.okhttpVersion}) Android/${Build.VERSION.RELEASE}"
 
         override fun intercept(chain: Interceptor.Chain): Response {
             val locale = Locale.getDefault()
-            val request = chain.request().newBuilder()
-                .header(
-                    "User-Agent",
-                    userAgent
-                )
-                .header(
-                    "Accept-Language",
-                    "${locale.language}-${locale.country}, ${locale.language};q=0.7, *;q=0.5"
-                )
-                .build()
+            val request =
+                chain.request().newBuilder()
+                    .header(
+                        "User-Agent",
+                        userAgent,
+                    )
+                    .header(
+                        "Accept-Language",
+                        "${locale.language}-${locale.country}, ${locale.language};q=0.7, *;q=0.5",
+                    )
+                    .build()
             return chain.proceed(request)
         }
-
     }
-
 }

@@ -25,28 +25,32 @@ import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import de.telekom.dtagsyncpluskit.ui.BaseActivity
+import de.telekom.syncplus.databinding.HelpActivityBinding
 import de.telekom.syncplus.ui.main.HelpFragment
-import kotlinx.android.synthetic.main.layout_small_topbar.*
+import de.telekom.syncplus.util.viewbinding.viewBinding
 
-class HelpActivity : BaseActivity() {
-
+class HelpActivity : BaseActivity(R.layout.help_activity) {
     companion object {
         fun newIntent(activity: Activity) = Intent(activity, HelpActivity::class.java)
     }
+
+    private val binding by viewBinding(R.id.root) { HelpActivityBinding.bind(it) }
 
     @SuppressLint("CommitTransaction")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.help_activity)
-        backButtonSmall.visibility = View.GONE
-        backButtonSmall.setOnClickListener {
-            if (HelpFragment.instance?.currentWebView?.goBackInWebView() == true)
+        binding.layoutSmallTopbar.backButtonSmall.visibility = View.GONE
+        binding.layoutSmallTopbar.backButtonSmall.setOnClickListener {
+            if (HelpFragment.instance?.currentWebView?.goBackInWebView() == true) {
                 return@setOnClickListener
-            if (!popFragment())
+            }
+            if (!popFragment()) {
                 finish()
+            }
         }
-        closeButtonSmall.visibility = View.VISIBLE
-        closeButtonSmall.setOnClickListener {
+        binding.layoutSmallTopbar.closeButtonSmall.visibility = View.VISIBLE
+        binding.layoutSmallTopbar.closeButtonSmall.setOnClickListener {
             finish()
         }
 
@@ -61,11 +65,11 @@ class HelpActivity : BaseActivity() {
 
     override fun onFragmentPopped() {
         super.onFragmentPopped()
-        backButtonSmall.visibility = View.GONE
+        binding.layoutSmallTopbar.backButtonSmall.visibility = View.GONE
     }
 
     override fun onFragmentPushed() {
         super.onFragmentPushed()
-        backButtonSmall.visibility = View.VISIBLE
+        binding.layoutSmallTopbar.backButtonSmall.visibility = View.VISIBLE
     }
 }

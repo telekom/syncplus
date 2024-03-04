@@ -22,16 +22,17 @@ package de.telekom.syncplus.ui.main
 import android.accounts.Account
 import android.app.Activity
 import android.app.Application
-import android.net.Uri
 import android.os.Bundle
-import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup
 import androidx.core.os.bundleOf
 import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.setFragmentResult
 import androidx.fragment.app.setFragmentResultListener
-import androidx.lifecycle.*
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import androidx.lifecycle.viewModelScope
 import de.telekom.dtagsyncpluskit.api.APIFactory
 import de.telekom.dtagsyncpluskit.api.ServiceEnvironments
 import de.telekom.dtagsyncpluskit.api.SpicaAPI
@@ -51,9 +52,10 @@ import de.telekom.syncplus.App
 import de.telekom.syncplus.BuildConfig
 import de.telekom.syncplus.ContactsCopyActivity
 import de.telekom.syncplus.R
+import de.telekom.syncplus.databinding.FragmentCopyProgressBinding
 import de.telekom.syncplus.ui.main.DuplicateProgressViewModel.Action
 import de.telekom.syncplus.ui.main.dialog.SingleActionDialog
-import kotlinx.android.synthetic.main.fragment_copy_progress.view.*
+import de.telekom.syncplus.util.viewbinding.viewBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -63,7 +65,7 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.properties.Delegates
 
-class DuplicateProgressFragment : BaseFragment() {
+class DuplicateProgressFragment : BaseFragment(R.layout.fragment_copy_progress) {
     override val TAG: String
         get() = "DUPLICATE_PROGRESS_FRAGMENT"
 
@@ -79,27 +81,22 @@ class DuplicateProgressFragment : BaseFragment() {
     }
 
     private val viewModel by activityViewModels<DuplicateProgressViewModel>()
+    private val binding by viewBinding(FragmentCopyProgressBinding::bind)
     private val authHolder by lazy {
         (activity as? ContactsCopyActivity)?.authHolder
             ?: throw IllegalStateException("Missing AuthHolder")
     }
 
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View? {
-        val v = inflater.inflate(R.layout.fragment_copy_progress, container, false)
-        v.skipButton.setOnClickListener {
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?,
+    ) {
+        super.onViewCreated(view, savedInstanceState)
+        binding.skipButton.setOnClickListener {
             DuplicatesFoundFragment.showSkipDialog(requireActivity()) {
                 finishWithResult(Activity.RESULT_CANCELED, null)
             }
         }
-        return v
-    }
-
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch { viewModel.action.collect(::handleAction) }
@@ -147,13 +144,14 @@ class DuplicateProgressFragment : BaseFragment() {
     }
 
     private fun showRetryDialog(errorDescription: String? = null) {
-        val dialog = CustomErrorAlert(
-            getString(R.string.dialog_sync_error_title),
-            getString(R.string.dialog_sync_error_text),
-            errorDescription
-        ) { retry ->
-            setFragmentResult(RETRY_DUPLICATE_ACTION, bundleOf(RETRY_DUPLICATE_ACTION to retry))
-        }
+        val dialog =
+            CustomErrorAlert(
+                getString(R.string.dialog_sync_error_title),
+                getString(R.string.dialog_sync_error_text),
+                errorDescription,
+            ) { retry ->
+                setFragmentResult(RETRY_DUPLICATE_ACTION, bundleOf(RETRY_DUPLICATE_ACTION to retry))
+            }
 
         dialog.show(parentFragmentManager, "DIALOG")
     }
@@ -162,13 +160,12 @@ class DuplicateProgressFragment : BaseFragment() {
         SingleActionDialog.instantiate(
             titleText = getString(R.string.dialog_max_contact_count_error_title),
             messageText = getString(R.string.dialog_max_contact_count_error_message),
-            actionText = getString(R.string.dialog_max_contact_count_error_action)
+            actionText = getString(R.string.dialog_max_contact_count_error_action),
         ).show(parentFragmentManager, "ContactLimitError")
     }
 }
 
 class DuplicateProgressViewModel(private val app: Application) : AndroidViewModel(app) {
-
     private val actionFlow = MutableSharedFlow<Action>()
     private var authHolder: AuthHolder by Delegates.notNull()
     private val contactsToUpload = ConcurrentLinkedQueue<Contact>()
@@ -201,7 +198,7 @@ class DuplicateProgressViewModel(private val app: Application) : AndroidViewMode
         }
     }
 
-    fun skipUpload(){
+    fun skipUpload() {
         viewModelScope.launch {
             actionFlow.emit(Action.UploadFinished)
         }
@@ -223,6 +220,7 @@ class DuplicateProgressViewModel(private val app: Application) : AndroidViewMode
                         // Remove uploaded chunk
                         contactsToUpload.removeAll(chunk.toSet())
                     }
+
                     is Err -> {
                         Logger.log.severe("Error: Merging Contacts: ${response.error}")
                         lastError.set(response.error)
@@ -247,7 +245,7 @@ class DuplicateProgressViewModel(private val app: Application) : AndroidViewMode
 
     private suspend fun uploadContactsChunk(
         accountName: String,
-        contacts: List<Contact>
+        contacts: List<Contact>,
     ): ResultExt<ContactIdentifiersResponse, ApiError> {
         return buildSpicaApi(accountName)
             .importAndMergeContacts(contacts = ContactList(contacts))
@@ -255,9 +253,8 @@ class DuplicateProgressViewModel(private val app: Application) : AndroidViewMode
     }
 
     private fun buildSpicaApi(accountName: String): SpicaAPI {
-        val redirectUri = Uri.parse(app.getString(R.string.REDIRECT_URI))
         val environ = BuildConfig.ENVIRON[BuildConfig.FLAVOR]!!
-        val serviceEnvironments = ServiceEnvironments.fromBuildConfig(redirectUri, environ)
+        val serviceEnvironments = ServiceEnvironments.fromBuildConfig(environ)
         val account = Account(accountName, app.getString(R.string.account_type))
         val credentials = Credentials(app, account, serviceEnvironments)
         return APIFactory.spicaAPI(app, credentials)
@@ -265,8 +262,11 @@ class DuplicateProgressViewModel(private val app: Application) : AndroidViewMode
 
     sealed interface Action {
         object UploadFinished : Action
+
         object UploadCancelled : Action
+
         object ShowContactsLimitError : Action
+
         object ShowRetry : Action
     }
 

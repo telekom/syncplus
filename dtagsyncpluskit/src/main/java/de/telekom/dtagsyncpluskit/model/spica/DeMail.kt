@@ -20,12 +20,12 @@
 package de.telekom.dtagsyncpluskit.model.spica
 
 import android.os.Parcelable
-import kotlinx.android.parcel.Parcelize
-import kotlinx.android.parcel.WriteWith
+import kotlinx.parcelize.Parcelize
+import kotlinx.parcelize.WriteWith
 
 @Parcelize
 data class DeMail(
     var address: @WriteWith<UTF8StringParceler4000> String? = null,
     var pseudonyms: @WriteWith<UTF8StringParceler4000> String? = null,
-    var securityLevel: @WriteWith<UTF8StringParceler4000> String? = null
+    var securityLevel: @WriteWith<UTF8StringParceler4000> String? = null,
 ) : Parcelable

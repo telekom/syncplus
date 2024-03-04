@@ -27,17 +27,15 @@
 
 package de.telekom.dtagsyncpluskit.davx5.resource
 
-import android.content.ContentProviderOperation
 import android.content.ContentValues
 import android.provider.CalendarContract.Events
 import at.bitfire.ical4android.*
-import net.fortuna.ical4j.model.property.ProdId
-import java.util.*
 import de.telekom.dtagsyncpluskit.BuildConfig
+import net.fortuna.ical4j.model.property.ProdId
 import org.apache.commons.lang3.StringUtils
+import java.util.*
 
-class LocalEvent: AndroidEvent, LocalResource<Event> {
-
+class LocalEvent : AndroidEvent, LocalResource<Event> {
     companion object {
         init {
             ICalendar.prodId = ProdId("${BuildConfig.userAgent}/${BuildConfig.VERSION_NAME} ical4j/" + Ical4Android.ical4jVersion)
@@ -61,22 +59,27 @@ class LocalEvent: AndroidEvent, LocalResource<Event> {
     var weAreOrganizer = false
         private set
 
-
-    constructor(calendar: AndroidCalendar<*>, event: Event, fileName: String?, eTag: String?, scheduleTag: String?, flags: Int): super(calendar, event) {
+    constructor(calendar: AndroidCalendar<*>, event: Event, fileName: String?, eTag: String?, scheduleTag: String?, flags: Int) : super(
+        calendar,
+        event,
+    ) {
         this.fileName = fileName
         this.eTag = eTag
         this.scheduleTag = scheduleTag
         this.flags = flags
     }
 
-    private constructor(calendar: AndroidCalendar<*>, values: ContentValues): super(calendar, values) {
+    private constructor(calendar: AndroidCalendar<*>, values: ContentValues) : super(calendar, values) {
         fileName = values.getAsString(Events._SYNC_ID)
         eTag = values.getAsString(COLUMN_ETAG)
         scheduleTag = values.getAsString(COLUMN_SCHEDULE_TAG)
         flags = values.getAsInteger(COLUMN_FLAGS) ?: 0
     }
 
-    override fun populateEvent(row: ContentValues, groupScheduled: Boolean) {
+    override fun populateEvent(
+        row: ContentValues,
+        groupScheduled: Boolean,
+    ) {
         val event = requireNotNull(event)
 
         event.uid = row.getAsString(Events.UID_2445)
@@ -88,34 +91,38 @@ class LocalEvent: AndroidEvent, LocalResource<Event> {
         super.populateEvent(row, groupScheduled)
     }
 
-    override fun buildEvent(recurrence: Event?, builder: BatchOperation.CpoBuilder) {
+    override fun buildEvent(
+        recurrence: Event?,
+        builder: BatchOperation.CpoBuilder,
+    ) {
         val event = requireNotNull(event)
 
         val buildException = recurrence != null
         val eventToBuild = recurrence ?: event
 
-        builder .withValue(Events.UID_2445, event.uid)
+        builder.withValue(Events.UID_2445, event.uid)
             .withValue(COLUMN_SEQUENCE, eventToBuild.sequence)
             .withValue(Events.DIRTY, 0)
             .withValue(Events.DELETED, 0)
             .withValue(COLUMN_FLAGS, flags)
 
-        if (buildException)
-            builder .withValue(Events.ORIGINAL_SYNC_ID, fileName)
-        else
-            builder .withValue(Events._SYNC_ID, fileName)
+        if (buildException) {
+            builder.withValue(Events.ORIGINAL_SYNC_ID, fileName)
+        } else {
+            builder.withValue(Events._SYNC_ID, fileName)
                 .withValue(COLUMN_ETAG, eTag)
                 .withValue(COLUMN_SCHEDULE_TAG, scheduleTag)
+        }
 
         super.buildEvent(recurrence, builder)
     }
 
-
     override fun prepareForUpload(): String {
         var uid: String? = null
         calendar.provider.query(eventSyncURI(), arrayOf(Events.UID_2445), null, null, null)?.use { cursor ->
-            if (cursor.moveToNext())
+            if (cursor.moveToNext()) {
                 uid = StringUtils.trimToNull(cursor.getString(0))
+            }
         }
 
         if (uid == null) {
@@ -132,18 +139,24 @@ class LocalEvent: AndroidEvent, LocalResource<Event> {
         return "$uid.ics"
     }
 
-    override fun clearDirty(fileName: String?, eTag: String?, scheduleTag: String?) {
+    override fun clearDirty(
+        fileName: String?,
+        eTag: String?,
+        scheduleTag: String?,
+    ) {
         val values = ContentValues(5)
-        if (fileName != null)
+        if (fileName != null) {
             values.put(Events._SYNC_ID, fileName)
+        }
         values.put(COLUMN_ETAG, eTag)
         values.put(COLUMN_SCHEDULE_TAG, scheduleTag)
         values.put(COLUMN_SEQUENCE, event!!.sequence)
         values.put(Events.DIRTY, 0)
         calendar.provider.update(eventSyncURI(), values, null, null)
 
-        if (fileName != null)
+        if (fileName != null) {
             this.fileName = fileName
+        }
         this.eTag = eTag
         this.scheduleTag = scheduleTag
     }
@@ -156,10 +169,10 @@ class LocalEvent: AndroidEvent, LocalResource<Event> {
         this.flags = flags
     }
 
-
-    object Factory: AndroidEventFactory<LocalEvent> {
-        override fun fromProvider(calendar: AndroidCalendar<*>, values: ContentValues) =
-            LocalEvent(calendar, values)
+    object Factory : AndroidEventFactory<LocalEvent> {
+        override fun fromProvider(
+            calendar: AndroidCalendar<*>,
+            values: ContentValues,
+        ) = LocalEvent(calendar, values)
     }
-
 }

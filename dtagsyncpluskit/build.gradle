@@ -1,7 +1,7 @@
 apply plugin: 'com.android.library'
 //apply plugin: 'com.jaredsburrows.license'
 apply plugin: 'kotlin-android'
-apply plugin: 'kotlin-android-extensions'
+apply plugin: 'kotlin-parcelize'
 apply plugin: 'kotlin-kapt'
 apply from: '../env/env.gradle'
 apply from: '../utils.gradle'
@@ -13,18 +13,19 @@ apply from: '../utils.gradle'
 //}
 
 android {
-    compileSdkVersion 33
+    compileSdk 34
+    namespace "de.telekom.dtagsyncpluskit"
 
     defaultConfig {
         minSdkVersion 26    // Android 8
-        targetSdkVersion 33 // Android 13
+        targetSdkVersion 34 // Android 14
         multiDexEnabled true
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles 'consumer-rules.pro'
 
         buildConfigField "String", "userAgent", "\"syncplus\""
-        buildConfigField "String", "okhttpVersion", "\"4.10.0\""
+        buildConfigField "String", "okhttpVersion", "\"4.11.0\""
         buildConfigField "long", "buildTime", System.currentTimeMillis() + "L"
         buildConfigField "boolean", "customCerts", "true"
 
@@ -41,7 +42,7 @@ android {
         viewBinding = true
     }
 
-    flavorDimensions "environment"
+    flavorDimensions = ["environment"]
     productFlavors {
         dev {
 
@@ -82,7 +83,6 @@ android {
 dependencies {
 
     implementation fileTree(dir: 'libs', include: ['*.jar'])
-    //implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
     implementation libs.coroutines.android
     implementation libs.coroutines.core
     implementation libs.appcompat
@@ -106,6 +106,7 @@ dependencies {
 
     implementation libs.room.runtime
     implementation libs.room.ktx
+    implementation libs.work.runtime.ktx
     kapt libs.room.compiler
 
     // Testing
@@ -113,8 +114,7 @@ dependencies {
     androidTestImplementation libs.junit.android
     androidTestImplementation libs.espresso.core
 
-    // TODO Update after the migration to Kotlin 1.8+
-    implementation 'com.github.bitfireAT:cert4android:75d64c2'
-    implementation 'com.github.bitfireAT:ical4android:43ef146'
-    implementation 'com.github.bitfireAT:vcard4android:a6e9dc4'
+    implementation libs.cert4android
+    implementation libs.ical4android
+    implementation libs.vcard4android
 }

@@ -20,7 +20,12 @@
 package de.telekom.dtagsyncpluskit.xdav
 
 import android.accounts.Account
-import android.content.*
+import android.content.ComponentName
+import android.content.ContentResolver
+import android.content.Context
+import android.content.Intent
+import android.content.ServiceConnection
+import android.content.SyncStatusObserver
 import android.os.IBinder
 import android.provider.CalendarContract
 import android.provider.ContactsContract
@@ -28,17 +33,16 @@ import androidx.annotation.WorkerThread
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.switchMap
-import androidx.paging.*
-import de.telekom.dtagsyncpluskit.R
+import androidx.paging.PagedList
+import androidx.paging.toLiveData
+import de.telekom.dtagsyncpluskit.BuildConfig
 import de.telekom.dtagsyncpluskit.api.ServiceEnvironments
 import de.telekom.dtagsyncpluskit.davx5.model.AppDatabase
 import de.telekom.dtagsyncpluskit.davx5.model.Collection
 import de.telekom.dtagsyncpluskit.davx5.model.Service
-import de.telekom.dtagsyncpluskit.davx5.resource.LocalAddressBook
 import de.telekom.dtagsyncpluskit.davx5.settings.AccountSettings
 import de.telekom.dtagsyncpluskit.davx5.syncadapter.DavService
 import de.telekom.dtagsyncpluskit.utils.CountlyWrapper
-import kotlinx.coroutines.asCoroutineDispatcher
 import java.io.Closeable
 import java.util.concurrent.Executors
 
@@ -48,9 +52,8 @@ class CollectionFetcher(
     private val account: Account,
     id: Long,
     private val collectionType: String,
-    private val onUnauthorized: (account: Account) -> Unit
+    private val onUnauthorized: (account: Account) -> Unit,
 ) : Closeable, DavService.RefreshingStatusListener, SyncStatusObserver {
-
     private val mDB = AppDatabase.getInstance(context)
     private val mExecutor = Executors.newSingleThreadExecutor()
 
@@ -71,27 +74,33 @@ class CollectionFetcher(
     @Volatile
     private var mDavService: DavService.InfoBinder? = null
     private var mDavServiceConnection: ServiceConnection? = null
-    private val mServiceConnection = object : ServiceConnection {
-        override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
-            mDavService = service as? DavService.InfoBinder
-            mDavService?.addRefreshingStatusListener(this@CollectionFetcher, true)
-        }
+    private val mServiceConnection =
+        object : ServiceConnection {
+            override fun onServiceConnected(
+                name: ComponentName?,
+                service: IBinder?,
+            ) {
+                mDavService = service as? DavService.InfoBinder
+                mDavService?.addRefreshingStatusListener(this@CollectionFetcher, true)
+            }
 
-        override fun onServiceDisconnected(name: ComponentName?) {
-            mDavService = null
+            override fun onServiceDisconnected(name: ComponentName?) {
+                mDavService = null
+            }
         }
-    }
 
     init {
         val intent = Intent(context, DavService::class.java)
-        if (context.bindService(intent, mServiceConnection, Context.BIND_AUTO_CREATE))
+        if (context.bindService(intent, mServiceConnection, Context.BIND_AUTO_CREATE)) {
             mDavServiceConnection = mServiceConnection
+        }
 
         mExecutor.submit {
-            mSyncStatusHandle = ContentResolver.addStatusChangeListener(
-                ContentResolver.SYNC_OBSERVER_TYPE_PENDING + ContentResolver.SYNC_OBSERVER_TYPE_ACTIVE,
-                this
-            )
+            mSyncStatusHandle =
+                ContentResolver.addStatusChangeListener(
+                    ContentResolver.SYNC_OBSERVER_TYPE_PENDING + ContentResolver.SYNC_OBSERVER_TYPE_ACTIVE,
+                    this,
+                )
         }
     }
 
@@ -105,17 +114,21 @@ class CollectionFetcher(
         }
     }
 
-    fun refresh(serviceEnvironments: ServiceEnvironments, isSyncEnabled: Boolean) {
+    fun refresh(isSyncEnabled: Boolean) {
         serviceId.value?.let { serviceId ->
-            DavService.refreshCollections(context, serviceId, serviceEnvironments, isSyncEnabled)
+            DavService.refreshCollections(context, serviceId, isSyncEnabled)
         }
     }
 
-    /* DavService.RefreshingStatusListener */
+    // DavService.RefreshingStatusListener
     @WorkerThread
-    override fun onDavRefreshStatusChanged(id: Long, refreshing: Boolean) {
-        if (serviceId.value == id)
+    override fun onDavRefreshStatusChanged(
+        id: Long,
+        refreshing: Boolean,
+    ) {
+        if (serviceId.value == id) {
             _isRefreshing.postValue(refreshing)
+        }
     }
 
     override fun onUnauthorized(
@@ -134,47 +147,43 @@ class CollectionFetcher(
                 account.toString(),
                 authority,
                 service.toString(),
-                accountSettings.serviceEnvironments.toString(),
+                ServiceEnvironments.fromBuildConfig(BuildConfig.ENVIRON[BuildConfig.FLAVOR]!!),
             )
         CountlyWrapper.addCrashBreadcrumb(unauthorizedException)
         onUnauthorized(account)
     }
 
-    /* SyncStatusObserver */
+    // SyncStatusObserver
     override fun onStatusChanged(which: Int) {
         mExecutor.submit { checkSyncStatus() }
     }
 
     private fun checkSyncStatus() {
         if (collectionType == Collection.TYPE_ADDRESSBOOK) {
-            val mainAuthority = context.getString(R.string.address_books_authority)
-            val mainSyncActive = ContentResolver.isSyncActive(account, mainAuthority)
-            val mainSyncPending = ContentResolver.isSyncPending(account, mainAuthority)
+            val syncActive = ContentResolver.isSyncActive(
+                account,
+                ContactsContract.AUTHORITY,
+            )
+            val syncPending = ContentResolver.isSyncPending(
+                account,
+                ContactsContract.AUTHORITY,
+            )
 
-            val accounts = LocalAddressBook.findAll(context, null, account)
-            val syncActive = accounts.any {
-                ContentResolver.isSyncActive(
-                    it.account,
-                    ContactsContract.AUTHORITY
-                )
-            }
-            val syncPending = accounts.any {
-                ContentResolver.isSyncPending(
-                    it.account,
-                    ContactsContract.AUTHORITY
-                )
-            }
-
-            _isSyncActive.postValue(mainSyncActive || syncActive)
-            _isSyncPending.postValue(mainSyncPending || syncPending)
+            _isSyncActive.postValue(syncActive)
+            _isSyncPending.postValue(syncPending)
         } else {
-            val authorities = mutableListOf(CalendarContract.AUTHORITY)
-            _isSyncActive.postValue(authorities.any {
-                ContentResolver.isSyncActive(account, it)
-            })
-            _isSyncPending.postValue(authorities.any {
-                ContentResolver.isSyncPending(account, it)
-            })
+            _isSyncActive.postValue(
+                ContentResolver.isSyncActive(
+                    account,
+                    CalendarContract.AUTHORITY
+                )
+            )
+            _isSyncPending.postValue(
+                ContentResolver.isSyncPending(
+                    account,
+                    CalendarContract.AUTHORITY
+                )
+            )
         }
     }
 }

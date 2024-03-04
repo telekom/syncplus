@@ -27,33 +27,52 @@
 
 package de.telekom.dtagsyncpluskit.davx5
 
-import android.accounts.Account
-import android.annotation.TargetApi
-import android.content.ContentResolver
 import android.content.Context
 import android.net.ConnectivityManager
 import android.os.Build
-import android.os.Bundle
-import android.provider.CalendarContract
-import android.provider.ContactsContract
 import androidx.core.content.getSystemService
-import at.bitfire.ical4android.TaskProvider
-import de.telekom.dtagsyncpluskit.R
 import de.telekom.dtagsyncpluskit.davx5.log.Logger
-import de.telekom.dtagsyncpluskit.davx5.resource.LocalAddressBook
+import de.telekom.dtagsyncpluskit.utils.Android10Resolver
 import okhttp3.HttpUrl
-import org.xbill.DNS.*
-import java.util.*
+import okhttp3.MediaType
+import okhttp3.MediaType.Companion.toMediaType
+import org.xbill.DNS.ExtendedResolver
+import org.xbill.DNS.Lookup
+import org.xbill.DNS.Record
+import org.xbill.DNS.SRVRecord
+import org.xbill.DNS.SimpleResolver
+import org.xbill.DNS.TXTRecord
+import java.net.InetAddress
+import java.util.LinkedList
+import java.util.Locale
+import java.util.TreeMap
 
 /**
- * Some WebDAV and related network utility methods
+ * Some WebDAV and HTTP network utility methods.
  */
 object DavUtils {
 
-    enum class SyncStatus {
-        ACTIVE, PENDING, IDLE
-    }
+    val DNS_QUAD9 = InetAddress.getByAddress(byteArrayOf(9, 9, 9, 9))
 
+    const val MIME_TYPE_ACCEPT_ALL = "*/*"
+
+    val MEDIA_TYPE_JCARD = "application/vcard+json".toMediaType()
+    val MEDIA_TYPE_OCTET_STREAM = "application/octet-stream".toMediaType()
+    val MEDIA_TYPE_VCARD = "text/vcard".toMediaType()
+
+    /**
+     * Builds an HTTP `Accept` header that accepts anything (&#42;/&#42;), but optionally
+     * specifies a preference.
+     *
+     * @param preferred  preferred MIME type (optional)
+     *
+     * @return `media-range` for `Accept` header that accepts anything, but prefers [preferred] (if it was specified)
+     */
+    fun acceptAnything(preferred: MediaType?): String =
+        if (preferred != null)
+            "$preferred, $MIME_TYPE_ACCEPT_ALL;q=0.8"
+        else
+            MIME_TYPE_ACCEPT_ALL
 
     @Suppress("FunctionName")
     fun ARGBtoCalDAVColor(colorWithAlpha: Int): String {
@@ -62,37 +81,53 @@ object DavUtils {
         return String.format(Locale.ROOT, "#%06X%02X", color, alpha)
     }
 
-
     fun lastSegmentOfUrl(url: HttpUrl): String {
         // the list returned by HttpUrl.pathSegments() is unmodifiable, so we have to create a copy
-        val segments = LinkedList<String>(url.pathSegments)
+        val segments = LinkedList(url.pathSegments)
         segments.reverse()
 
         return segments.firstOrNull { it.isNotEmpty() } ?: "/"
     }
 
-
     fun prepareLookup(context: Context, lookup: Lookup) {
-        @TargetApi(Build.VERSION_CODES.O)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        if (Build.VERSION.SDK_INT >= 29) {
+            /* Since Android 10, there's a native DnsResolver API that allows to send SRV queries without
+               knowing which DNS servers have to be used. DNS over TLS is now also supported. */
+            Logger.log.fine("Using Android 10+ DnsResolver")
+            lookup.setResolver(Android10Resolver)
+
+        } else {
             /* Since Android 8, the system properties net.dns1, net.dns2, ... are not available anymore.
                The current version of dnsjava relies on these properties to find the default name servers,
                so we have to add the servers explicitly (fortunately, there's an Android API to
-               get the active DNS servers). */
+               get the DNS servers of the network connections). */
+            val dnsServers = LinkedList<InetAddress>()
+
             val connectivity = context.getSystemService<ConnectivityManager>()!!
-            val activeLink = connectivity.getLinkProperties(connectivity.activeNetwork)
-            if (activeLink != null) {
-                // get DNS servers of active network link and set them for dnsjava so that it can send SRV queries
-                val simpleResolvers = activeLink.dnsServers.map {
-                    Logger.log.fine("Using DNS server ${it.hostAddress}")
-                    val resolver = SimpleResolver()
-                    resolver.setAddress(it)
-                    resolver
+            connectivity.allNetworks.forEach { network ->
+                val active = connectivity.getNetworkInfo(network)?.isConnected ?: false
+                connectivity.getLinkProperties(network)?.let { link ->
+                    if (active)
+                    // active connection, insert at top of list
+                        dnsServers.addAll(0, link.dnsServers)
+                    else
+                    // inactive connection, insert at end of list
+                        dnsServers.addAll(link.dnsServers)
                 }
-                val resolver = ExtendedResolver(simpleResolvers.toTypedArray())
-                lookup.setResolver(resolver)
-            } else
-                Logger.log.severe("Couldn't determine DNS servers, dnsjava queries (SRV/TXT records) won't work")
+            }
+
+            // fallback: add Quad9 DNS in case that no other DNS works
+            dnsServers.add(DNS_QUAD9)
+
+            val uniqueDnsServers = LinkedHashSet<InetAddress>(dnsServers)
+            val simpleResolvers = uniqueDnsServers.map { dns ->
+                Logger.log.fine("Adding DNS server ${dns.hostAddress}")
+                SimpleResolver().apply {
+                    setAddress(dns)
+                }
+            }
+            val resolver = ExtendedResolver(simpleResolvers.toTypedArray())
+            lookup.setResolver(resolver)
         }
     }
 
@@ -129,7 +164,8 @@ object DavUtils {
                 selected SRV RR is the next one to be contacted by the client.
         */
         val minPriority = srvRecords.map { it.priority }.minOrNull()
-        val useableRecords = srvRecords.filter { it.priority == minPriority }.sortedBy { it.weight != 0 }
+        val useableRecords =
+            srvRecords.filter { it.priority == minPriority }.sortedBy { it.weight != 0 }
 
         val map = TreeMap<Int, SRVRecord>()
         var runningWeight = 0
@@ -157,68 +193,41 @@ object DavUtils {
     }
 
 
+    // extension methods
+
     /**
-     * Returns the sync status of a given account. Checks the account itself and possible
-     * sub-accounts (address book accounts).
-     *
-     * @param authorities sync authorities to check (usually taken from [syncAuthorities])
-     *
-     * @return sync status of the given account
+     * Returns parent URL (parent folder). Always with trailing slash
      */
-    fun accountSyncStatus(context: Context, authorities: Iterable<String>, account: Account): SyncStatus {
-        // check active syncs
-        if (authorities.any { ContentResolver.isSyncActive(account, it) })
-            return SyncStatus.ACTIVE
+    fun HttpUrl.parent(): HttpUrl {
+        if (pathSegments.size == 1 && pathSegments[0] == "")
+        // already root URL
+            return this
 
-        val addrBookAccounts = LocalAddressBook.findAll(context, null, account).map { it.account }
-        if (addrBookAccounts.any { ContentResolver.isSyncActive(it, ContactsContract.AUTHORITY) })
-            return SyncStatus.ACTIVE
+        val builder = newBuilder()
 
-        // check get pending syncs
-        if (authorities.any { ContentResolver.isSyncPending(account, it) } ||
-            addrBookAccounts.any { ContentResolver.isSyncPending(it, ContactsContract.AUTHORITY) })
-            return SyncStatus.PENDING
+        if (pathSegments[pathSegments.lastIndex] == "") {
+            // URL ends with a slash ("/some/thing/" -> ["some","thing",""]), remove two segments ("" at lastIndex and "thing" at lastIndex - 1)
+            builder.removePathSegment(pathSegments.lastIndex)
+            builder.removePathSegment(pathSegments.lastIndex - 1)
+        } else
+        // URL doesn't end with a slash ("/some/thing" -> ["some","thing"]), remove one segment ("thing" at lastIndex)
+            builder.removePathSegment(pathSegments.lastIndex)
 
-        return SyncStatus.IDLE
+        // append trailing slash
+        builder.addPathSegment("")
+
+        return builder.build()
     }
 
     /**
-     * Requests an immediate, manual sync of all available authorities for the given account.
+     * Compares MIME type and subtype of two MediaTypes. Does _not_ compare parameters
+     * like `charset` or `version`.
      *
-     * @param account account to sync
+     * @param other   MediaType to compare with
+     *
+     * @return *true* if type and subtype match; *false* if they don't
      */
-    fun requestSync(context: Context, account: Account) {
-        for (authority in syncAuthorities(context)) {
-            val extras = Bundle(2)
-            extras.putBoolean(ContentResolver.SYNC_EXTRAS_MANUAL, true)        // manual sync
-            extras.putBoolean(ContentResolver.SYNC_EXTRAS_EXPEDITED, true)     // run immediately (don't queue)
-            ContentResolver.requestSync(account, authority, extras)
-        }
-    }
-
-    /**
-     * Returns a list of all available sync authorities for main accounts (!= address book accounts):
-     *
-     *   1. address books authority (not [ContactsContract.AUTHORITY], but the one which manages address book accounts)
-     *   1. calendar authority
-     *   1. tasks authority (if available)
-     *
-     * Checking the availability of authorities may be relatively expensive, so the
-     * result should be cached for the current operation.
-     *
-     * @return list of available sync authorities for main accounts
-     */
-    fun syncAuthorities(context: Context): List<String> {
-        val result = mutableListOf(
-            context.getString(R.string.address_books_authority),
-            CalendarContract.AUTHORITY
-        )
-
-        /*TaskUtils.currentProvider(context)?.let { taskProvider ->
-            result += taskProvider.authority
-        }*/
-
-        return result
-    }
+    fun MediaType.sameTypeAs(other: MediaType) =
+        type == other.type && subtype == other.subtype
 
 }

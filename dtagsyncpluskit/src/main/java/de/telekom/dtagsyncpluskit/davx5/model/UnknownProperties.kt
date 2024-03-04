@@ -30,11 +30,9 @@ package de.telekom.dtagsyncpluskit.davx5.model
 import android.provider.ContactsContract.RawContacts
 
 object UnknownProperties {
-
     const val CONTENT_ITEM_TYPE = "x.davdroid/unknown-properties"
 
     const val MIMETYPE = RawContacts.Data.MIMETYPE
     const val RAW_CONTACT_ID = RawContacts.Data.RAW_CONTACT_ID
     const val UNKNOWN_PROPERTIES = RawContacts.Data.DATA1
-
 }

@@ -24,6 +24,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import java.util.*
 
 class Prefs(context: Context?) {
     companion object {
@@ -54,8 +55,9 @@ class Prefs(context: Context?) {
 
     var energySavingDialogShown: Boolean
         get() = prefs?.getBoolean(PREFS_ENERGY_SAVING_DIALOG_SHOWN, false) ?: false
-        set(value) = prefs?.edit()?.putBoolean(PREFS_ENERGY_SAVING_DIALOG_SHOWN, value)?.apply()
-            ?: Unit
+        set(value) =
+            prefs?.edit()?.putBoolean(PREFS_ENERGY_SAVING_DIALOG_SHOWN, value)?.apply()
+                ?: Unit
 
     var currentVersionCode: Int
         get() = prefs?.getInt(PREFS_CURRENT_VERSION, 0) ?: 0
@@ -79,6 +81,7 @@ class Prefs(context: Context?) {
 
     var analyticalToolsEnabled: Boolean
         get() = prefs?.getBoolean(PREFS_ANALYTICAL_TOOLS_ENABLED, false) ?: false
-        set(value) = prefs?.edit()?.putBoolean(PREFS_ANALYTICAL_TOOLS_ENABLED, value)?.apply()
-            ?: Unit
+        set(value) =
+            prefs?.edit()?.putBoolean(PREFS_ANALYTICAL_TOOLS_ENABLED, value)?.apply()
+                ?: Unit
 }

@@ -25,24 +25,26 @@ import android.os.Bundle
 import de.telekom.dtagsyncpluskit.extra
 import de.telekom.dtagsyncpluskit.extraNotNull
 import de.telekom.dtagsyncpluskit.ui.BaseActivity
+import de.telekom.syncplus.databinding.ActivityAccountsBinding
 import de.telekom.syncplus.ui.main.AccountDeletedDialog
 import de.telekom.syncplus.ui.main.AccountsFragment
 import de.telekom.syncplus.ui.main.DataPrivacyDialogActivity
 import de.telekom.syncplus.util.Prefs
-import kotlinx.android.synthetic.main.activity_accounts.*
+import de.telekom.syncplus.util.viewbinding.viewBinding
 
-class AccountsActivity : BaseActivity() {
+class AccountsActivity : BaseActivity(R.layout.activity_accounts) {
     companion object {
         private const val ARG_NEW = "ARG_NEW"
         private const val ARG_ENERGY_SAVING = "ARG_ENERGY_SAVING"
         private const val ARG_ACCOUNT_DELETED = "ARG_ACCOUNT_DELETED"
         private const val ALL_TYPES_SYNCED = "ALL_TYPES_SYNCED"
+
         fun newIntent(
             context: Context,
             newAccountCreated: Boolean,
             allTypesSynced: Boolean? = null,
             energySaving: Boolean = false,
-            accountDeleted: Boolean = false
+            accountDeleted: Boolean = false,
         ): Intent {
             val intent = Intent(context, AccountsActivity::class.java)
             intent.putExtra(ARG_NEW, newAccountCreated)
@@ -57,18 +59,24 @@ class AccountsActivity : BaseActivity() {
     private val mNewAccountCreated by extraNotNull(ARG_NEW, false)
     private val mAccountDeleted by extraNotNull(ARG_ACCOUNT_DELETED, false)
     private val allTypesSynced by extra(ALL_TYPES_SYNCED, null)
+    private val binding by viewBinding(R.id.root) { ActivityAccountsBinding.bind(it) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_accounts)
-        image.setImageResource(
-            if (mNewAccountCreated) R.drawable.ic_cloud_check_filled
-            else R.drawable.ic_cloud_progress_filled
+        binding.image.setImageResource(
+            if (mNewAccountCreated) {
+                R.drawable.ic_cloud_check_filled
+            } else {
+                R.drawable.ic_cloud_progress_filled
+            },
         )
-        accountsTitle.text =
+        binding.accountsTitle.text =
             getString(
-                if (mNewAccountCreated) R.string.setup_finished
-                else R.string.syncplus_accounts
+                if (mNewAccountCreated) {
+                    R.string.setup_finished
+                } else {
+                    R.string.syncplus_accounts
+                },
             )
 
         if (savedInstanceState == null) {
@@ -79,14 +87,14 @@ class AccountsActivity : BaseActivity() {
                 .commitNow()
         }
 
-        helpButton.setOnClickListener {
+        binding.helpButton.setOnClickListener {
             startActivity(HelpActivity.newIntent(this))
         }
 
         if (mAccountDeleted) {
             AccountDeletedDialog.instantiate().show(
                 supportFragmentManager,
-                "AccountDeleted"
+                "AccountDeleted",
             )
         }
 

@@ -23,8 +23,7 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.Update
 
-interface SyncableDao<T: IdEntity> {
-
+interface SyncableDao<T : IdEntity> {
     @Insert
     fun insert(items: List<T>): LongArray
 
@@ -33,5 +32,4 @@ interface SyncableDao<T: IdEntity> {
 
     @Delete
     fun delete(item: T)
-
 }

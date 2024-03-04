@@ -29,8 +29,7 @@ package de.telekom.dtagsyncpluskit.davx5.resource
 
 import android.net.Uri
 
-interface LocalResource<in TData: Any> {
-
+interface LocalResource<in TData : Any> {
     companion object {
         /**
          * Resource is present on remote server. This flag is used to identify resources
@@ -39,7 +38,6 @@ interface LocalResource<in TData: Any> {
          */
         const val FLAG_REMOTELY_PRESENT = 1
     }
-
 
     /**
      * Unique ID which identifies the resource in the local storage. May be null if the
@@ -77,14 +75,17 @@ interface LocalResource<in TData: Any> {
      * @param eTag ETag of the uploaded resource as returned by the server (null if the server didn't return one)
      * @param scheduleTag CalDAV Schedule-Tag of the uploaded resource as returned by the server (null if not applicable or if the server didn't return one)
      */
-    fun clearDirty(fileName: String?, eTag: String?, scheduleTag: String? = null)
+    fun clearDirty(
+        fileName: String?,
+        eTag: String?,
+        scheduleTag: String? = null,
+    )
 
     /**
      * Sets (local) flags of the resource. At the moment, the only allowed values are
      * 0 and [FLAG_REMOTELY_PRESENT].
      */
     fun updateFlags(flags: Int)
-
 
     /**
      * Adds the data object to the content provider and ensures that the dirty flag is clear.
@@ -103,5 +104,4 @@ interface LocalResource<in TData: Any> {
      * @return number of affected rows
      */
     fun delete(): Int
-
 }

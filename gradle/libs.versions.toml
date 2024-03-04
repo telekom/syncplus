@@ -1,40 +1,44 @@
 [versions]
-agpVer = "7.4.2"
-kotlinVer = "1.7.21"
-kotlinCoroutinesVer = "1.6.4"
-kotlinSerializationVer = "1.4.1"
+agpVer = "8.1.4"
+kotlinVer = "1.9.10"
+kotlinCoroutinesVer = "1.7.3"
+kotlinSerializationVer = "1.6.0"
 
 appCompatVer = "1.6.1"
-navigationVer = "2.5.3"
-roomVer = "2.5.1"
-fragmentVer = "1.5.7"
-coreKtxVer = "1.7.0"
+navigationVer = "2.7.5"
+roomVer = "2.6.1"
+fragmentVer = "1.6.2"
+coreKtxVer = "1.12.0"
 constraintlayoutVer = "2.1.4"
 lifecycleExtensionsVer = "2.2.0"
-lifecycleVer = "2.5.1"
+lifecycleVer = "2.6.2"
 multidexVer = "2.0.1"
-materialVer = "1.8.0"
-pagingVer = "3.1.1"
+materialVer = "1.10.0"
+pagingVer = "3.2.1"
 spinnerVer = "1.3.1"
 circularProgressViewVer = "2.5.0"
 
 usabillaVer = "7.4.0"
-jwtDecodeVer = "2.0.0"
-dnsJavaVer = "2.1.9"
-appAuthVer = "0.8.1"
-dexterVer = "6.0.2"
-countlyVer = "21.11.0"
+jwtDecodeVer = "2.0.2"
+dnsJavaVer = "3.5.3"
+appAuthVer = "0.11.1"
+dexterVer = "6.2.3"
+countlyVer = "23.8.4"
 appIntroVer = "5.1.0"
 dav4JvmVer = "2.2.1"
 
-okhttpVer = "4.10.0"
+okhttpVer = "4.11.0"
 retrofitVer = "2.9.0"
 
-moshiVer = "1.14.0"
+moshiVer = "1.15.0"
 
 juintVer = "4.13.2"
 juintAndroidVer = "1.1.5"
 espressoVer = "3.5.1"
+
+cert4androidVer = "2bb3898"
+ical4androidVer = "8972b85"
+vcard4androidVer = "a7a1f42"
 
 [libraries]
 android-gradle-plugin = { module = "com.android.tools.build:gradle", version.ref = "agpVer" }
@@ -86,3 +90,8 @@ dav4jvm = { module = "com.github.bitfireAT:dav4jvm", version.ref = "dav4JvmVer" 
 junit = { module = "junit:junit", version.ref = "juintVer" }
 junit-android = { module = "androidx.test.ext:junit", version.ref = "juintAndroidVer" }
 espresso-core = { module = "androidx.test.espresso:espresso-core", version.ref = "espressoVer" }
+
+cert4android = { module = "com.github.bitfireAT:cert4android", version.ref = "cert4androidVer" }
+ical4android = { module = "com.github.bitfireAT:ical4android", version.ref = "ical4androidVer" }
+vcard4android = { module = "com.github.bitfireAT:vcard4android", version.ref = "vcard4androidVer" }
+work-runtime-ktx = { group = "androidx.work", name = "work-runtime-ktx", version = "2.9.0" }
