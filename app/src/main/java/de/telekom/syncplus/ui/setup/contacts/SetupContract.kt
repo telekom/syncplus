@@ -27,6 +27,7 @@ interface SetupContract {
         val isContactsEnabled: Boolean = true,
         val isEmailEnabled: Boolean = true,
         val selectedGroups: List<Group>? = null,
+        val calendars: List<Collection>? = null,
     )
 
     sealed interface Action {

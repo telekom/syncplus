@@ -60,9 +60,10 @@ class SetupActivity : TopBarActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        if (savedInstanceState == null) {
-            viewModel.viewEvent(SetupContract.ViewEvent.Init(authHolder))
+        // Init every time activity is created to avoid not initialized properties within the ViewModel
+        viewModel.viewEvent(SetupContract.ViewEvent.Init(authHolder))
 
+        if (savedInstanceState == null) {
             supportFragmentManager
                 .beginTransaction()
                 .replace(R.id.container, SetupSyncEntitiesFragment.newInstance())

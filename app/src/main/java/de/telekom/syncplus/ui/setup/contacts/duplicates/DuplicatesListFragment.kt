@@ -19,18 +19,27 @@
 
 package de.telekom.syncplus.ui.setup.contacts.duplicates
 
-import android.content.Context
+import android.annotation.SuppressLint
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
-import android.widget.TextView
+import androidx.core.content.ContextCompat
+import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.DividerItemDecoration
+import androidx.recyclerview.widget.ListAdapter
+import androidx.recyclerview.widget.RecyclerView
 import de.telekom.dtagsyncpluskit.model.spica.Duplicate
 import de.telekom.dtagsyncpluskit.ui.BaseFragment
-import de.telekom.dtagsyncpluskit.ui.BaseListAdapter
-import de.telekom.syncplus.App
 import de.telekom.syncplus.R
+import de.telekom.syncplus.databinding.DuplicatedContactsListItemBinding
 import de.telekom.syncplus.databinding.FragmentDuplicateContactsListBinding
+import de.telekom.syncplus.extensions.inflater
 import de.telekom.syncplus.util.viewbinding.viewBinding
+import kotlinx.coroutines.launch
 
 class DuplicatesListFragment : BaseFragment(R.layout.fragment_duplicate_contacts_list) {
     override val TAG: String
@@ -38,17 +47,17 @@ class DuplicatesListFragment : BaseFragment(R.layout.fragment_duplicate_contacts
 
     companion object {
         fun newInstance(): DuplicatesListFragment {
-            val args = Bundle()
-            val fragment = DuplicatesListFragment()
-            fragment.arguments = args
-            return fragment
+            return DuplicatesListFragment()
         }
     }
 
-    private val mDuplicates: List<Duplicate>
-        get() = (requireActivity().application as App).duplicates ?: emptyList()
-
     private val binding by viewBinding(FragmentDuplicateContactsListBinding::bind)
+    private val viewModel by viewModels<DuplicatesListViewModel>()
+    private val adapter by lazy {
+        DuplicatedContactsAdapter { item ->
+            viewModel.onEvent(DuplicatesListViewModel.ViewEvent.NavigateToDetails(item))
+        }
+    }
 
     override fun onViewCreated(
         view: View,
@@ -63,12 +72,29 @@ class DuplicatesListFragment : BaseFragment(R.layout.fragment_duplicate_contacts
                 // TODO: Finish with results?
                 finishActivity()
             }
-            list.adapter = DuplicatedContactsAdapter(requireContext(), mDuplicates)
-            list.setOnItemClickListener { _, _, position, _ ->
-                val duplicate = list.adapter.getItem(position) as? Duplicate
-                if (duplicate != null) {
-                    push(R.id.container, DuplicatesDetailsFragment.newInstance(duplicate))
+            list.adapter = adapter
+            list.addItemDecoration(DividerItemDecoration(requireContext(), RecyclerView.VERTICAL).apply {
+                ContextCompat.getDrawable(requireContext(), R.drawable.list_divider)?.let {
+                    setDrawable(it)
                 }
+            })
+        }
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                launch { viewModel.state.collect(::handleState) }
+                launch { viewModel.action.collect(::handleAction) }
+            }
+        }
+    }
+
+    private fun handleState(state: DuplicatesListViewModel.State) {
+        adapter.submitList(state.duplicates)
+    }
+
+    private fun handleAction(action: DuplicatesListViewModel.Action) {
+        when (action) {
+            is DuplicatesListViewModel.Action.NavigateToDetails -> {
+                push(R.id.container, DuplicatesDetailsFragment.newInstance(action.duplicate))
             }
         }
     }
@@ -79,37 +105,41 @@ class DuplicatesListFragment : BaseFragment(R.layout.fragment_duplicate_contacts
         activity?.setTitle(getString(R.string.title_activity_duplicated_contacts))
     }
 
-    class DuplicatedContactsAdapter(
-        context: Context,
-        dataSource: List<Duplicate>,
-    ) : BaseListAdapter<Duplicate>(context, dataSource) {
-        private class ViewHolder(view: View?) {
-            val nameView = view?.findViewById<TextView>(R.id.title)
-            val companyView = view?.findViewById<TextView>(R.id.subtitle)
+    private class DuplicatedContactsAdapter(
+        private val doOnClick: (item: Duplicate) -> Unit
+    ) : ListAdapter<Duplicate, DuplicatedContactsAdapter.ViewHolder>(DuplicateContactDiffCallback) {
+
+        private inner class ViewHolder(
+            private val binding: DuplicatedContactsListItemBinding
+        ) : RecyclerView.ViewHolder(binding.root) {
+
+            @SuppressLint("SetTextI18n")
+            fun bind(item: Duplicate) {
+                with(binding) {
+                    root.setOnClickListener { doOnClick(item) }
+                    title.text = item.mergedContact?.formatName()
+                    subtitle.text = item.mergedContact?.company
+                    numRemote.text = "${item.similarContacts?.size ?: 0}x"
+                }
+            }
         }
 
-        override fun getView(
-            position: Int,
-            convertView: View?,
-            parent: ViewGroup,
-        ): View {
-            val viewHolder: ViewHolder?
-            val rowView: View?
-
-            if (convertView == null) {
-                rowView = inflater.inflate(R.layout.duplicated_contacts_list_item, parent, false)
-                viewHolder = ViewHolder(rowView)
-                rowView.tag = viewHolder
-            } else {
-                rowView = convertView
-                viewHolder = rowView.tag as ViewHolder
+        object DuplicateContactDiffCallback : DiffUtil.ItemCallback<Duplicate>() {
+            override fun areContentsTheSame(oldItem: Duplicate, newItem: Duplicate): Boolean {
+                return oldItem == newItem
             }
 
-            val duplicate = getItem(position) as? Duplicate
-            viewHolder.nameView?.text = duplicate?.mergedContact?.formatName()
-            viewHolder.companyView?.text = duplicate?.mergedContact?.company
+            override fun areItemsTheSame(oldItem: Duplicate, newItem: Duplicate): Boolean {
+                return oldItem.mergedContact == newItem.mergedContact
+            }
+        }
 
-            return rowView!!
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+            return ViewHolder(DuplicatedContactsListItemBinding.inflate(parent.inflater, parent, false))
+        }
+
+        override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+            holder.bind(getItem(position))
         }
     }
 }

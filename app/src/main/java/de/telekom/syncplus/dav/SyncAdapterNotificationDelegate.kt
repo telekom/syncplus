@@ -2,6 +2,7 @@ package de.telekom.syncplus.dav
 
 import android.Manifest
 import android.accounts.Account
+import android.accounts.AccountManager
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.SyncResult
@@ -49,6 +50,8 @@ class SyncAdapterNotificationDelegateImpl(
             return
         }
 
+        if (!AccountManager.get(context).accounts.contains(account)) return
+
         context.withNotificationPermissions {
             notify(
                 NotificationUtils.notificationTag(syncResult.toDebugString(), account),
@@ -62,6 +65,8 @@ class SyncAdapterNotificationDelegateImpl(
         authority: String,
         account: Account,
     ) {
+        if (!AccountManager.get(context).accounts.contains(account)) return
+
         context.withNotificationPermissions {
             notify(
                 NotificationUtils.notificationTag(authority, account),
@@ -75,6 +80,8 @@ class SyncAdapterNotificationDelegateImpl(
         authority: String,
         account: Account,
     ) {
+        if (!AccountManager.get(context).accounts.contains(account)) return
+
         context.withNotificationPermissions {
             notify(
                 NotificationUtils.notificationTag(authority, account),

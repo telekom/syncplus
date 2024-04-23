@@ -39,6 +39,7 @@ import android.provider.ContactsContract.Groups
 import android.provider.ContactsContract.RawContacts
 import android.provider.ContactsContract.RawContacts.Data
 import at.bitfire.vcard4android.*
+import de.telekom.dtagsyncpluskit.davx5.log.Logger
 import org.apache.commons.lang3.StringUtils
 import java.util.*
 
@@ -66,7 +67,7 @@ class LocalGroup : AndroidGroup, LocalAddress {
                 val batch = BatchOperation(addressBook.provider!!)
                 while (cursor.moveToNext()) {
                     val id = cursor.getLong(0)
-                    Constants.log.fine("Assigning members to group $id")
+                    Logger.log.fine("Assigning members to group $id")
 
                     // required for workaround for Android 7 which sets DIRTY flag when only meta-data is changed
                     val changeContactIDs = HashSet<Long>()
@@ -91,20 +92,12 @@ class LocalGroup : AndroidGroup, LocalAddress {
 
                     // insert memberships
                     for (uid in members) {
-                        Constants.log.fine("Assigning member: $uid")
+                        Logger.log.fine("Assigning member: $uid")
                         addressBook.findContactByUid(uid)?.let { member ->
                             member.addToGroup(batch, id)
                             changeContactIDs += member.id!!
-                        } ?: Constants.log.warning("Group member not found: $uid")
+                        } ?: Logger.log.warning("Group member not found: $uid")
                     }
-
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-                        // workaround for Android 7 which sets DIRTY flag when only meta-data is changed
-                        changeContactIDs
-                            .map { addressBook.findContactById(it) }
-                            .forEach { it.updateHashCode(batch) }
-                    }
-
                     // remove pending memberships
                     batch.enqueue(
                         BatchOperation.CpoBuilder

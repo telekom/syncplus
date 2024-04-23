@@ -5,8 +5,6 @@ import android.app.Application
 import android.provider.CalendarContract
 import android.provider.ContactsContract
 import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import de.telekom.dtagsyncpluskit.davx5.model.AppDatabase
 import de.telekom.dtagsyncpluskit.davx5.model.Collection
@@ -18,6 +16,7 @@ import de.telekom.dtagsyncpluskit.xdav.CollectionFetcher
 import de.telekom.syncplus.App
 import de.telekom.syncplus.R
 import de.telekom.syncplus.dav.DavNotificationUtils
+import de.telekom.syncplus.ui.main.account.AccountSettingsFragment
 import de.telekom.syncplus.ui.setup.contacts.SetupContract
 import de.telekom.syncplus.ui.setup.contacts.SetupContract.Action.CopyContacts
 import de.telekom.syncplus.ui.setup.contacts.SetupContract.Action.SelectGroups
@@ -50,6 +49,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.properties.Delegates.notNull
 
 
@@ -69,11 +69,9 @@ class SetupViewModel(private val app: Application) : AndroidViewModel(app),
     override val action: SharedFlow<SetupContract.Action> = _action.asSharedFlow()
     override val navigation: Flow<SetupContract.Navigation> = _navigation.receiveAsFlow()
 
-    private val _fetcher = MutableLiveData<CollectionFetcher?>(null)
-    val fetcher: LiveData<CollectionFetcher?> = _fetcher
-
     private var authHolder: AuthHolder by notNull()
     private var account: Account by notNull()
+    private var collectionFetcher: CollectionFetcher? = null
 
     override fun viewEvent(event: SetupContract.ViewEvent) {
         when (event) {
@@ -94,6 +92,11 @@ class SetupViewModel(private val app: Application) : AndroidViewModel(app),
             is SetSelectedGroups -> processSetSelectedGroups(event)
             is EnableCalendarSync -> enableCalendarSync(event.collection, event.isSyncEnabled)
         }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        collectionFetcher = null
     }
 
     private fun processInitEvent(authHolder: AuthHolder) {
@@ -297,16 +300,33 @@ class SetupViewModel(private val app: Application) : AndroidViewModel(app),
                 return@launch
             }
 
-            val newFetcher = CollectionFetcher(
-                app,
-                account,
-                serviceId,
-                collectionType,
-            ) {
-                DavNotificationUtils.showReloginNotification(app, authority, it)
+            withContext(Dispatchers.Main) {
+                collectionFetcher = CollectionFetcher(
+                    app,
+                    account,
+                    serviceId,
+                    collectionType,
+                ) {
+                    DavNotificationUtils.showReloginNotification(app, authority, it)
+                }
+
+                collectionFetcher?.refresh(isSyncEnabled)
+                observeCollections()
             }
-            newFetcher.refresh(isSyncEnabled)
-            _fetcher.postValue(newFetcher)
+        }
+    }
+
+    private fun observeCollections() {
+        viewModelScope.launch {
+            collectionFetcher
+                ?.observeCollections()
+                ?.collect {
+                    mutateState {
+                        this.copy(
+                            calendars = AccountSettingsFragment.sortCalendarCollections(it)
+                        )
+                    }
+                }
         }
     }
 
@@ -316,6 +336,5 @@ class SetupViewModel(private val app: Application) : AndroidViewModel(app),
     ) = viewModelScope.launch(Dispatchers.IO) {
         val newItem = item.copy(sync = enabled)
         db.collectionDao().update(newItem)
-        item.sync = enabled // also update the collection item
     }
 }

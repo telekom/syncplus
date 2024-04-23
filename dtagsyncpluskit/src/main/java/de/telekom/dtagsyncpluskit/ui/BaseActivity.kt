@@ -102,7 +102,7 @@ open class BaseActivity : FragmentActivity, FragmentCallbacks {
         }
 
         transaction
-            .replace(containerViewId, fragment)
+            .replace(containerViewId, fragment, fragment.TAG)
             .addToBackStack(fragment.TAG)
             .commit()
     }

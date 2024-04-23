@@ -27,10 +27,20 @@ import android.text.Spanned
 import androidx.fragment.app.Fragment
 import de.telekom.dtagsyncpluskit.api.error.ApiError
 import de.telekom.dtagsyncpluskit.davx5.log.Logger
+import de.telekom.dtagsyncpluskit.utils.ApiException
+import de.telekom.dtagsyncpluskit.utils.CountlyWrapper
 import de.telekom.dtagsyncpluskit.utils.Err
 import de.telekom.dtagsyncpluskit.utils.Ok
 import de.telekom.dtagsyncpluskit.utils.ResultExt
-import kotlinx.coroutines.*
+import de.telekom.dtagsyncpluskit.utils.getBodyAsString
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
+import okhttp3.Request
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -88,80 +98,119 @@ inline fun <reified T : Any> Fragment.extraNotNull(
     requireNotNull(if (value is T) value else default) { key }
 }
 
-suspend fun <T> Call<T>.awaitResponse(): ResultExt<Response<T>, ApiError> =
-    withContext(Dispatchers.IO) {
-        suspendCancellableCoroutine { continuation ->
-            continuation.invokeOnCancellation {
-                this@awaitResponse.cancel() // cancel Call enqueuing
-            }
-            enqueue(
-                object : Callback<T> {
-                    override fun onResponse(
-                        call: Call<T>,
-                        response: Response<T>,
-                    ) {
-                        if (response.isSuccessful) {
-                            continuation.resume(Ok(response))
-                            return
-                        }
-
+suspend fun <T> Call<T>.awaitResponse(): ResultExt<Response<T>, ApiError> = withContext(Dispatchers.IO) {
+    suspendCancellableCoroutine { continuation ->
+        continuation.invokeOnCancellation {
+            this@awaitResponse.cancel() // cancel Call enqueuing
+        }
+        enqueue(
+            object : Callback<T> {
+                override fun onResponse(
+                    call: Call<T>,
+                    response: Response<T>,
+                ) {
+                    if (!response.isSuccessful) {
+                        recordApiCallException(response)
                         continuation.resume(Err(exposeError(response)))
+                        return
                     }
 
-                    override fun onFailure(
-                        call: Call<T>,
-                        t: Throwable,
-                    ) {
-                        val error =
-                            when (t) {
-                                is SocketTimeoutException -> ApiError.TimeoutException
-                                is UnknownHostException -> ApiError.UnknownHostException
-                                else -> ApiError.NoResponse
-                            }
-                        continuation.resume(Err(error))
-                    }
-                },
-            )
-        }
-    }
-
-suspend fun <T> Call<T>.await(): ResultExt<T, ApiError> =
-    withContext(Dispatchers.IO) {
-        suspendCancellableCoroutine { continuation ->
-            continuation.invokeOnCancellation {
-                this@await.cancel() // cancel Call enqueuing
-            }
-            enqueue(
-                object : Callback<T> {
-                    override fun onResponse(
-                        call: Call<T>,
-                        response: Response<T>,
-                    ) {
-                        if (response.isSuccessful) {
-                            response.body()?.let {
-                                continuation.resume(Ok(it))
-                            } ?: continuation.resume(Err(ApiError.ResponseBodyNull))
-                        } else {
-                            continuation.resume(Err(exposeError(response)))
+                    when (response.body()) {
+                        null -> {
+                            recordApiCallException(response)
+                            continuation.resume(Err(ApiError.ResponseBodyNull))
                         }
+
+                        else -> continuation.resume(Ok(response))
+                    }
+                }
+
+                override fun onFailure(
+                    call: Call<T>,
+                    t: Throwable,
+                ) {
+                    val error = handleError(call.request(), t)
+                    continuation.resume(Err(error))
+                }
+            },
+        )
+    }
+}
+
+suspend fun <T> Call<T>.await(): ResultExt<T, ApiError> = withContext(Dispatchers.IO) {
+    suspendCancellableCoroutine { continuation ->
+        continuation.invokeOnCancellation {
+            this@await.cancel() // cancel Call enqueuing
+        }
+        enqueue(
+            object : Callback<T> {
+                override fun onResponse(
+                    call: Call<T>,
+                    response: Response<T>,
+                ) {
+                    if (!response.isSuccessful) {
+                        recordApiCallException(response)
+                        continuation.resume(Err(exposeError(response)))
+                        return
                     }
 
-                    override fun onFailure(
-                        call: Call<T>,
-                        t: Throwable,
-                    ) {
-                        val error =
-                            when (t) {
-                                is SocketTimeoutException -> ApiError.TimeoutException
-                                is UnknownHostException -> ApiError.UnknownHostException
-                                else -> ApiError.NoResponse
-                            }
-                        continuation.resume(Err(error))
+                    when (val body = response.body()) {
+                        null -> {
+                            recordApiCallException(response)
+                            continuation.resume(Err(ApiError.ResponseBodyNull))
+                        }
+
+                        else -> continuation.resume(Ok(body))
                     }
-                },
-            )
-        }
+                }
+
+                override fun onFailure(
+                    call: Call<T>,
+                    t: Throwable,
+                ) {
+                    val error = handleError(call.request(), t)
+                    continuation.resume(Err(error))
+                }
+            },
+        )
     }
+}
+
+private fun handleError(request: Request, t: Throwable): ApiError {
+    val error = when (t) {
+        is SocketTimeoutException -> ApiError.TimeoutException
+        is UnknownHostException -> ApiError.UnknownHostException
+        else -> ApiError.NoResponse
+    }
+    recordApiCallException(request, t)
+
+    return error
+}
+
+private fun <T> recordApiCallException(response: Response<T>) {
+    CountlyWrapper.recordHandledException(
+        ApiException(
+            message = """Response unsuccessful:
+                            code: ${response.code()},
+                            message: ${response.message()},
+                            body: ${response.body()?.toString()}
+                            error: ${response.errorBody()?.string()}
+                            """
+        )
+    )
+}
+
+private fun recordApiCallException(request: Request, t: Throwable?) {
+    CountlyWrapper.recordHandledException(
+        ApiException(
+            message = """Request unsuccessful:
+                            request: ${request.url},
+                            body: ${request.getBodyAsString()}
+                            """,
+            cause = t
+        )
+    )
+}
 
 private fun <T> exposeError(response: Response<T>): ApiError {
     val message =

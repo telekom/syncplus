@@ -1,5 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!--
+<?xml version="1.0" encoding="utf-8"?><!--
     This file is part of SyncPlus.
 
     Copyright (C) 2020  Deutsche Telekom AG
@@ -18,6 +17,8 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical">
@@ -34,15 +35,15 @@
         android:text="@string/duplicated_contacts_merge_description"
         android:textSize="@dimen/fontSizeSmall" />
 
-    <ListView
+    <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/list"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:divider="@color/dividerColor"
-        android:dividerHeight="1dp"
         android:paddingStart="@dimen/listPadding"
-        android:paddingEnd="@dimen/listPadding" />
+        android:paddingEnd="@dimen/listPadding"
+        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+        tools:listitem="@layout/duplicated_contacts_list_item" />
 
     <View
         android:layout_width="match_parent"

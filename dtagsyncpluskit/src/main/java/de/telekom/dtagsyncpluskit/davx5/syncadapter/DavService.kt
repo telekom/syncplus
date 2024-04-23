@@ -43,7 +43,21 @@ import at.bitfire.dav4jvm.DavResource
 import at.bitfire.dav4jvm.Response
 import at.bitfire.dav4jvm.UrlUtils
 import at.bitfire.dav4jvm.exception.HttpException
-import at.bitfire.dav4jvm.property.*
+import at.bitfire.dav4jvm.property.AddressbookDescription
+import at.bitfire.dav4jvm.property.AddressbookHomeSet
+import at.bitfire.dav4jvm.property.CalendarColor
+import at.bitfire.dav4jvm.property.CalendarDescription
+import at.bitfire.dav4jvm.property.CalendarHomeSet
+import at.bitfire.dav4jvm.property.CalendarProxyReadFor
+import at.bitfire.dav4jvm.property.CalendarProxyWriteFor
+import at.bitfire.dav4jvm.property.CurrentUserPrivilegeSet
+import at.bitfire.dav4jvm.property.DisplayName
+import at.bitfire.dav4jvm.property.GroupMembership
+import at.bitfire.dav4jvm.property.Owner
+import at.bitfire.dav4jvm.property.ResourceType
+import at.bitfire.dav4jvm.property.Source
+import at.bitfire.dav4jvm.property.SupportedAddressData
+import at.bitfire.dav4jvm.property.SupportedCalendarComponentSet
 import de.telekom.dtagsyncpluskit.R
 import de.telekom.dtagsyncpluskit.davx5.HttpClient
 import de.telekom.dtagsyncpluskit.davx5.InvalidAccountException
@@ -62,7 +76,8 @@ import de.telekom.dtagsyncpluskit.utils.CountlyWrapper
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import java.lang.ref.WeakReference
-import java.util.*
+import java.util.Collections
+import java.util.LinkedList
 import java.util.logging.Level
 import kotlin.collections.component1
 import kotlin.collections.component2
@@ -117,6 +132,8 @@ class DavService : IntentService("DavService") {
             )
     }
 
+    private val lock = Any()
+
     /**
      * List of [Service] IDs for which the collections are currently refreshed
      */
@@ -139,15 +156,17 @@ class DavService : IntentService("DavService") {
         val syncEnabled = intent.getBooleanExtra(EXTRA_SYNC_ENABLED, false)
 
         when (intent.action) {
-            ACTION_REFRESH_COLLECTIONS ->
-                if (runningRefresh.add(id)) {
-                    refreshingStatusListeners.forEach { listener ->
-                        listener.get()?.onDavRefreshStatusChanged(id, true)
+            ACTION_REFRESH_COLLECTIONS -> {
+                synchronized(lock) {
+                    if (runningRefresh.add(id)) {
+                        refreshingStatusListeners.forEach { listener ->
+                            listener.get()?.onDavRefreshStatusChanged(id, true)
+                        }
                     }
-
-                    val db = AppDatabase.getInstance(this@DavService)
-                    refreshCollections(db, id, syncEnabled)
                 }
+                val db = AppDatabase.getInstance(this@DavService)
+                refreshCollections(db, id, syncEnabled)
+            }
 
             ACTION_FORCE_SYNC -> {
                 val uri = intent.data!!
@@ -189,9 +208,9 @@ class DavService : IntentService("DavService") {
             listener: RefreshingStatusListener,
             callImmediateIfRunning: Boolean,
         ) {
-            refreshingStatusListeners += WeakReference<RefreshingStatusListener>(listener)
-            if (callImmediateIfRunning) {
-                synchronized(runningRefresh) {
+            synchronized(lock) {
+                refreshingStatusListeners += WeakReference<RefreshingStatusListener>(listener)
+                if (callImmediateIfRunning) {
                     for (id in runningRefresh)
                         listener.onDavRefreshStatusChanged(id, true)
                 }
@@ -199,11 +218,13 @@ class DavService : IntentService("DavService") {
         }
 
         fun removeRefreshingStatusListener(listener: RefreshingStatusListener) {
-            val iter = refreshingStatusListeners.iterator()
-            while (iter.hasNext()) {
-                val item = iter.next().get()
-                if (item == listener || item == null) {
-                    iter.remove()
+            synchronized(lock) {
+                val iter = refreshingStatusListeners.iterator()
+                while (iter.hasNext()) {
+                    val item = iter.next().get()
+                    if (item == listener || item == null) {
+                        iter.remove()
+                    }
                 }
             }
         }
@@ -393,7 +414,7 @@ class DavService : IntentService("DavService") {
                 { it.url },
             ) { new, old ->
                 new.forceReadOnly = old.forceReadOnly
-                new.sync = old.sync || syncEnabled
+                new.sync = old.sync
             }
         }
 
@@ -410,13 +431,15 @@ class DavService : IntentService("DavService") {
                 .withUnauthorizedCallback {
                     Log.i("SyncPlus/DavService", "!!!! UNAUTHORIZED !!!!")
                     // TODO: Do we even need this?
-                    refreshingStatusListeners.mapNotNull { it.get() }.forEach {
-                        it.onUnauthorized(
-                            CalendarContract.AUTHORITY,
-                            account,
-                            service,
-                            accountSettings,
-                        )
+                    synchronized(lock) {
+                        refreshingStatusListeners.mapNotNull { it.get() }.forEach {
+                            it.onUnauthorized(
+                                CalendarContract.AUTHORITY,
+                                account,
+                                service,
+                                accountSettings,
+                            )
+                        }
                     }
                 }
                 .build().use { client ->
@@ -457,21 +480,15 @@ class DavService : IntentService("DavService") {
                                 info.serviceId = serviceId
                                 info.refHomeSet = homeSet
                                 info.confirmed = true
-                                info.owner =
-                                    response[Owner::class.java]?.href?.let {
-                                        response.href.resolve(it)
-                                    }
+                                info.owner = response[Owner::class.java]?.href?.let {
+                                    response.href.resolve(it)
+                                }
+                                info.sync = syncEnabled
                                 Logger.log.log(Level.FINE, "Found collection", info)
 
                                 // remember usable collections
                                 if ((service.type == Service.TYPE_CARDDAV && info.type == TYPE_ADDRESSBOOK) ||
-                                    (
-                                            service.type == Service.TYPE_CALDAV &&
-                                                    arrayOf(
-                                                        TYPE_CALENDAR,
-                                                        TYPE_WEBCAL,
-                                                    ).contains(info.type)
-                                            )
+                                    (service.type == Service.TYPE_CALDAV && arrayOf(TYPE_CALENDAR, TYPE_WEBCAL).contains(info.type))
                                 ) {
                                     collections[response.href] = info
                                 }
@@ -505,15 +522,9 @@ class DavService : IntentService("DavService") {
                                     collection.confirmed = true
 
                                     // remove unusable collections
-                                    if ((service.type == Service.TYPE_CARDDAV && collection.type != TYPE_ADDRESSBOOK) ||
-                                        (
-                                                service.type == Service.TYPE_CALDAV &&
-                                                        !arrayOf(
-                                                            TYPE_CALENDAR,
-                                                            TYPE_WEBCAL,
-                                                        ).contains(collection.type)
-                                                ) ||
-                                        (collection.type == TYPE_WEBCAL && collection.source == null)
+                                    if ((service.type == Service.TYPE_CARDDAV && collection.type != TYPE_ADDRESSBOOK)
+                                        || (service.type == Service.TYPE_CALDAV && !arrayOf(TYPE_CALENDAR, TYPE_WEBCAL).contains(collection.type))
+                                        || (collection.type == TYPE_WEBCAL && collection.source == null)
                                     ) {
                                         itCollections.remove()
                                     }
@@ -565,9 +576,11 @@ class DavService : IntentService("DavService") {
                 .notify(serviceId.toString(), NotificationUtils.NOTIFY_REFRESH_COLLECTIONS, notify)
              */
         } finally {
-            runningRefresh.remove(serviceId)
-            refreshingStatusListeners.mapNotNull { it.get() }.forEach {
-                it.onDavRefreshStatusChanged(serviceId, false)
+            synchronized(lock) {
+                runningRefresh.remove(serviceId)
+                refreshingStatusListeners.mapNotNull { it.get() }.forEach {
+                    it.onDavRefreshStatusChanged(serviceId, false)
+                }
             }
         }
     }

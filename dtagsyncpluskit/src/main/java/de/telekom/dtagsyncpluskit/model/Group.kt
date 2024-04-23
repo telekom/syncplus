@@ -34,4 +34,8 @@ data class Group(
     companion object {
         const val ALL_CONTACTS_GROUP_ID = -1L
     }
+
+    override fun toString(): String {
+        return "{$groupId, $name, $numberOfContacts}"
+    }
 }

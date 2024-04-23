@@ -23,6 +23,8 @@ import android.content.ContentResolver
 import android.content.Context
 import android.database.Cursor
 import android.provider.ContactsContract
+import de.telekom.dtagsyncpluskit.BuildConfig
+import de.telekom.dtagsyncpluskit.davx5.log.Logger
 import de.telekom.dtagsyncpluskit.model.Group
 import de.telekom.dtagsyncpluskit.model.Group.Companion.ALL_CONTACTS_GROUP_ID
 import de.telekom.dtagsyncpluskit.model.spica.Address
@@ -99,6 +101,7 @@ class ContactsFetcher(val context: Context) {
                     groups.add(Group(id, title, count))
                 }
             }
+            Logger.log.info("Fetch groups: $groups")
             continuation.resume(groups)
         } catch (e: Throwable) {
             continuation.resumeWithException(e)
@@ -107,6 +110,13 @@ class ContactsFetcher(val context: Context) {
 
     suspend fun allContacts(groupId: Long? = null): List<Contact> = suspendCoroutine { continuation ->
         try {
+            if (BuildConfig.DEBUG) {
+                Logger.log.info("--------------------------------------------------------------------------")
+                Logger.log.info("Fetch all contacts ($groupId)")
+                Logger.log.info("Cached contacts: $mContactsMap")
+                Logger.log.info("Cached groups: $mGroupsMap")
+            }
+
             if (mContactsMap == null || mGroupsMap == null) {
                 refreshCache()
             }
@@ -122,6 +132,10 @@ class ContactsFetcher(val context: Context) {
                 }
             }
             ret.sortWith(compareBy({ it.last }, { it.first }))
+
+            if (BuildConfig.DEBUG) {
+                Logger.log.info("Fetched contacts ($groupId): $ret")
+            }
             continuation.resume(ret)
         } catch (e: Throwable) {
             continuation.resumeWithException(e)
@@ -245,6 +259,12 @@ class ContactsFetcher(val context: Context) {
             null
         )?.use {
             readContacs(it, contacts, groups)
+        }
+
+        if (BuildConfig.DEBUG) {
+            Logger.log.warning("Refrehsing cache...")
+            Logger.log.warning("New cached contacts: $contacts")
+            Logger.log.warning("New cached groups: $groups")
         }
 
         mGroupsMap = groups

@@ -42,9 +42,8 @@ class HelpActivity : BaseActivity(R.layout.help_activity) {
         setContentView(R.layout.help_activity)
         binding.layoutSmallTopbar.backButtonSmall.visibility = View.GONE
         binding.layoutSmallTopbar.backButtonSmall.setOnClickListener {
-            if (HelpFragment.instance?.currentWebView?.goBackInWebView() == true) {
-                return@setOnClickListener
-            }
+            if (tryNavigateInWebView()) return@setOnClickListener
+
             if (!popFragment()) {
                 finish()
             }
@@ -71,5 +70,20 @@ class HelpActivity : BaseActivity(R.layout.help_activity) {
     override fun onFragmentPushed() {
         super.onFragmentPushed()
         binding.layoutSmallTopbar.backButtonSmall.visibility = View.VISIBLE
+    }
+
+    override fun onBackPressed() {
+        if (tryNavigateInWebView()) return
+
+        super.onBackPressed()
+    }
+
+    private fun tryNavigateInWebView(): Boolean {
+        val fragment = supportFragmentManager.findFragmentByTag("WEBVIEW_FRAGMENT")
+        (fragment as? WebViewFragment)?.let {
+            return it.goBackInWebView()
+        }
+
+        return false
     }
 }

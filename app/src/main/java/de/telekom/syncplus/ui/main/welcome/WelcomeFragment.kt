@@ -31,9 +31,8 @@ import de.telekom.dtagsyncpluskit.utils.IDMAccountManager
 import de.telekom.syncplus.R
 import de.telekom.syncplus.databinding.FragmentWelcomeBinding
 import de.telekom.syncplus.ui.dialog.AccountDeletedDialog
-import de.telekom.syncplus.ui.main.login.LoginActivity
 import de.telekom.syncplus.ui.main.intro.IntroActivity
-import de.telekom.syncplus.util.Prefs
+import de.telekom.syncplus.ui.main.login.LoginActivity
 import de.telekom.syncplus.util.viewbinding.viewBinding
 
 class WelcomeFragment : BaseFragment(R.layout.fragment_welcome) {
@@ -61,7 +60,6 @@ class WelcomeFragment : BaseFragment(R.layout.fragment_welcome) {
         savedInstanceState: Bundle?,
     ) {
         super.onViewCreated(view, savedInstanceState)
-        val prefs = Prefs(requireContext())
         activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         val hasAccounts = IDMAccountManager(requireContext())
             .getAccounts()
@@ -80,7 +78,7 @@ class WelcomeFragment : BaseFragment(R.layout.fragment_welcome) {
         }
 
         binding.button1.setOnClickListener {
-            if (!prefs.allTypesPrevSynced) {
+            if (!hasAccounts) {
                 startActivity(Intent(context, IntroActivity::class.java))
             } else {
                 startSetup()

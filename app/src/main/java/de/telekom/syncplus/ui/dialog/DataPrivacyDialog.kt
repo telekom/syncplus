@@ -209,93 +209,96 @@ class DataPrivacyInfoDialog(
         settings.loadWithOverviewMode = true
         settings.textZoom = 100
 
-        webview.webViewClient =
-            object : WebViewClient() {
-                override fun shouldOverrideUrlLoading(
-                    view: WebView?,
-                    request: WebResourceRequest?,
-                ): Boolean {
-                    Log.d("SyncPlus", "shouldOverrideUrlLoading: ${request?.url}")
-                    if (request?.url.toString() == "syncplus://settings") {
-                        dialog?.dismiss()
-                        onDismiss(true)
-                        return true
-                    }
-                    if (request?.url.toString() == "syncplus://settings") {
-                        startActivity(
-                            DataPrivacyDialogActivity.newIntent(requireActivity())
-                                .putExtra("comeFromDeepLink", true),
-                        )
-                        return true
-                    }
-                    if (request?.url.toString() == "mailto:datenschutz@telekom.de") {
-                        val emailIntent =
-                            Intent(Intent.ACTION_SEND).apply {
-                                setDataAndNormalize(Uri.parse("mailto:"))
-                                setTypeAndNormalize("text/plain")
-                                putExtra(Intent.EXTRA_EMAIL, arrayOf("datenschutz@telekom.de"))
-                                putExtra(Intent.EXTRA_SUBJECT, "Hello")
-                                putExtra(Intent.EXTRA_TEXT, "New message")
-                            }
-                        try {
-                            startActivity(
-                                Intent.createChooser(
-                                    emailIntent,
-                                    "Choose Email Client...",
-                                ),
-                            )
-                        } catch (e: Exception) {
-                            // Show error
+        webview.webViewClient = object : WebViewClient() {
+            override fun shouldOverrideUrlLoading(
+                view: WebView?,
+                request: WebResourceRequest?,
+            ): Boolean {
+                Log.d("SyncPlus", "shouldOverrideUrlLoading: ${request?.url}")
+                if (request?.url.toString() == "syncplus://settings") {
+                    dialog?.dismiss()
+                    onDismiss(true)
+                    return true
+                }
+                if (request?.url.toString() == "syncplus://settings") {
+                    startActivity(
+                        DataPrivacyDialogActivity.newIntent(requireActivity())
+                            .putExtra("comeFromDeepLink", true),
+                    )
+                    return true
+                }
+                if (request?.url.toString() == "mailto:datenschutz@telekom.de") {
+                    val emailIntent =
+                        Intent(Intent.ACTION_SEND).apply {
+                            setDataAndNormalize(Uri.parse("mailto:"))
+                            setTypeAndNormalize("text/plain")
+                            putExtra(Intent.EXTRA_EMAIL, arrayOf("datenschutz@telekom.de"))
+                            putExtra(Intent.EXTRA_SUBJECT, "Hello")
+                            putExtra(Intent.EXTRA_TEXT, "New message")
                         }
-                        return true
+                    try {
+                        startActivity(
+                            Intent.createChooser(
+                                emailIntent,
+                                "Choose Email Client...",
+                            ),
+                        )
+                    } catch (e: Exception) {
+                        // Show error
                     }
-
-                    return super.shouldOverrideUrlLoading(view, request)
+                    return true
                 }
 
-                override fun onReceivedError(
-                    view: WebView?,
-                    request: WebResourceRequest?,
-                    error: WebResourceError?,
-                ) {
-                    super.onReceivedError(view, request, error)
-                    Log.e("SyncPlus", "onReceivedError: $request -> $error")
-                }
+                return super.shouldOverrideUrlLoading(view, request)
+            }
 
-                override fun onReceivedHttpError(
-                    view: WebView?,
-                    request: WebResourceRequest?,
-                    errorResponse: WebResourceResponse?,
-                ) {
-                    super.onReceivedHttpError(view, request, errorResponse)
-                    Log.e("SyncPlus", "onReceivedHttpError: $request -> $errorResponse")
-                }
+            override fun onReceivedError(
+                view: WebView?,
+                request: WebResourceRequest?,
+                error: WebResourceError?,
+            ) {
+                super.onReceivedError(view, request, error)
+                Log.e("SyncPlus", "onReceivedError: $request -> $error")
 
-                override fun onLoadResource(
-                    view: WebView?,
-                    url: String?,
-                ) {
-                    super.onLoadResource(view, url)
-                    Log.d("SyncPlus", "onLoadResource: $url")
-                }
-
-                override fun onPageStarted(
-                    view: WebView?,
-                    url: String?,
-                    favicon: Bitmap?,
-                ) {
-                    super.onPageStarted(view, url, favicon)
-                    Log.d("SyncPlus", "onPageStarted: $url")
-                }
-
-                override fun onPageFinished(
-                    view: WebView?,
-                    url: String?,
-                ) {
-                    super.onPageFinished(view, url)
-                    Log.d("SyncPlus", "onPageFinished: $url")
+                if(request?.url == url){
+                    view?.loadUrl(Uri.parse("file:///android_asset/data_protection.html").toString())
                 }
             }
+
+            override fun onReceivedHttpError(
+                view: WebView?,
+                request: WebResourceRequest?,
+                errorResponse: WebResourceResponse?,
+            ) {
+                super.onReceivedHttpError(view, request, errorResponse)
+                Log.e("SyncPlus", "onReceivedHttpError: $request -> $errorResponse")
+            }
+
+            override fun onLoadResource(
+                view: WebView?,
+                url: String?,
+            ) {
+                super.onLoadResource(view, url)
+                Log.d("SyncPlus", "onLoadResource: $url")
+            }
+
+            override fun onPageStarted(
+                view: WebView?,
+                url: String?,
+                favicon: Bitmap?,
+            ) {
+                super.onPageStarted(view, url, favicon)
+                Log.d("SyncPlus", "onPageStarted: $url")
+            }
+
+            override fun onPageFinished(
+                view: WebView?,
+                url: String?,
+            ) {
+                super.onPageFinished(view, url)
+                Log.d("SyncPlus", "onPageFinished: $url")
+            }
+        }
         Log.d("SyncPlus", "loadUrl: $url")
         webview.loadUrl(url.toString())
     }

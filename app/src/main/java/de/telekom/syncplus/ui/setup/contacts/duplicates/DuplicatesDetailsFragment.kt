@@ -20,21 +20,24 @@
 package de.telekom.syncplus.ui.setup.contacts.duplicates
 
 import android.annotation.SuppressLint
-import android.content.Context
 import android.os.Bundle
-import android.os.Parcelable
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageView
-import android.widget.TextView
+import androidx.core.view.isInvisible
+import androidx.core.view.isVisible
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
+import androidx.recyclerview.widget.RecyclerView
 import de.telekom.dtagsyncpluskit.extraNotNull
 import de.telekom.dtagsyncpluskit.model.spica.*
 import de.telekom.dtagsyncpluskit.ui.BaseFragment
-import de.telekom.dtagsyncpluskit.ui.BaseListAdapter
 import de.telekom.syncplus.R
+import de.telekom.syncplus.databinding.ContactDetailHeaderBinding
+import de.telekom.syncplus.databinding.ContactDetailRowBinding
+import de.telekom.syncplus.databinding.DuplicatedContactsListItemBinding
 import de.telekom.syncplus.databinding.FragmentDuplicateContactsListBinding
+import de.telekom.syncplus.extensions.inflater
 import de.telekom.syncplus.util.viewbinding.viewBinding
-import kotlinx.parcelize.Parcelize
 
 class DuplicatesDetailsFragment : BaseFragment(R.layout.fragment_duplicate_contacts_list) {
     override val TAG: String
@@ -54,6 +57,7 @@ class DuplicatesDetailsFragment : BaseFragment(R.layout.fragment_duplicate_conta
 
     private val mDuplicate by extraNotNull<Duplicate>(ARG_DUPLICATE)
     private val binding by viewBinding(FragmentDuplicateContactsListBinding::bind)
+    private val adapter by lazy { DuplicateDetailsAdapter() }
 
     override fun onViewCreated(
         view: View,
@@ -66,10 +70,9 @@ class DuplicatesDetailsFragment : BaseFragment(R.layout.fragment_duplicate_conta
             }
             header.visibility = View.GONE
             acceptButton.visibility = View.GONE
-            list.divider = null
-            list.dividerHeight = 0
-            list.adapter = createAdapter()
+            list.adapter = adapter
         }
+        adapter.submitList(getData())
     }
 
     override fun onStart() {
@@ -78,37 +81,38 @@ class DuplicatesDetailsFragment : BaseFragment(R.layout.fragment_duplicate_conta
         activity?.setTitle(getString(R.string.contact_details_title))
     }
 
-    private fun createAdapter(): DuplicateDetailsAdapter {
+    private fun getData(): List<ContactDetail> {
         val model = ArrayList<ContactDetail>()
         val mergedContact = mDuplicate.mergedContact
         val similarContacts = mDuplicate.similarContacts?.filter { it.fromRequest == false }
         val remoteContacts = similarContacts?.size
-        val info = ContactInfo(
-            mDuplicate.mergedContact?.formatName(),
-            1,
-            remoteContacts ?: 0
+        model.add(
+            ContactDetail.ContactInfo(
+                mDuplicate.mergedContact?.formatName(),
+                1,
+                remoteContacts ?: 0
+            )
         )
-        model.add(ContactDetail(null, null, info))
 
         // Company
         createCompanyData(mergedContact, similarContacts)?.let {
-            model.add(ContactDetail(getString(R.string.company)))
+            model.add(ContactDetail.Header(getString(R.string.company)))
             model.addAll(it)
         }
 
         // Phone
         createPhoneData(mergedContact, similarContacts)?.let {
-            model.add(ContactDetail(getString(R.string.phone)))
+            model.add(ContactDetail.Header(getString(R.string.phone)))
             model.addAll(it)
         }
 
         // Email
         createEmailData(mergedContact, similarContacts)?.let {
-            model.add(ContactDetail(getString(R.string.email)))
+            model.add(ContactDetail.Header(getString(R.string.email)))
             model.addAll(it)
         }
 
-        return DuplicateDetailsAdapter(requireContext(), model)
+        return model
     }
 
     private fun createCompanyData(
@@ -120,10 +124,10 @@ class DuplicatesDetailsFragment : BaseFragment(R.layout.fragment_duplicate_conta
         // val positionString = getString(R.string.position)
 
         val companies = similarContacts?.mapNotNull { it.contact?.company }
-        if (contact?.company != null && (companies != null && companies.isNotEmpty())) {
-            models.add(ContactDetail(row = ContactRow(companyString, contact.company, false)))
+        if (contact?.company != null && !companies.isNullOrEmpty()) {
+            models.add(ContactDetail.ContactRow(companyString, contact.company, false))
             for (company in companies) {
-                models.add(ContactDetail(row = ContactRow(companyString, company, true)))
+                models.add(ContactDetail.ContactRow(companyString, company, true))
             }
         }
 
@@ -150,31 +154,23 @@ class DuplicatesDetailsFragment : BaseFragment(R.layout.fragment_duplicate_conta
         val remoteNumbers =
             similarContacts?.mapNotNull { it.contact?.telephoneNumbers }?.filter { it.isNotEmpty() }
         val phoneNumbers = contact?.telephoneNumbers
-        if (phoneNumbers != null &&
-            phoneNumbers.isNotEmpty() &&
-            remoteNumbers != null &&
-            remoteNumbers.isNotEmpty()
-        ) {
+        if (!phoneNumbers.isNullOrEmpty() && !remoteNumbers.isNullOrEmpty()) {
             for (number in phoneNumbers) {
                 models.add(
-                    ContactDetail(
-                        row = ContactRow(
-                                number.telephoneType?.toLocalized(),
-                                number.number,
-                                false,
-                            ),
+                    ContactDetail.ContactRow(
+                        number.telephoneType?.toLocalized(),
+                        number.number,
+                        false,
                     ),
                 )
             }
             for (numbers in remoteNumbers) {
                 for (number in numbers) {
                     models.add(
-                        ContactDetail(
-                            row = ContactRow(
-                                number.telephoneType?.toLocalized(),
-                                number.number,
-                                true
-                            )
+                        ContactDetail.ContactRow(
+                            number.telephoneType?.toLocalized(),
+                            number.number,
+                            true
                         )
                     )
                 }
@@ -193,32 +189,24 @@ class DuplicatesDetailsFragment : BaseFragment(R.layout.fragment_duplicate_conta
         val remoteEmails =
             similarContacts?.mapNotNull { it.contact?.emails }?.filter { it.isNotEmpty() }
         val emails = contact?.emails
-        if (emails != null
-            && emails.isNotEmpty()
-            && remoteEmails != null
-            && remoteEmails.isNotEmpty()
-        ) {
+
+        if (!emails.isNullOrEmpty() && !remoteEmails.isNullOrEmpty()) {
             for (email in emails) {
                 models.add(
-                    ContactDetail(
-                        row = ContactRow(
-                            email.addressType?.toLocalized(),
-                            email.email,
-                            false
-                        )
+                    ContactDetail.ContactRow(
+                        email.addressType?.toLocalized(),
+                        email.email,
+                        false
                     )
                 )
             }
             for (@Suppress("NAME_SHADOWING") emails in remoteEmails) {
                 for (email in emails) {
                     models.add(
-                        ContactDetail(
-                            row =
-                                ContactRow(
-                                    email.addressType?.toLocalized(),
-                                    email.email,
-                                    true,
-                                ),
+                        ContactDetail.ContactRow(
+                            email.addressType?.toLocalized(),
+                            email.email,
+                            true,
                         ),
                     )
                 }
@@ -250,113 +238,109 @@ class DuplicatesDetailsFragment : BaseFragment(R.layout.fragment_duplicate_conta
         }
     }
 
-    @Parcelize
-    data class ContactInfo(
-        val name: String? = null,
-        val numLocal: Int? = null,
-        val numRemote: Int? = null,
-    ) : Parcelable
+    sealed interface ContactDetail {
+        data class ContactInfo(
+            val name: String? = null,
+            val numLocal: Int? = null,
+            val numRemote: Int? = null,
+        ) : ContactDetail
 
-    @Parcelize
-    data class ContactRow(
-        val title: String? = null,
-        val text: String? = null,
-        val isRemote: Boolean,
-    ) : Parcelable
+        data class ContactRow(
+            val title: String? = null,
+            val text: String? = null,
+            val isRemote: Boolean,
+        ) : ContactDetail
 
-    @Parcelize
-    data class ContactDetail(
-        val header: String? = null,
-        val row: ContactRow? = null,
-        val info: ContactInfo? = null,
-    ) : Parcelable
+        data class Header(
+            val header: String,
+        ) : ContactDetail
+    }
 
-    class DuplicateDetailsAdapter(
-        context: Context,
-        dataSource: List<ContactDetail>,
-    ) : BaseListAdapter<ContactDetail>(context, dataSource) {
+    private class DuplicateDetailsAdapter :
+        ListAdapter<ContactDetail, RecyclerView.ViewHolder>(ContactDetailDiffCallback) {
 
-        private class ViewHolder(view: View?, val viewType: Int) {
-            val title = view?.findViewById<TextView>(R.id.title)
-            val subtitle = view?.findViewById<TextView>(R.id.subtitle)
-            val text = view?.findViewById<TextView>(R.id.text)
-            val icon = view?.findViewById<ImageView>(R.id.icon)
-            val numLocal = view?.findViewById<TextView>(R.id.numLocal)
-            val numRemote = view?.findViewById<TextView>(R.id.numRemote)
-            val arrow = view?.findViewById<ImageView>(R.id.arrow)
+        override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+            when (val item = getItem(position)) {
+                is ContactDetail.Header -> (holder as HeaderViewHolder).bind(item)
+                is ContactDetail.ContactInfo -> (holder as InfoViewHolder).bind(item)
+                is ContactDetail.ContactRow -> (holder as DetailViewHolder).bind(item)
+            }
         }
 
-        @SuppressLint("SetTextI18n")
-        override fun getView(
-            position: Int,
-            convertView: View?,
-            parent: ViewGroup,
-        ): View {
-            val viewHolder: ViewHolder?
-            val rowView: View?
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+            return when (viewType) {
+                0 -> HeaderViewHolder(
+                    ContactDetailHeaderBinding.inflate(parent.inflater, parent, false)
+                )
 
-            val viewType = getItemViewType(position)
-            val layout =
-                when (viewType) {
-                    0 -> R.layout.contact_detail_header
-                    1 -> R.layout.duplicated_contacts_list_item
-                    2 -> R.layout.contact_detail_row
-                    else -> throw IllegalStateException("Unsupported viewType")
-                }
+                1 -> InfoViewHolder(
+                    DuplicatedContactsListItemBinding.inflate(parent.inflater, parent, false)
+                )
 
-            if (convertView == null) {
-                rowView = inflater.inflate(layout, parent, false)
-                viewHolder = ViewHolder(rowView, viewType)
-                rowView.tag = viewHolder
-            } else {
-                rowView = convertView
-                viewHolder = rowView.tag as ViewHolder
+                2 -> DetailViewHolder(
+                    ContactDetailRowBinding.inflate(parent.inflater, parent, false)
+                )
+
+                else -> throw IllegalStateException("Unsupported viewType")
             }
-
-            assert(viewType == viewHolder.viewType)
-
-            when (viewType) {
-                0 -> {
-                    val header = getItem(position).header
-                    viewHolder.title?.text = header
-                }
-                1 -> {
-                    val info = getItem(position).info
-                    viewHolder.title?.text = info?.name
-                    viewHolder.subtitle?.visibility = View.GONE
-                    viewHolder.numLocal?.text = "${info?.numLocal.toString()}x"
-                    viewHolder.numRemote?.text = "${info?.numRemote.toString()}x"
-                    viewHolder.arrow?.visibility = View.INVISIBLE
-                }
-                2 -> {
-                    val row = getItem(position).row
-                    viewHolder.title?.text = row?.title
-                    viewHolder.text?.text = row?.text
-                    viewHolder.icon?.setImageResource(
-                        if (row?.isRemote == true) {
-                            R.drawable.ic_cloud_computing_outline
-                        } else {
-                            R.drawable.ic_smartphone_outline
-                        }
-                    )
-                }
-            }
-
-
-            return rowView!!
-        }
-
-        override fun getViewTypeCount(): Int {
-            return 3
         }
 
         override fun getItemViewType(position: Int): Int {
-            val item = dataSource[position]
-            return when {
-                item.header != null -> 0
-                item.info != null -> 1
-                item.row != null -> 2
-                else -> 0
+            return when (getItem(position)) {
+                is ContactDetail.Header -> 0
+                is ContactDetail.ContactInfo -> 1
+                is ContactDetail.ContactRow -> 2
+                else -> -1
+            }
+        }
+
+        private class HeaderViewHolder(
+            private val binding: ContactDetailHeaderBinding,
+        ) : RecyclerView.ViewHolder(binding.root) {
+
+            fun bind(item: ContactDetail.Header) = with(binding) {
+                title.text = item.header
+            }
+        }
+
+        private class InfoViewHolder(
+            private val binding: DuplicatedContactsListItemBinding,
+        ) : RecyclerView.ViewHolder(binding.root) {
+
+            @SuppressLint("SetTextI18n")
+            fun bind(item: ContactDetail.ContactInfo) = with(binding) {
+                title.text = item.name
+                subtitle.isVisible = false
+                numLocal.text = "${item.numLocal.toString()}x"
+                numRemote.text = "${item.numRemote.toString()}x"
+                arrow.isInvisible = true
+            }
+        }
+
+        private class DetailViewHolder(
+            private val binding: ContactDetailRowBinding,
+        ) : RecyclerView.ViewHolder(binding.root) {
+
+            fun bind(item: ContactDetail.ContactRow) = with(binding) {
+                title.text = item.title
+                text.text = item.text
+                icon.setImageResource(
+                    if (item.isRemote) {
+                        R.drawable.ic_cloud_computing_outline
+                    } else {
+                        R.drawable.ic_smartphone_outline
+                    }
+                )
+            }
+        }
+
+        private object ContactDetailDiffCallback : DiffUtil.ItemCallback<ContactDetail>() {
+            override fun areItemsTheSame(oldItem: ContactDetail, newItem: ContactDetail): Boolean {
+                return oldItem::class == newItem::class
+            }
+
+            override fun areContentsTheSame(oldItem: ContactDetail, newItem: ContactDetail): Boolean {
+                return oldItem == newItem
             }
         }
     }

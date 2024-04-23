@@ -20,6 +20,7 @@
 package de.telekom.syncplus.ui.setup.calendar
 
 import android.accounts.Account
+import android.content.Context
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
@@ -65,12 +66,16 @@ class SetupCalendarFragment : BaseFragment(R.layout.fragment_setup_calendar) {
         }
     }
 
+    override fun onAttach(context: Context) {
+        super.onAttach(context)
+        fetchCollections()
+    }
+
     override fun onViewCreated(
         view: View,
         savedInstanceState: Bundle?,
     ) {
         super.onViewCreated(view, savedInstanceState)
-        viewModel.viewEvent(SetupContract.ViewEvent.SetCurrentStep(3))
 
         binding.nextButton.isEnabled = false
         binding.nextButton.setOnClickListener {
@@ -78,18 +83,9 @@ class SetupCalendarFragment : BaseFragment(R.layout.fragment_setup_calendar) {
         }
         binding.list.adapter = adapter
 
-        viewModel.fetcher.observe(viewLifecycleOwner) { fetcher ->
-            fetcher?.collections?.removeObservers(viewLifecycleOwner)
-            fetcher?.collections?.observe(viewLifecycleOwner) { collections ->
-                adapter.submitList(AccountSettingsFragment.sortCalendarCollections(collections.toList())) {
-                    if (getView() != null) {
-                        binding.nextButton.isEnabled = true
-                    }
-                }
-            }
-        }
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                launch { viewModel.state.collect(::handleState) }
                 launch { viewModel.action.collect(::handleAction) }
                 launch { viewModel.navigation.collect(::handleNavigation) }
             }
@@ -99,8 +95,6 @@ class SetupCalendarFragment : BaseFragment(R.layout.fragment_setup_calendar) {
             ServiceDiscoveryErrorDialog.ACTION_RETRY_SERVICE_DISCOVERY,
             viewLifecycleOwner,
         ) { _, _ -> discoverServices() }
-
-        fetchCollections()
     }
 
     override fun onStart() {
@@ -114,6 +108,14 @@ class SetupCalendarFragment : BaseFragment(R.layout.fragment_setup_calendar) {
                 large = false
             )
         )
+    }
+
+    private fun handleState(state: SetupContract.State) {
+        val currentStep = if (state.isContactsEnabled) 3 else 2
+        viewModel.viewEvent(SetupContract.ViewEvent.SetCurrentStep(currentStep))
+
+        binding.nextButton.isEnabled = !state.calendars.isNullOrEmpty()
+        adapter.submitList(state.calendars)
     }
 
     private fun handleAction(action: SetupContract.Action) {

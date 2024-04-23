@@ -32,9 +32,6 @@ import android.provider.ContactsContract
 import androidx.annotation.WorkerThread
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.switchMap
-import androidx.paging.PagedList
-import androidx.paging.toLiveData
 import de.telekom.dtagsyncpluskit.BuildConfig
 import de.telekom.dtagsyncpluskit.api.ServiceEnvironments
 import de.telekom.dtagsyncpluskit.davx5.model.AppDatabase
@@ -43,6 +40,7 @@ import de.telekom.dtagsyncpluskit.davx5.model.Service
 import de.telekom.dtagsyncpluskit.davx5.settings.AccountSettings
 import de.telekom.dtagsyncpluskit.davx5.syncadapter.DavService
 import de.telekom.dtagsyncpluskit.utils.CountlyWrapper
+import kotlinx.coroutines.flow.Flow
 import java.io.Closeable
 import java.util.concurrent.Executors
 
@@ -50,7 +48,7 @@ import java.util.concurrent.Executors
 class CollectionFetcher(
     private val context: Context,
     private val account: Account,
-    id: Long,
+    val serviceId: Long,
     private val collectionType: String,
     private val onUnauthorized: (account: Account) -> Unit,
 ) : Closeable, DavService.RefreshingStatusListener, SyncStatusObserver {
@@ -61,15 +59,9 @@ class CollectionFetcher(
     private val _isRefreshing = MutableLiveData<Boolean>()
     private val _isSyncActive = MutableLiveData<Boolean>()
     private val _isSyncPending = MutableLiveData<Boolean>()
-    private val _serviceId = MutableLiveData(id)
     val isRefreshing: LiveData<Boolean> = _isRefreshing
     val isSyncActive: LiveData<Boolean> = _isSyncActive
     val isSyncPending: LiveData<Boolean> = _isSyncPending
-    val serviceId: LiveData<Long> = _serviceId
-    val collections: LiveData<PagedList<Collection>> =
-        serviceId.switchMap { service ->
-            mDB.collectionDao().pageByServiceAndType(service, collectionType).toLiveData(25)
-        }
 
     @Volatile
     private var mDavService: DavService.InfoBinder? = null
@@ -115,9 +107,11 @@ class CollectionFetcher(
     }
 
     fun refresh(isSyncEnabled: Boolean) {
-        serviceId.value?.let { serviceId ->
-            DavService.refreshCollections(context, serviceId, isSyncEnabled)
-        }
+        DavService.refreshCollections(context, serviceId, isSyncEnabled)
+    }
+
+    fun observeCollections(): Flow<List<Collection>> {
+        return mDB.collectionDao().flowByServiceAndType(serviceId, collectionType)
     }
 
     // DavService.RefreshingStatusListener
@@ -126,7 +120,7 @@ class CollectionFetcher(
         id: Long,
         refreshing: Boolean,
     ) {
-        if (serviceId.value == id) {
+        if (serviceId == id) {
             _isRefreshing.postValue(refreshing)
         }
     }

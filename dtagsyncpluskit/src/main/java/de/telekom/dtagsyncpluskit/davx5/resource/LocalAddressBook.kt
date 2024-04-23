@@ -267,7 +267,7 @@ class LocalAddressBook(
         }
         val nowReadOnly = !info.privWriteContent || info.forceReadOnly
         if (nowReadOnly != readOnly) {
-            Constants.log.info("Address book now read-only = $nowReadOnly, updating contacts")
+            Logger.log.info("Address book now read-only = $nowReadOnly, updating contacts")
 
             // update address book itself
             readOnly = nowReadOnly

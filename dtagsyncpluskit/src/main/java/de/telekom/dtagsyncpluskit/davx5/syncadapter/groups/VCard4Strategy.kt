@@ -49,6 +49,7 @@ class VCard4Strategy(val addressBook: LocalAddressBook) : ContactGroupStrategy {
     }
 
     override fun postProcess() {
+        Logger.log.warning("PostProcess of VCard4Strategy")
         LocalGroup.applyPendingMemberships(addressBook)
     }
 

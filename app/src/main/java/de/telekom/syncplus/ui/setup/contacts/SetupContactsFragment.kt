@@ -69,7 +69,6 @@ class SetupContactsFragment : BaseFragment(R.layout.fragment_setup_contacts) {
                 val results = it.data?.parcelableArrayList<Group>(ContactsActivity.EXTRA_RESULT)
                 Logger.log.finest("Results: $results")
                 viewModel.viewEvent(SetupContract.ViewEvent.SetSelectedGroups(results ?: listOf()))
-//                    updateSelection(results)
             }
         }
     }
@@ -124,8 +123,8 @@ class SetupContactsFragment : BaseFragment(R.layout.fragment_setup_contacts) {
         }
     }
 
-    private fun handleNavigation(navigation: SetupContract.Navigation){
-        when(navigation){
+    private fun handleNavigation(navigation: SetupContract.Navigation) {
+        when (navigation) {
             is SetupContract.Navigation.NavigateToNextStep -> goNext(navigation)
         }
     }
@@ -193,37 +192,6 @@ class SetupContactsFragment : BaseFragment(R.layout.fragment_setup_contacts) {
             binding.dropdown.text = getString(R.string.all_contacts)
         }
     }
-//
-//    override fun onActivityResult(
-//        requestCode: Int,
-//        resultCode: Int,
-//        data: Intent?,
-//    ) {
-//        super.onActivityResult(requestCode, resultCode, data)
-//
-//        when (requestCode) {
-//            ContactsActivity.SELECTED_ADDRESS_BOOKS -> {
-//                if (resultCode == Activity.RESULT_OK) {
-//                    val results = data?.parcelableArrayList<Group>(ContactsActivity.EXTRA_RESULT)
-//                    Logger.log.finest("Results: $results")
-//                    viewModel.viewEvent(SetupContract.ViewEvent.SetSelectedGroups(results ?: listOf()))
-////                    updateSelection(results)
-//                }
-//            }
-//
-//            ContactsCopyActivity.RESULTS -> {
-//                when (resultCode) {
-//                    Activity.RESULT_OK -> {
-//                        viewModel.viewEvent(SetupContract.ViewEvent.TryToGoNextStep)
-//                    }
-//
-//                    Activity.RESULT_CANCELED -> {
-//                        // Stay here.
-//                    }
-//                }
-//            }
-//        }
-//    }
 
     private fun goNext(action: SetupContract.Navigation.NavigateToNextStep) {
         // Sync contacts.

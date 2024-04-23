@@ -22,6 +22,8 @@ package de.telekom.dtagsyncpluskit.utils
 import android.content.Intent
 import android.net.Uri
 import de.telekom.dtagsyncpluskit.ui.BaseFragment
+import okhttp3.Request
+import okio.Buffer
 
 fun openPlayStore(
     fragment: BaseFragment?,
@@ -43,5 +45,16 @@ fun openPlayStore(
         } else {
             fragment?.startActivityForResult(Intent(Intent.ACTION_VIEW, uri), resultCode)
         }
+    }
+}
+
+internal fun Request.getBodyAsString(): String {
+    return try{
+        val requestCopy = this.newBuilder().build()
+        val buffer = Buffer()
+        requestCopy.body?.writeTo(buffer)
+        buffer.readUtf8()
+    } catch (t: Throwable){
+        ""
     }
 }

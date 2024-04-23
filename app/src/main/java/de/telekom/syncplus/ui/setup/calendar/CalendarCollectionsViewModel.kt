@@ -5,8 +5,6 @@ import android.app.Application
 import android.provider.CalendarContract
 import android.provider.ContactsContract
 import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import de.telekom.dtagsyncpluskit.api.ServiceEnvironments
 import de.telekom.dtagsyncpluskit.davx5.model.AppDatabase
@@ -15,21 +13,28 @@ import de.telekom.dtagsyncpluskit.davx5.model.Service
 import de.telekom.dtagsyncpluskit.utils.IDMAccountManager
 import de.telekom.dtagsyncpluskit.xdav.CollectionFetcher
 import de.telekom.syncplus.dav.DavNotificationUtils
+import de.telekom.syncplus.ui.main.account.AccountSettingsFragment
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class CalendarCollectionsViewModel(private val app: Application) : AndroidViewModel(app) {
     private val mDB = AppDatabase.getInstance(app)
     private val accountManager by lazy {
         IDMAccountManager(app)
     }
-    private val _fetcher = MutableLiveData<CollectionFetcher?>(null)
     private val _showError = MutableSharedFlow<Unit>()
-    val fetcher: LiveData<CollectionFetcher?> = _fetcher
     val showError: SharedFlow<Unit> = _showError.asSharedFlow()
+    private val _state = MutableStateFlow<List<Collection>>(emptyList())
+    val state: StateFlow<List<Collection>> = _state.asStateFlow()
+
+    private var collectionFetcher: CollectionFetcher? = null
 
     fun discoverServices(
         account: Account,
@@ -74,16 +79,29 @@ class CalendarCollectionsViewModel(private val app: Application) : AndroidViewMo
                 return@launch
             }
 
-            val newFetcher = CollectionFetcher(
-                app,
-                account,
-                serviceId,
-                collectionType,
-            ) {
-                DavNotificationUtils.showReloginNotification(app, authority, it)
+            withContext(Dispatchers.Main) {
+                collectionFetcher = CollectionFetcher(
+                    app,
+                    account,
+                    serviceId,
+                    collectionType,
+                ) {
+                    DavNotificationUtils.showReloginNotification(app, authority, it)
+                }
+
+                collectionFetcher?.refresh(isSyncEnabled)
+                observeCollections()
             }
-            newFetcher.refresh(isSyncEnabled)
-            _fetcher.postValue(newFetcher)
+        }
+    }
+
+    private fun observeCollections() {
+        viewModelScope.launch {
+            collectionFetcher
+                ?.observeCollections()
+                ?.collect {
+                    _state.emit(AccountSettingsFragment.sortCalendarCollections(it))
+                }
         }
     }
 
@@ -93,17 +111,17 @@ class CalendarCollectionsViewModel(private val app: Application) : AndroidViewMo
     ) = viewModelScope.launch(Dispatchers.IO) {
         val newItem = item.copy(sync = enabled)
         mDB.collectionDao().update(newItem)
-        item.sync = enabled // also update the collection item
+//        item.sync = enabled // also update the collection item
     }
 
     fun enableSync(enabled: Boolean) {
         viewModelScope.launch(Dispatchers.IO) {
-            val serviceId = fetcher.value?.serviceId?.value ?: return@launch
+            val serviceId = collectionFetcher?.serviceId ?: return@launch
             mDB.collectionDao().getByServiceAndType(serviceId, Collection.TYPE_CALENDAR)
                 .forEach { item ->
                     val newItem = item.copy(sync = enabled)
                     mDB.collectionDao().update(newItem)
-                    item.sync = enabled // also update the collection item
+//                    item.sync = enabled // also update the collection item
                 }
         }
     }

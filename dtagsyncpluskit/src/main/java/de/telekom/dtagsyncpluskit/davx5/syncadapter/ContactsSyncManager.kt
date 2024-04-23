@@ -263,6 +263,7 @@ class ContactsSyncManager(
                 else -> throw IllegalArgumentException("resource must be LocalContact or LocalGroup")
             }
 
+            Logger.log.info("GenerateUpload: $resource")
             Logger.log.log(Level.FINE, "Preparing upload of vCard ${resource.fileName}", contact)
 
             val os = ByteArrayOutputStream()

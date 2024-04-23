@@ -245,19 +245,10 @@ class AccountSettingsFragment : BaseFragment(R.layout.fragment_accounts_settings
             }, 2500)
         }
 
-        viewModel.fetcher.observe(viewLifecycleOwner) { fetcher ->
-            fetcher?.collections?.removeObservers(viewLifecycleOwner)
-            fetcher?.collections?.observe(viewLifecycleOwner) { collections ->
-                val adapter = binding.calendarList.adapter as? CalendarAdapter
-                adapter?.dataSource = sortCalendarCollections(collections.toList())
-                adapter?.notifyDataSetChanged()
-                setListOpened(getAccountSettings(mAccount).isCalendarSyncEnabled())
-            }
-        }
-
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                viewModel.showError.collect { showErrorDialog() }
+                launch { viewModel.showError.collect { showErrorDialog() } }
+                launch { viewModel.state.collect { handleState(it) } }
             }
         }
 
@@ -284,8 +275,15 @@ class AccountSettingsFragment : BaseFragment(R.layout.fragment_accounts_settings
         viewModel.fetch(
             mAccount,
             Collection.TYPE_CALENDAR,
-            isSyncEnabled = false, // Rely only on stored values to not change its sync state forcefully
+            isSyncEnabled = true, // Rely only on stored values to not change its sync state forcefully
         )
+    }
+
+    private fun handleState(state: List<Collection>) {
+        val adapter = binding.calendarList.adapter as? CalendarAdapter
+        adapter?.dataSource = sortCalendarCollections(state.toList())
+        adapter?.notifyDataSetChanged()
+        setListOpened(getAccountSettings(mAccount).isCalendarSyncEnabled())
     }
 
     private fun getAccountSettings(account: Account): AccountSettings {
@@ -508,6 +506,7 @@ class AccountSettingsFragment : BaseFragment(R.layout.fragment_accounts_settings
 
             val item = getItem(position)
             viewHolder.titleTextView?.text = item.title()
+            viewHolder.checkView?.setOnCheckedChangeListener(null)
             viewHolder.checkView?.isChecked = item.sync
             viewHolder.checkView?.setOnCheckedChangeListener { _, isChecked ->
                 viewModel.enableSync(item, isChecked)

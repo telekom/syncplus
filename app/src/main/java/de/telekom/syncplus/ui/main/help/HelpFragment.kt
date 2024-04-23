@@ -57,13 +57,8 @@ class HelpFragment : BaseFragment(R.layout.fragment_listview) {
     override val TAG: String
         get() = "HELP_FRAGMENT"
 
-    var currentWebView: WebViewFragment? = null
-
     companion object {
         fun newInstance() = HelpFragment()
-
-        @SuppressLint("StaticFieldLeak")
-        var instance: HelpFragment? = null
     }
 
     private var mTitleView: TextView? = null
@@ -72,13 +67,7 @@ class HelpFragment : BaseFragment(R.layout.fragment_listview) {
     @SuppressLint("SetTextI18n")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        instance = this
         mTitleView?.text = "No title"
-    }
-
-    override fun onDestroy() {
-        instance = null
-        super.onDestroy()
     }
 
     override fun onViewCreated(
@@ -128,27 +117,36 @@ class HelpFragment : BaseFragment(R.layout.fragment_listview) {
                             Uri.parse("https://kommunikationsdienste.t-online.de/redirect/syncplus/help")
                         mTitleView?.text = getString(R.string.help_for_syncplus)
 
-                        push(R.id.container, WebViewFragment.newInstance(url, this))
+                        push(R.id.container, WebViewFragment.newInstance(url))
                     }
+
                     2 -> {
                         // So erreichen Sie uns
                         mTitleView?.text = getString(R.string.contact)
                         // mTitleView?.text = getString(R.string.contact)
                         push(R.id.container, ContactUsFragment.newInstance())
                     }
+
                     3 -> {
                         // Feedback
                         // mTitleView?.text = getString(R.string.feedback)
                         mTitleView?.text = getString(R.string.feedback)
                         push(R.id.container, FeedbackFragment.newInstance())
                     }
+
                     5 -> {
                         // Datenschutz
-                        val url =
-                            Uri.parse("https://kommunikationsdienste.t-online.de/redirect/syncplus-aos/dataprivacy")
+                        val url = Uri.parse(getString(R.string.data_privacy_url))
                         mTitleView?.text = getString(R.string.datasecurity)
-                        push(R.id.container, WebViewFragment.newInstance(url, this))
+                        push(
+                            R.id.container,
+                            WebViewFragment.newInstance(
+                                url,
+                                fallback = Uri.parse("file:///android_asset/data_protection.html")
+                            )
+                        )
                     }
+
                     6 -> {
                         // Datenschutz-Einstellungen
                         startActivity(
@@ -156,6 +154,7 @@ class HelpFragment : BaseFragment(R.layout.fragment_listview) {
                                 .putExtra("comeFromDeepLink", true),
                         )
                     }
+
                     7 -> {
                         // Impressum
                         val url =
@@ -163,20 +162,22 @@ class HelpFragment : BaseFragment(R.layout.fragment_listview) {
 
                         mTitleView?.text = getString(R.string.imprint)
 
-                        push(R.id.container, WebViewFragment.newInstance(url, this))
+                        push(R.id.container, WebViewFragment.newInstance(url))
                     }
+
                     8 -> {
                         // Rechtliches
                         val url =
                             Uri.parse("https://kommunikationsdienste.t-online.de/redirect/syncplus/legal")
                         mTitleView?.text = getString(R.string.legal)
-                        push(R.id.container, WebViewFragment.newInstance(url, this))
+                        push(R.id.container, WebViewFragment.newInstance(url))
                     }
+
                     9 -> {
                         // Lizenzen
                         val url = Uri.parse("file:///android_asset/osdf-git.html")
                         mTitleView?.text = getString(R.string.licenses)
-                        push(R.id.container, WebViewFragment.newInstance(url, this))
+                        push(R.id.container, WebViewFragment.newInstance(url))
                     }
                 }
             }
@@ -233,10 +234,12 @@ class HelpAdapter(
             HelpModel.SECTION -> {
                 viewHolder.title?.text = item.text
             }
+
             HelpModel.ITEM -> {
                 viewHolder.title?.text = item.text
                 viewHolder.iconView?.setImageResource(item.icon!!)
             }
+
             HelpModel.INFO -> {
                 val appVersion = getAppVersion()
                 viewHolder.version?.text =

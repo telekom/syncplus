@@ -32,6 +32,7 @@ class CategoriesStrategy(val addressBook: LocalAddressBook): ContactGroupStrateg
     }
 
     override fun postProcess() {
+        Logger.log.warning("PostProcess of CategoriesStrategy")
         Logger.log.info("Removing empty groups")
         addressBook.removeEmptyGroups()
     }

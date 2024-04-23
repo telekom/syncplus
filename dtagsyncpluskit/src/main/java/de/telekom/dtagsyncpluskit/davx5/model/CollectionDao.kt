@@ -24,7 +24,10 @@ import androidx.paging.DataSource
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
+import androidx.room.OnConflictStrategy.Companion.REPLACE
 import androidx.room.Query
+import androidx.room.Update
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface CollectionDao : SyncableDao<Collection> {
@@ -46,13 +49,15 @@ interface CollectionDao : SyncableDao<Collection> {
      *   - have supportsVEVENT = supportsVTODO = null (= address books)
      */
     @Query(
-        "SELECT * FROM collection WHERE serviceId=:serviceId AND type=:type " +
-            "AND (supportsVTODO OR supportsVEVENT OR (supportsVEVENT IS NULL AND supportsVTODO IS NULL)) ORDER BY displayName, URL",
+        """SELECT * FROM collection WHERE serviceId=:serviceId AND type=:type
+           AND (supportsVTODO OR supportsVEVENT OR (supportsVEVENT IS NULL AND supportsVTODO IS NULL))
+           ORDER BY displayName, URL
+           """,
     )
-    fun pageByServiceAndType(
+    fun flowByServiceAndType(
         serviceId: Long,
-        type: String,
-    ): DataSource.Factory<Int, Collection>
+        type: String
+    ): Flow<List<Collection>>
 
     @Query("SELECT * FROM collection WHERE serviceId=:serviceId AND sync")
     fun getByServiceAndSync(serviceId: Long): List<Collection>
@@ -78,9 +83,12 @@ interface CollectionDao : SyncableDao<Collection> {
     )
     fun getSyncTaskLists(serviceId: Long): List<Collection>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = REPLACE)
     fun insertOrReplace(collection: Collection)
 
     @Insert
     fun insert(collection: Collection)
+
+    @Update(onConflict = REPLACE)
+    override fun update(item: Collection)
 }

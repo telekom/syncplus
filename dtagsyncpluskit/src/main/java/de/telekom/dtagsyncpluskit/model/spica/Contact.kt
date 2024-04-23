@@ -80,6 +80,10 @@ data class Contact(
         return result
     }
 
+    override fun toString(): String {
+        return "{ID: $contactId, $first, $last ($groups)}"
+    }
+
     fun formatName(defaultName: String = ""): String {
         return when {
             first != null && last != null -> {

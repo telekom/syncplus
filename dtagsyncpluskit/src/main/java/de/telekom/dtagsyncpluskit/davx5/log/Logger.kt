@@ -23,6 +23,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
+import at.bitfire.vcard4android.Constants
 import de.telekom.dtagsyncpluskit.utils.CountlyWrapper
 import java.io.File
 import java.io.IOException
@@ -33,6 +34,7 @@ import java.util.logging.Logger
 @SuppressLint("StaticFieldLeak")
 object Logger : SharedPreferences.OnSharedPreferenceChangeListener {
     val log: Logger = Logger.getLogger("SyncPlus")
+    private val cardLogger: Logger = Logger.getLogger("vcard4android")
 
     private const val LOG_TO_FILE = "log_to_file"
     private lateinit var context: Context
@@ -76,6 +78,7 @@ object Logger : SharedPreferences.OnSharedPreferenceChangeListener {
         rootLogger.useParentHandlers = false
         rootLogger.handlers.forEach { rootLogger.removeHandler(it) }
         rootLogger.addHandler(LogcatHandler)
+        cardLogger.addHandler(LogcatHandler)
 
         // log to external file according to preferences
         if (logToFile) {
@@ -86,6 +89,7 @@ object Logger : SharedPreferences.OnSharedPreferenceChangeListener {
                 val fileHandler = FileHandler(logFile.toString(), true)
                 fileHandler.formatter = PlainTextFormatter.DEFAULT
                 rootLogger.addHandler(fileHandler)
+                cardLogger.addHandler(fileHandler)
             } catch (e: IOException) {
                 CountlyWrapper.recordHandledException(e)
                 log.log(Level.SEVERE, "Couldn't create log file", e)
